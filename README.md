@@ -1,6 +1,6 @@
 # Bellows
 
-Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request and forwards the request to AI models. Point any OpenAI client at it, pay with eCash, and it forwards the request to a pluggable upstream supplier. Licensed Apache-2.0.
+Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request and forwards the request to AI models. Point any OpenAI client at it, pay with eCash, and it forwards the request to a pluggable upstream supplier. Licensed MIT.
 
 Bellows started as the engine inside Forge AI, which remains an example deployment, and is extracted here so anyone can run one. Its goal is to be **operator-blind**: the person who runs a Bellows learns nothing worth taking from it. That work is in progress; [docs/DESIGN.md](docs/DESIGN.md) has the plan and states what each step hides and what stays visible. This release is the standalone engine. It keeps every secret in one secrets source and can refuse to run unless its database sits on an encrypted volume ([Secrets and sealed state](#secrets-and-sealed-state)), but it does not yet run in sealed hardware, so today the operator of a Bellows can read plaintext requests in memory and can read its database. Encrypted requests to enclave models (below) are unreadable to the gateway already.
 
@@ -19,7 +19,7 @@ Bellows serves the API only. It has no web page; client apps (a chat app, an age
 
 | | Bellows | Routstr (routstr-core, checked 2026-11-09) |
 | - | - | - |
-| License | Apache-2.0 | GPL-3.0 |
+| License | MIT | GPL-3.0 |
 | Units | USD eCash (`usd`, cents) and bitcoin eCash (`sat`). USD balances stay in USD, metered in milli-cents | Balances and 402 amounts in msat |
 | Prices | Set in USD per million tokens; sat prices derive from a median BTC/USD rate | USD upstream prices converted to sats with an exchange buffer |
 | Per-request payment | NUT-24: 402 with a NUT-18 `creqA` request, `X-Cashu` token, change returned | `X-Cashu` token header; its 402 body is a custom JSON error format |
@@ -401,4 +401,4 @@ The e2e suite covers the 402 flow with change, sat pricing, topup, spend, refund
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

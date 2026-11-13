@@ -2,7 +2,7 @@
   "name": "bellows",
   "version": "0.1.0",
   "description": "Operator-blind, OpenAI-compatible AI gateway paid per request with Cashu eCash",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "engines": {
