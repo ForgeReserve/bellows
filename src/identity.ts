@@ -1,8 +1,8 @@
 /**
  * Enclave identity (docs/DESIGN.md, S4). At boot Bellows makes an HPKE key pair in memory, writes a
- * statement (version, claimed measurement, key configuration, relays, operator announcement), asks the
- * platform's attester for an attestation that binds the statement's hash, and serves the result at
- * /.well-known/bellows. The private key never leaves memory and is new on every boot.
+ * statement (version, claimed measurement, key configuration, relays, operator announcement, storage),
+ * asks the platform's attester for an attestation that binds the statement's hash, and serves the result
+ * at /.well-known/bellows. The private key never leaves memory and is new on every boot.
  *
  * The attestation is made again every BELLOWS_ATTEST_REFRESH_MINUTES (platform collateral such as freshness
  * witnesses ages), over the same statement. While a refresh fails, the last good document is served.
@@ -11,7 +11,7 @@ import { createHash, generateKeyPairSync, type KeyObject, randomInt } from 'node
 import { toBase64 } from '../client/bytes.ts';
 import type { Measurement } from '../client/builds.ts';
 import { AEAD_AES_128_GCM, encodeKeyConfig, KDF_HKDF_SHA256, KEM_X25519_HKDF_SHA256, type KeyConfig } from '../client/hpke.ts';
-import { type AttestationDocument, bindingFor, encodeStatement, IDENTITY_FORMAT, type IdentityDocument, type Statement } from '../client/identity.ts';
+import { type AttestationDocument, bindingFor, encodeStatement, IDENTITY_FORMAT, type IdentityDocument, type Statement, type Storage } from '../client/identity.ts';
 import { devAttester } from './attest/dev.ts';
 import { AttestationUnavailable, tinfoilAttester } from './attest/tinfoil.ts';
 import type { Config } from './config.ts';
@@ -50,6 +50,8 @@ export interface IdentityOptions {
   measurement: Measurement | null;
   relays: string[];
   operator: unknown;
+  /** Where balances are kept (BELLOWS_STORAGE). Default: volume. */
+  storage?: Storage;
   /** Make the attestation again after this long. */
   refreshMs: number;
   /** After a failed attestation, wait this long before trying again (requests meanwhile get 503). */
@@ -94,6 +96,7 @@ export class Identity {
       hpke: { key_config: toBase64(pair.keyConfig) },
       relays: [...o.relays],
       operator: o.operator ?? null,
+      storage: o.storage ?? 'volume',
     };
     this.statementBytes = encodeStatement(this.statement);
   }
@@ -185,6 +188,7 @@ export function createIdentity(config: Config, attester: Attester = configuredAt
     measurement: config.buildMeasurement,
     relays: config.env.BELLOWS_RELAYS,
     operator: config.operatorAnnouncement,
+    storage: config.storage,
     refreshMs: config.env.BELLOWS_ATTEST_REFRESH_MINUTES * 60_000,
   });
 }

@@ -103,6 +103,7 @@ function logStartup(config: Config, walletSeed: WalletSeedSource, identity: Iden
     secrets_file_created: config.pendingSecretsFile ? true : undefined,
     db_path: config.env.BELLOWS_DB_PATH,
     sealed_mount: config.sealedMount,
+    storage: config.storage,
     wallet_seed: walletSeed,
     admin_api: config.adminTokenHash ? 'on' : 'off',
     version: config.version,

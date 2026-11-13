@@ -354,7 +354,8 @@ The statement, decoded:
   "measurement": { "type": "<format URI>", "registers": ["<lowercase hex>"] },
   "hpke": { "key_config": "<base64 RFC 9458 key configuration>" },
   "relays": ["https://relay.example/relay/bellows.example"],
-  "operator": null
+  "operator": null,
+  "storage": "volume"
 }
 ```
 
@@ -362,11 +363,12 @@ The statement, decoded:
 - `hpke.key_config` is the RFC 9458 key configuration (section 3.1): key id, KEM `0x0020` (X25519), the 32-byte public key, and HKDF-SHA256 with AES-128-GCM. The key is made at boot, lives only in memory and is new on every restart.
 - `relays` are the Oblivious HTTP relay URLs for this Bellows, in the operator's order.
 - `operator` is the operator's signed announcement ([below](#operator-announcement)) or `null`.
+- `storage` is where balances are kept. `volume`: on the encrypted volume. `memory`: in memory inside the sealed machine, so every restart of the Bellows loses every balance. A statement without it comes from an older Bellows and means `volume`.
 - The attestation binds `SHA-256("bellows-identity/v1" || 0x00 || statement bytes)`. The statement travels as base64 so both sides hash the same bytes. Anyone in front of the sealed machine who changes the key, a relay or the announcement breaks the binding.
 - Attestation `format` is `https://tinfoil.sh/predicate/attestation/v3` on Tinfoil, or `urn:bellows:attestation:dev:v1` for the development stand-in, which proves nothing and which clients refuse unless they opt in.
 - Until the first attestation succeeds, the answer is `503 not_attested` with `Retry-After`.
 
-`verifyBellows(url, {approvedBuilds, verifier})` in the client library fetches this document, checks the attestation with the app's verifier, and finds the proved measurement in `builds.json`. It returns the attested key configuration (`keyConfig`), the approved build, the proved measurement, the relays and the operator announcement, or throws `BellowsVerifyError` with a stable `code`. If it throws, send nothing. [ATTESTATION.md](ATTESTATION.md) has each check. It reads the document directly from the Bellows, so the operator sees the client's address on that request. To keep it hidden, pass a `fetch` in the options that sends through Tor (`verifyBellows(url, {approvedBuilds, verifier, fetch})`).
+`verifyBellows(url, {approvedBuilds, verifier})` in the client library fetches this document, checks the attestation with the app's verifier, and finds the proved measurement in `builds.json`. It returns the attested key configuration (`keyConfig`), the approved build, the proved measurement, the relays, the operator announcement and `storage`, or throws `BellowsVerifyError` with a stable `code`. If it throws, send nothing. [ATTESTATION.md](ATTESTATION.md) has each check. It reads the document directly from the Bellows, so the operator sees the client's address on that request. To keep it hidden, pass a `fetch` in the options that sends through Tor (`verifyBellows(url, {approvedBuilds, verifier, fetch})`).
 
 ### `builds.json`
 

@@ -46,6 +46,10 @@ networks:
 volumes:
   # The encrypted volume. Its key is a private secret your keyserver releases at every boot; Tinfoil
   # never holds it. Back the key up offline before you write anything to the volume (docs/OPERATE.md).
+  #
+  # No volume yet? BELLOWS_STORAGE: "memory" runs Bellows with the database on a tmpfs instead: drop this
+  # block, persistent_volumes and the volume key, and point BELLOWS_SEALED_MOUNTS and BELLOWS_DB_PATH at the
+  # tmpfs. Every restart then loses every balance (docs/OPERATE.md, Running without a volume).
   - name: data
     key-secret: BELLOWS_DATA_VOLUME_KEY
     owner: "1000:1000"

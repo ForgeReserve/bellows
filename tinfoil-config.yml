@@ -1,9 +1,15 @@
+# THIS DEPLOYMENT KEEPS BALANCES IN MEMORY. Tinfoil has not enabled encrypted volumes for us yet, so the
+# database lives on a tmpfs inside the sealed machine (BELLOWS_STORAGE: "memory"). Every restart loses every
+# balance. Keep only what you are about to spend here and withdraw what you do not use. The encrypted volume
+# returns in a later release. /.well-known/bellows says "storage": "memory" while this lasts.
+#
 # Bellows on Tinfoil Containers. Tinfoil measures tinfoil-config.yml at the repository root at each
 # release tag and publishes the measurement, so every line here is part of what clients verify. Step by
 # step: docs/OPERATE.md.
 #
 # deploy/tinfoil-config.example.yml is the template, and tinfoil-config.yml starts as a copy of it. Edit
-# tinfoil-config.yml, your deployment, and leave the template as it is.
+# tinfoil-config.yml, your deployment, and leave the template as it is. This file departs from the
+# template only to run without a volume (docs/OPERATE.md, Running without a volume).
 #
 # Before a release, replace every example value (the keyserver and the mint) with your own.
 # `pnpm deploy:check --release` refuses the file until you have. The release workflow pins the image
@@ -14,7 +20,8 @@
 #    socket can obtain a quote over any nonce (docs/ATTESTATION.md).
 #  - Secrets come from your own keyserver (`keyserver-url`), never from Tinfoil's secret store and never
 #    from `env`.
-#  - The database is on the encrypted volume, unlocked at boot with a key only your keyserver releases.
+#  - With BELLOWS_STORAGE "memory": no volume, no volume key, and the database on a tmpfs of the bellows
+#    container that BELLOWS_SEALED_MOUNTS names.
 #  - Every setting is a measured literal. No container has admin access or open ports.
 
 cvm-version: "0.14.17"
@@ -43,13 +50,6 @@ networks:
       - nos.lol
       - relay.primal.net
 
-volumes:
-  # The encrypted volume. Its key is a private secret your keyserver releases at every boot; Tinfoil
-  # never holds it. Back the key up offline before you write anything to the volume (docs/OPERATE.md).
-  - name: data
-    key-secret: BELLOWS_DATA_VOLUME_KEY
-    owner: "1000:1000"
-
 containers:
   - name: bellows
     image: "ghcr.io/example/bellows@sha256:0000000000000000000000000000000000000000000000000000000000000000"
@@ -57,8 +57,7 @@ containers:
     attestation: true
     read_only: true
     tmpfs:
-      /tmp: "size=64m,mode=1777"
-    persistent_volumes: [data:/data]
+      /tmp: "size=256m,mode=1777"
     networks: [egress]
     restart: always
     stop_signal: SIGTERM
@@ -68,8 +67,9 @@ containers:
       - PORT: "8787"
       - BELLOWS_MODE: "sealed"
       - BELLOWS_SECRETS: "platform"
-      - BELLOWS_SEALED_MOUNTS: "/data"
-      - BELLOWS_DB_PATH: "/data/bellows.db"
+      - BELLOWS_STORAGE: "memory"
+      - BELLOWS_SEALED_MOUNTS: "/tmp"
+      - BELLOWS_DB_PATH: "/tmp/bellows.db"
       - BELLOWS_ATTESTER: "tinfoil"
       - BELLOWS_TRUSTED_MINTS: "https://forge.flashapp.me"
       - BELLOWS_MINT_ALIASES: "https://mint.forge-reserve.com=https://forge.flashapp.me"

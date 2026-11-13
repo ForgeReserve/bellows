@@ -9,6 +9,11 @@
  *    (`tinfoil-deployment.json`) and make the builds.json entry for it.
  *  - addBuild: appends that entry to a builds file and checks the result.
  *
+ * Storage (BELLOWS_STORAGE in the bellows env): "volume", the default, keeps the database on an encrypted
+ * volume and every rule above it holds. "memory" is the honest fallback for a deployment without volumes:
+ * the database is on a tmpfs of the bellows container, no volume is declared, and none of its keys is asked
+ * for. A config that mixes the two is refused.
+ *
  * The platform rules here follow Tinfoil's public documentation for `tinfoil-config.yml`. Tinfoil enforces
  * its own runtime policy at deploy time; these checks are Bellows' own, stricter rules on top.
  */
@@ -34,6 +39,10 @@ const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const SECRET_NAME_RE = /(SECRET|TOKEN|PASSWORD|PASSPHRASE|SEED|PRIVATE|CREDENTIAL|API_KEY|_KEY$)/i;
 /** Bellows settings whose names match SECRET_NAME_RE but hold no secret. */
 const NOT_SECRETS = new Set(['BELLOWS_SECRETS', 'BELLOWS_SECRETS_FILE']);
+/** The secret that unlocks a volume. A config without volumes asks for none. */
+const VOLUME_KEY_RE = /_VOLUME_KEY$/;
+/** BELLOWS_STORAGE values: where the database lives (src/config.ts). */
+const STORAGES = ['volume', 'memory'] as const;
 /** A value that is still an example. A release refuses it. */
 const PLACEHOLDER_RE = /(^|[^a-z0-9-])example([^a-z0-9-]|$)/i;
 
@@ -296,7 +305,7 @@ export function checkTinfoilConfig(text: string, opts: CheckOptions = {}): strin
   if (!bellows) {
     out.push(`containers: no container named ${BELLOWS_CONTAINER}`);
   } else {
-    out.push(...checkBellowsContainer(bellows, envs.get(BELLOWS_CONTAINER)!, networks, volumes));
+    out.push(...checkBellowsContainer(bellows, envs.get(BELLOWS_CONTAINER)!, networks, volumes, cfg.volumes));
   }
 
   // Requests reach Bellows only.
@@ -320,7 +329,15 @@ export function checkTinfoilConfig(text: string, opts: CheckOptions = {}): strin
   return out;
 }
 
-function checkBellowsContainer(c: Obj, env: ContainerEnv, networks: Map<string, string>, volumes: Map<string, Obj>): string[] {
+/** The paths a container mounts as tmpfs: a mapping of path to options, or a list of "path[:options]". */
+export function tmpfsPaths(tmpfs: unknown): string[] {
+  const clean = (p: string) => p.replace(/\/+$/, '') || '/';
+  if (isObject(tmpfs)) return Object.keys(tmpfs).map(clean);
+  const list = typeof tmpfs === 'string' ? [tmpfs] : Array.isArray(tmpfs) ? tmpfs : [];
+  return list.filter((t): t is string => typeof t === 'string' && t.startsWith('/')).map((t) => clean(t.split(':')[0]!));
+}
+
+function checkBellowsContainer(c: Obj, env: ContainerEnv, networks: Map<string, string>, volumes: Map<string, Obj>, declaredVolumes: unknown): string[] {
   const at = `containers (${BELLOWS_CONTAINER})`;
   const out: string[] = [];
   const lit = (name: string) => {
@@ -338,27 +355,18 @@ function checkBellowsContainer(c: Obj, env: ContainerEnv, networks: Map<string, 
     out.push(`${at}.env.BELLOWS_BUILD_MEASUREMENT: must not be set; this file is what is measured, so it cannot hold its own measurement`);
   }
 
-  // The database is on a sealed mount, and each sealed mount is an encrypted volume of this container.
-  const mountsByPath = new Map<string, string>();
-  if (Array.isArray(c.persistent_volumes)) {
-    for (const pv of c.persistent_volumes) {
-      const m = typeof pv === 'string' ? /^([^:]+):(\/.*)$/.exec(pv) : null;
-      if (m) mountsByPath.set(m[2]!.replace(/\/+$/, '') || '/', m[1]!);
-    }
+  const storageValue = lit('BELLOWS_STORAGE');
+  if (env.literals.has('BELLOWS_STORAGE') && !(STORAGES as readonly unknown[]).includes(storageValue)) {
+    out.push(`${at}.env.BELLOWS_STORAGE: must be "volume" or "memory"`);
   }
   const sealed = (lit('BELLOWS_SEALED_MOUNTS') ?? '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  if (sealed.length === 0) out.push(`${at}.env.BELLOWS_SEALED_MOUNTS: name the encrypted volume's mount path`);
-  for (const m of sealed) {
-    const vol = mountsByPath.get(m.replace(/\/+$/, '') || '/');
-    if (!vol) out.push(`${at}.env.BELLOWS_SEALED_MOUNTS: ${m} is not one of this container's persistent_volumes`);
-    else if (!volumes.get(vol)?.['key-secret']) out.push(`${at}.env.BELLOWS_SEALED_MOUNTS: the volume at ${m} has no key-secret`);
-  }
   const db = lit('BELLOWS_DB_PATH');
-  if (!db || !db.startsWith('/')) out.push(`${at}.env.BELLOWS_DB_PATH: must be an absolute path on the encrypted volume`);
-  else if (!sealed.some((m) => within(db, m))) out.push(`${at}.env.BELLOWS_DB_PATH: ${db} is not under BELLOWS_SEALED_MOUNTS`);
+  const tmpfs = tmpfsPaths(c.tmpfs);
+  if (storageValue === 'memory') out.push(...checkMemoryStorage(c, at, sealed, db, tmpfs, declaredVolumes));
+  else out.push(...checkVolumeStorage(c, at, sealed, db, tmpfs, volumes));
 
   if (!Array.isArray(c.secrets) || !c.secrets.includes('BELLOWS_WALLET_SECRET')) {
     out.push(`${at}.secrets: must list BELLOWS_WALLET_SECRET; the wallet seed is derived from it`);
@@ -368,6 +376,57 @@ function checkBellowsContainer(c: Obj, env: ContainerEnv, networks: Map<string, 
       if (networks.get(String(n)) === 'open') out.push(`${at}.networks: ${String(n)} has open egress; Bellows reaches only an allowlist of hosts`);
     }
   }
+  return out;
+}
+
+/** BELLOWS_STORAGE "volume" (the default): the database is on a sealed mount, and each sealed mount is an encrypted volume of this container. */
+function checkVolumeStorage(c: Obj, at: string, sealed: string[], db: string | undefined, tmpfs: string[], volumes: Map<string, Obj>): string[] {
+  const out: string[] = [];
+  const mountsByPath = new Map<string, string>();
+  if (Array.isArray(c.persistent_volumes)) {
+    for (const pv of c.persistent_volumes) {
+      const m = typeof pv === 'string' ? /^([^:]+):(\/.*)$/.exec(pv) : null;
+      if (m) mountsByPath.set(m[2]!.replace(/\/+$/, '') || '/', m[1]!);
+    }
+  }
+  if (sealed.length === 0) out.push(`${at}.env.BELLOWS_SEALED_MOUNTS: name the encrypted volume's mount path`);
+  for (const m of sealed) {
+    const vol = mountsByPath.get(m.replace(/\/+$/, '') || '/');
+    if (!vol) out.push(`${at}.env.BELLOWS_SEALED_MOUNTS: ${m} is not one of this container's persistent_volumes`);
+    else if (!volumes.get(vol)?.['key-secret']) out.push(`${at}.env.BELLOWS_SEALED_MOUNTS: the volume at ${m} has no key-secret`);
+  }
+  if (!db || !db.startsWith('/')) out.push(`${at}.env.BELLOWS_DB_PATH: must be an absolute path on the encrypted volume`);
+  else if (!sealed.some((m) => within(db, m))) out.push(`${at}.env.BELLOWS_DB_PATH: ${db} is not under BELLOWS_SEALED_MOUNTS`);
+  const onTmpfs = db?.startsWith('/') ? tmpfs.find((t) => within(db, t)) : undefined;
+  if (onTmpfs !== undefined) {
+    out.push(
+      `${at}.env.BELLOWS_DB_PATH: ${db} is on the tmpfs ${onTmpfs}, which every restart empties, and BELLOWS_STORAGE is "volume" (the default). Put the database on the encrypted volume, or set BELLOWS_STORAGE: "memory" and drop the volume`,
+    );
+  }
+  return out;
+}
+
+/**
+ * BELLOWS_STORAGE "memory": no volume at all. The database is on a tmpfs of this container, which the
+ * sealed mounts cover, and the keyserver is asked for no volume key.
+ */
+function checkMemoryStorage(c: Obj, at: string, sealed: string[], db: string | undefined, tmpfs: string[], declaredVolumes: unknown): string[] {
+  const out: string[] = [];
+  const mixed = 'BELLOWS_STORAGE is "memory", which keeps the database off any volume; with a volume, set BELLOWS_STORAGE: "volume" and put the database on it';
+  if (declaredVolumes !== undefined && !(Array.isArray(declaredVolumes) && declaredVolumes.length === 0)) out.push(`volumes: must not be set; ${mixed}`);
+  if (c.persistent_volumes !== undefined && !(Array.isArray(c.persistent_volumes) && c.persistent_volumes.length === 0)) {
+    out.push(`${at}.persistent_volumes: must not be set; ${mixed}`);
+  }
+  if (Array.isArray(c.secrets)) {
+    for (const s of c.secrets) if (typeof s === 'string' && VOLUME_KEY_RE.test(s)) out.push(`${at}.secrets: ${s} is a volume key; with BELLOWS_STORAGE "memory" there is no volume to unlock`);
+  }
+  if (sealed.length === 0) out.push(`${at}.env.BELLOWS_SEALED_MOUNTS: name the tmpfs mount path that holds the database`);
+  for (const m of sealed) {
+    if (!tmpfs.includes(m.replace(/\/+$/, '') || '/')) out.push(`${at}.env.BELLOWS_SEALED_MOUNTS: ${m} is not one of this container's tmpfs mounts`);
+  }
+  if (!db || !db.startsWith('/')) out.push(`${at}.env.BELLOWS_DB_PATH: must be an absolute path on a tmpfs mount`);
+  else if (!tmpfs.some((t) => within(db, t))) out.push(`${at}.env.BELLOWS_DB_PATH: ${db} is not on a tmpfs mount of this container`);
+  else if (!sealed.some((m) => within(db, m))) out.push(`${at}.env.BELLOWS_DB_PATH: ${db} is not under BELLOWS_SEALED_MOUNTS`);
   return out;
 }
 

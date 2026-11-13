@@ -23,6 +23,7 @@ The rules `pnpm deploy:check` enforces, and why:
 - **Only the `bellows` container has `attestation: true`.** Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key ([ATTESTATION.md](ATTESTATION.md)). A Tor sidecar or any other container runs without it.
 - **Secrets come from your keyserver, and only Bellows gets them.** `keyserver-url` is required. Secrets are never `env` values and never Tinfoil-managed secrets, which Tinfoil's infrastructure can read. No container other than `bellows` lists `secrets`.
 - **The database is on the encrypted volume.** Bellows runs sealed (`BELLOWS_MODE=sealed`), the database path is under a mount listed in `BELLOWS_SEALED_MOUNTS`, that mount is a persistent volume, and every volume has a `key-secret` so it unlocks at boot with a key only your keyserver releases. A volume belongs to one container: no other container mounts Bellows' volume.
+- **Or the database is in memory, and says so.** With `BELLOWS_STORAGE: "memory"` there is no volume, no `persistent_volumes` and no volume key, and the database is on a `tmpfs` of the `bellows` container that `BELLOWS_SEALED_MOUNTS` names. A config that mixes the two is refused ([Running without a volume](#running-without-a-volume)).
 - **Every setting is measured.** Every `env` entry is a literal in the measured file. A bare name, whose value would come from an unmeasured instance variable, is refused.
 - **Nobody gets in.** No `cvm_admin`, no `ports`, no `cvm-network`, no capabilities, no root user, and `read_only: true` on every container, so no writable root file system.
 - **Bellows reaches only what it needs.** Its egress network is an allowlist: your mints, the suppliers in `config/models.json`, the price sources and the Nostr relays for mint discovery. The test suite checks that the allowlist covers every host the config uses.
@@ -211,6 +212,16 @@ The operator cannot read the volume, so there is no database export from a seale
 If the volume is lost, the eCash in the gateway's wallet can be restored with the wallet secret, and the balances customers held are lost. Clients that keep their balances small, and move them with `moveBalance` ([OPERATORS.md](OPERATORS.md)), lose little.
 
 The volume has no rollback protection: whoever controls the disk can put back an older copy, and the enclave does not notice. See [THREAT-MODEL.md](THREAT-MODEL.md).
+
+## Running without a volume
+
+Use this only while your Tinfoil organization has no encrypted volumes. Set `BELLOWS_STORAGE: "memory"` in the `bellows` env, remove the `volumes` block, `persistent_volumes` and the volume key from `secrets`, and point `BELLOWS_SEALED_MOUNTS` at a `tmpfs` (`/tmp`, `size=256m`) with `BELLOWS_DB_PATH` under it. `pnpm deploy:check` accepts that and nothing in between. Create the instance without `--volume`.
+
+The database then lives in memory inside the sealed machine. Every restart, update or redeploy loses every balance, every unfinished funding and the ledger. The eCash Bellows held is not in the new database. Tell users to keep only what they are about to spend and to withdraw the rest. Bellows logs a `storage_memory` warning at boot, and `/.well-known/bellows` says `"storage": "memory"` in its attested statement, so clients can see it.
+
+The keyserver needs no volume key for this. Leave `BELLOWS_DATA_VOLUME_KEY` out of the policy, or leave it unused; the config does not ask for it.
+
+To go back to a volume, start again from `deploy/tinfoil-config.example.yml` (or set `BELLOWS_STORAGE: "volume"` and restore the `volumes` block, `persistent_volumes: [data:/data]`, the volume key secret and the `/data` paths), make and back up the volume key (step 2), add it to the keyserver, and release. Users must withdraw first: nothing in memory moves to the volume.
 
 ## Rehearse locally
 

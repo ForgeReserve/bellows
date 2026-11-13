@@ -8,7 +8,7 @@ import { fromBase64, toHex } from './bytes.ts';
 import { DEV_ATTESTATION_FORMAT } from './dev.ts';
 import { BellowsVerifyError } from './errors.ts';
 import { type KeyConfig, parseKeyConfig } from './hpke.ts';
-import { type AttestationDocument, bindingFor, decodeStatement, IDENTITY_FORMAT, WELL_KNOWN_PATH } from './identity.ts';
+import { type AttestationDocument, bindingFor, decodeStatement, IDENTITY_FORMAT, STORAGE_KINDS, type Storage, WELL_KNOWN_PATH } from './identity.ts';
 import type { AttestationVerifier } from './verifier.ts';
 
 export interface VerifyOptions {
@@ -34,6 +34,12 @@ export interface VerifiedBellows {
   measurement: Measurement;
   relays: string[];
   operator: unknown;
+  /**
+   * Where this Bellows keeps balances, as its attested statement says. memory: every restart of the Bellows
+   * loses every balance, so keep only what you are about to spend there. A statement without the field
+   * (an older Bellows) reads as volume.
+   */
+  storage: Storage;
   /** True only for the development stand-in (allowDevelopment). */
   development: boolean;
   /** SHA-256 binding of the statement, hex. Changes on every restart of the Bellows (new key). */
@@ -83,6 +89,7 @@ export async function verifyBellows(url: string, opts: VerifyOptions): Promise<V
   if (st.measurement !== null && measurementProblems(st.measurement, 'statement.measurement').length) throw badDoc('statement.measurement is malformed');
   if (!isObject(st.hpke) || typeof st.hpke.key_config !== 'string') throw badDoc('statement.hpke.key_config is missing');
   if (!Array.isArray(st.relays) || !st.relays.every((r) => typeof r === 'string')) throw badDoc('statement.relays must be a list of URLs');
+  if (st.storage !== undefined && !(STORAGE_KINDS as readonly unknown[]).includes(st.storage)) throw badDoc(`statement.storage must be ${STORAGE_KINDS.join(' or ')}`);
 
   const development = att.format === DEV_ATTESTATION_FORMAT;
   if (development && !opts.allowDevelopment) {
@@ -122,6 +129,7 @@ export async function verifyBellows(url: string, opts: VerifyOptions): Promise<V
     measurement,
     relays: [...(st.relays as string[])],
     operator: st.operator ?? null,
+    storage: (st.storage as Storage | undefined) ?? 'volume',
     development,
     binding: toHex(binding),
   };

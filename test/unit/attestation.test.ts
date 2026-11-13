@@ -32,7 +32,7 @@ import { fromBase64, fromHex, toBase64, toHex, utf8Decode, utf8Encode } from '..
 import { devAttester, devMeasurement, DEFAULT_DEV_REGISTER } from '../../src/attest/dev.ts';
 import { AttestationUnavailable, tinfoilAttester } from '../../src/attest/tinfoil.ts';
 import { BELLOWS_VERSION, loadConfig } from '../../src/config.ts';
-import { type Attester, generateHpkeKeyPair, Identity } from '../../src/identity.ts';
+import { type Attester, createIdentity, generateHpkeKeyPair, Identity } from '../../src/identity.ts';
 import { setLogSilent, setLogSink } from '../../src/log.ts';
 import { memorySecrets, newWalletSecret, WALLET_SECRET } from '../../src/secrets.ts';
 import { signOperatorAnnouncement } from '../../client/operator.ts';
@@ -310,14 +310,38 @@ describe('Tinfoil attestation (V3 document format)', () => {
 });
 
 describe('identity document', () => {
-  it('binds the statement: version, claimed measurement, key config, relays and operator', async () => {
+  it('binds the statement: version, claimed measurement, key config, relays, operator and storage', async () => {
     const id = devIdentity({ relays: ['https://relay.example/ohttp'], operator: { name: 'example' } });
     const doc = await id.document();
     expect(doc.format).toBe(IDENTITY_FORMAT);
     const st = JSON.parse(utf8Decode(fromBase64(doc.statement)));
-    expect(st).toEqual({ version: BELLOWS_VERSION, measurement: devMeasurement(), hpke: { key_config: toBase64(id.keyConfig) }, relays: ['https://relay.example/ohttp'], operator: { name: 'example' } });
+    expect(st).toEqual({
+      version: BELLOWS_VERSION,
+      measurement: devMeasurement(),
+      hpke: { key_config: toBase64(id.keyConfig) },
+      relays: ['https://relay.example/ohttp'],
+      operator: { name: 'example' },
+      storage: 'volume',
+    });
     const payload = JSON.parse(utf8Decode(fromBase64(doc.attestation.payload as string)));
     expect(payload.report_data).toBe(toHex(await bindingFor(fromBase64(doc.statement))));
+  });
+
+  it('says storage memory in the attested statement when balances live in memory', async () => {
+    const id = devIdentity({ storage: 'memory' });
+    const doc = await id.document();
+    expect(JSON.parse(utf8Decode(fromBase64(doc.statement))).storage).toBe('memory');
+    const payload = JSON.parse(utf8Decode(fromBase64(doc.attestation.payload as string)));
+    expect(payload.report_data).toBe(toHex(await bindingFor(fromBase64(doc.statement))));
+  });
+
+  it('createIdentity takes storage from the configuration', async () => {
+    const catalog = { suppliers: { mock: { type: 'mock', tier: 'standard' } }, models: [{ id: 'm', supplier: 'mock', upstream: 'm', input_usd_per_mtok: 1, output_usd_per_mtok: 1 }] };
+    for (const storage of ['volume', 'memory'] as const) {
+      const config = loadConfig({ BELLOWS_TRUSTED_MINTS: 'http://127.0.0.1:1', BELLOWS_DB_PATH: ':memory:', BELLOWS_STORAGE: storage } as NodeJS.ProcessEnv, catalog);
+      const doc = await createIdentity(config).document();
+      expect(JSON.parse(utf8Decode(fromBase64(doc.statement))).storage, storage).toBe(storage);
+    }
   });
 
   it('never carries the private key', async () => {
@@ -399,6 +423,27 @@ describe('verifyBellows', () => {
     expect(v.binding).toBe(toHex(await bindingFor(id.statementBytes)));
     // A builds.json object works as well as a list.
     await expect(verifyBellows('https://bellows.example', opts({ fetch: f, approvedBuilds: { format: 'bellows-builds/v1', builds: [devBuild()] } }))).resolves.toBeTruthy();
+  });
+
+  it('reads storage from the attested statement, and a statement without it as volume', async () => {
+    const memory = await verifyBellows('https://bellows.example', opts({ fetch: serve(await devIdentity({ storage: 'memory' }).document()) }));
+    expect(memory.storage).toBe('memory');
+    expect((await verifyBellows('https://bellows.example', opts({ fetch: serve(await devIdentity().document()) }))).storage).toBe('volume');
+    // An older Bellows: its statement has no storage field. The dev attester signs whatever statement it is given.
+    const older = devIdentity();
+    const st = JSON.parse(utf8Decode(older.statementBytes));
+    delete st.storage;
+    const bytes = utf8Encode(JSON.stringify(st));
+    const attestation = await devAttester({ measurement: devMeasurement() }).attest(await bindingFor(bytes));
+    const oldDoc = { format: IDENTITY_FORMAT, statement: toBase64(bytes), attestation };
+    expect((await verifyBellows('https://bellows.example', opts({ fetch: serve(oldDoc) }))).storage).toBe('volume');
+    // An unknown value is a malformed document; a changed value breaks the binding.
+    const odd = utf8Encode(JSON.stringify({ ...st, storage: 'disk' }));
+    const oddDoc = { format: IDENTITY_FORMAT, statement: toBase64(odd), attestation: await devAttester({ measurement: devMeasurement() }).attest(await bindingFor(odd)) };
+    await expectRefusal(verifyBellows('https://bellows.example', opts({ fetch: serve(oddDoc) })), 'bad_document');
+    const memDoc = await devIdentity({ storage: 'memory' }).document();
+    const flipped = { ...memDoc, statement: toBase64(utf8Encode(JSON.stringify({ ...JSON.parse(utf8Decode(fromBase64(memDoc.statement))), storage: 'volume' }))) };
+    await expectRefusal(verifyBellows('https://bellows.example', opts({ fetch: serve(flipped) })), 'attestation_invalid');
   });
 
   it('refuses the development stand-in unless development mode is opted into', async () => {

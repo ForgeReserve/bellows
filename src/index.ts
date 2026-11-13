@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server';
 import { setGlobalRequestOptions } from '@cashu/cashu-ts';
 import { createApp, startupRecovery } from './app.ts';
-import { loadConfig } from './config.ts';
+import { loadConfig, warnStorage } from './config.ts';
 import { buildDeps } from './deps.ts';
 import { errText, log, setLogLevel } from './log.ts';
 
@@ -10,6 +10,7 @@ import { errText, log, setLogLevel } from './log.ts';
 setGlobalRequestOptions({ requestTimeout: 60_000 });
 const config = loadConfig();
 setLogLevel(config.env.BELLOWS_LOG_LEVEL);
+warnStorage(config);
 const deps = buildDeps(config);
 await startupRecovery(deps).catch((e) => log.error('startup_recovery_failed', { err: errText(e) }));
 if (config.env.BELLOWS_UNITS.includes('sat')) {
