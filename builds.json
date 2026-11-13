@@ -1,4 +1,19 @@
 {
   "format": "bellows-builds/v1",
-  "builds": []
+  "builds": [
+    {
+      "version": "0.1.0",
+      "image": "ghcr.io/forgereserve/bellows@sha256:ff5b925e6d158235b9439c35e7841951fe9a04d23ebafd50ef38714b3eebd7fb",
+      "measurement": {
+        "type": "https://tinfoil.sh/predicate/snp-tdx-multiplatform/v1",
+        "registers": [
+          "f573b0260311ecfcdbadae32123bc9c56370eba4e03a787b9c4226144d70a1f122c277e955979ec2f0eded710306be32",
+          "758adac43a82a5f3146342660caefea0a7714414dd9055c4a56d1502273d85bbad86d625096a206c9335c23d05df3f99",
+          "66d696deaf75727f4691e98d5649135e95f16974065d83b1c49db0aefd6cea82b3a25196f07af17f5108533770b589d5"
+        ]
+      },
+      "released": "2026-11-13",
+      "deployment": "ForgeReserve/bellows@v0.1.0"
+    }
+  ]
 }
