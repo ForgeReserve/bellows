@@ -17,12 +17,15 @@ import {
   Wallet,
 } from '@cashu/cashu-ts';
 import { normalizeMintUrl, type Unit } from '../config.ts';
+import { COUNTER_SCAN_DEFAULTS, type ScanLimits, scanCounters } from './counter-scan.ts';
 import { type DB, now, tx } from '../db.ts';
 import { sha256 } from '../ledger.ts';
 import { errText, log } from '../log.ts';
 
 /** NUT error codes we treat as definitive rejections of the inputs. */
 const SPENT = 11001;
+/** The mint has signed these outputs before: our NUT-13 counter is behind what the mint has seen. */
+const OUTPUTS_ALREADY_SIGNED = 11003;
 
 export class PaymentError extends Error {
   readonly code: string;
@@ -109,14 +112,31 @@ export interface WalletOptions {
   seed: Uint8Array;
   /** Test-only fault injection: throw after the mint swap, before the DB write. */
   faults?: { afterReceiveSwap?: boolean; afterSendSwap?: boolean; noReplayOnRecovery?: boolean; noRestoreOnRecovery?: boolean };
+  /** Counter scans (src/cashu/counter-scan.ts). Tests shorten them. */
+  counterScan?: Partial<{ batchSize: number; gap: number; maxBatches: number; timeoutMs: number; retryBaseMs: number; retryMaxMs: number }>;
+}
+
+/** Totals of one counter recovery at boot (no per-proof detail). */
+export interface CounterRecovery {
+  /** Mints whose every keyset was scanned to the gap. */
+  scanned: string[];
+  /** Mints left closed until a retry completes their scan. */
+  pending: string[];
+  batches: number;
+  ms: number;
+  /** Unspent eCash recovered, per unit, in whole units, and how many proofs. */
+  recovered: Record<string, { proofs: number; amount: number }>;
 }
 
 class SqliteCounterSource implements CounterSource {
   private readonly db: DB;
   private readonly mint: string;
-  constructor(db: DB, mint: string) {
+  /** Resolves once no counter scan is running on the keyset, so no counter is handed out under a scan. */
+  private readonly idle: (keysetId: string) => Promise<void>;
+  constructor(db: DB, mint: string, idle: (keysetId: string) => Promise<void> = async () => {}) {
     this.db = db;
     this.mint = mint;
+    this.idle = idle;
   }
   private cur(keysetId: string): number {
     const r = this.db.prepare('SELECT next FROM counters WHERE mint = ? AND keyset_id = ?').get(this.mint, keysetId) as { next: number } | undefined;
@@ -128,6 +148,7 @@ class SqliteCounterSource implements CounterSource {
       .run(this.mint, keysetId, next);
   }
   async reserve(keysetId: string, n: number) {
+    await this.idle(keysetId);
     // Synchronous read-modify-write: no await between them, so no interleaving in this process.
     const start = this.cur(keysetId);
     if (n > 0) this.set(keysetId, start + n);
@@ -144,6 +165,10 @@ class SqliteCounterSource implements CounterSource {
 
 function isDefinitiveSpent(e: unknown): boolean {
   return e instanceof MintOperationError && e.code === SPENT;
+}
+
+function isOutputsAlreadySigned(e: unknown): boolean {
+  return e instanceof MintOperationError && (e.code === OUTPUTS_ALREADY_SIGNED || /outputs (have )?already (been )?signed/i.test(e.message));
 }
 
 function isMintRejection(e: unknown): boolean {
@@ -170,6 +195,13 @@ export class GatewayWallet {
   private readonly seed: Uint8Array;
   private readonly wallets = new Map<string, Promise<Wallet>>();
   private readonly inflight = new Set<string>();
+  /** Mints closed until their counter scan completes (mint to reason). */
+  private readonly closed = new Map<string, string>();
+  /** Running counter scans, by mint|keyset. Counter reservations on that keyset wait for them. */
+  private readonly scans = new Map<string, Promise<unknown>>();
+  private readonly retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Mints recoverCounters was given (the trusted mints and the funding mint). */
+  private readonly scannedMints = new Set<string>();
 
   constructor(db: DB, opts: WalletOptions) {
     this.db = db;
@@ -185,13 +217,28 @@ export class GatewayWallet {
     return this.opts.trustedMints;
   }
 
+  /**
+   * The cashu-ts wallet for a mint and unit. Refused (503) while the mint is closed: its counters are not yet
+   * known to be past what the mint has signed (recoverCounters).
+   */
   async wallet(mint: string, unit: Unit): Promise<Wallet> {
+    const m = normalizeMintUrl(mint);
+    const why = this.closed.get(m);
+    if (why !== undefined) throw new PaymentError('mint_unavailable', `this mint is not open yet: ${why}. Retry shortly`, 503);
+    return this.openWallet(m, unit);
+  }
+
+  private async openWallet(mint: string, unit: Unit): Promise<Wallet> {
     const m = normalizeMintUrl(mint);
     const key = `${m}|${unit}`;
     let p = this.wallets.get(key);
     if (!p) {
       p = (async () => {
-        const w = new Wallet(m, { unit, bip39seed: this.seed, counterSource: new SqliteCounterSource(this.db, m) });
+        const idle = async (keysetId: string) => {
+          // A scan may start while this one is awaited; wait until none runs.
+          for (let s = this.scans.get(`${m}|${keysetId}`); s; s = this.scans.get(`${m}|${keysetId}`)) await s.catch(() => {});
+        };
+        const w = new Wallet(m, { unit, bip39seed: this.seed, counterSource: new SqliteCounterSource(this.db, m, idle) });
         await w.loadMint();
         return w;
       })();
@@ -298,27 +345,31 @@ export class GatewayWallet {
       }
 
       const w = await this.wallet(t.mint, t.unit);
-      let counters: OperationCounters | undefined;
-      let preview: SwapPreview;
-      try {
-        preview = await w.prepareSwapToReceive(t.proofs, { onCountersReserved: (c) => (counters = c) }, { type: 'deterministic', counter: 0 });
-      } catch (e) {
-        throw new PaymentError('invalid_token', `could not prepare swap: ${errText(e)}`);
-      }
-      this.db
-        .prepare("UPDATE incoming SET status = 'prepared', preview = ?, counters = ?, updated_at = ? WHERE id = ?")
-        .run(JSON.stringify(serializeSwapPreview(preview)), JSON.stringify(counters ?? null), now(), row.id);
-
       let proofs: Proof[];
-      try {
-        proofs = (await w.completeSwap(preview)).keep;
-      } catch (e) {
-        if (isMintRejection(e)) {
-          this.markRejected(row.id, errText(e));
-          throw new PaymentError(isDefinitiveSpent(e) ? 'token_spent' : 'invalid_token', `mint rejected token: ${errText(e)}`);
+      for (let attempt = 0; ; attempt++) {
+        let counters: OperationCounters | undefined;
+        let preview: SwapPreview;
+        try {
+          preview = await w.prepareSwapToReceive(t.proofs, { onCountersReserved: (c) => (counters = c) }, { type: 'deterministic', counter: 0 });
+        } catch (e) {
+          throw new PaymentError('invalid_token', `could not prepare swap: ${errText(e)}`);
         }
-        // Unknown outcome (network). Leave it prepared; recover() settles it.
-        throw new PaymentError('mint_unavailable', `mint did not answer; retry with the same token: ${errText(e)}`, 503);
+        this.db
+          .prepare("UPDATE incoming SET status = 'prepared', preview = ?, counters = ?, updated_at = ? WHERE id = ?")
+          .run(JSON.stringify(serializeSwapPreview(preview)), JSON.stringify(counters ?? null), now(), row.id);
+        try {
+          proofs = (await w.completeSwap(preview)).keep;
+          break;
+        } catch (e) {
+          if (attempt === 0 && counters && isOutputsAlreadySigned(e)) {
+            // The mint refused the whole swap, so the token is unspent and nothing was signed for it. Catch
+            // the counter up with what the mint has signed, then try once more with new outputs.
+            await this.skipSignedCounters(w, t.mint, t.unit, counters);
+            this.db.prepare("UPDATE incoming SET status = 'new', preview = NULL, counters = NULL, updated_at = ? WHERE id = ?").run(now(), row.id);
+            continue;
+          }
+          throw this.receiveFailure(row.id, e);
+        }
       }
       if (this.opts.faults?.afterReceiveSwap) throw new Error('fault injected after receive swap');
       this.finalizeIncoming(row.id, proofs, o.onFinalize);
@@ -326,6 +377,16 @@ export class GatewayWallet {
     } finally {
       this.inflight.delete(t.hash);
     }
+  }
+
+  /** The error a refused or unanswered receive swap becomes. */
+  private receiveFailure(id: string, e: unknown): PaymentError {
+    if (isMintRejection(e)) {
+      this.markRejected(id, errText(e));
+      return new PaymentError(isDefinitiveSpent(e) ? 'token_spent' : 'invalid_token', `mint rejected token: ${errText(e)}`);
+    }
+    // Unknown outcome (network). Leave it prepared; recover() settles it.
+    return new PaymentError('mint_unavailable', `mint did not answer; retry with the same token: ${errText(e)}`, 503);
   }
 
   private markRejected(id: string, error: string) {
@@ -539,31 +600,45 @@ export class GatewayWallet {
   private async swapOut(row: OutgoingRow, w: Wallet, amount: number, inputs: Proof[], includeFees: boolean): Promise<string> {
     const id = row.id;
     const send: OutputType = row.lock_pubkey ? { type: 'p2pk', options: { pubkey: row.lock_pubkey } } : { type: 'deterministic', counter: 0 };
-    let counters: OperationCounters | undefined;
-    const preview = await w.prepareSwapToSend(
-      amount,
-      inputs,
-      { includeFees, onCountersReserved: (c) => (counters = c) },
-      { send, keep: { type: 'deterministic', counter: 0 } },
-    );
-    this.db
-      .prepare("UPDATE outgoing SET status = 'prepared', preview = ?, counters = ?, error = NULL, updated_at = ? WHERE id = ?")
-      .run(JSON.stringify(serializeSwapPreview(preview)), JSON.stringify(counters ?? null), now(), id);
     let res;
-    try {
-      res = await w.completeSwap(preview);
-    } catch (e) {
-      if (isDefinitiveSpent(e)) {
-        // Our own proofs were spent elsewhere (should not happen). Burn them and re-owe.
-        this.reowe(id, true);
-        throw new PaymentError('wallet_inconsistent', 'gateway proofs were already spent; retry', 503);
+    for (let attempt = 0; ; attempt++) {
+      let counters: OperationCounters | undefined;
+      const preview = await w.prepareSwapToSend(
+        amount,
+        inputs,
+        { includeFees, onCountersReserved: (c) => (counters = c) },
+        { send, keep: { type: 'deterministic', counter: 0 } },
+      );
+      this.db
+        .prepare("UPDATE outgoing SET status = 'prepared', preview = ?, counters = ?, error = NULL, updated_at = ? WHERE id = ?")
+        .run(JSON.stringify(serializeSwapPreview(preview)), JSON.stringify(counters ?? null), now(), id);
+      try {
+        res = await w.completeSwap(preview);
+        break;
+      } catch (e) {
+        if (attempt === 0 && counters && isOutputsAlreadySigned(e)) {
+          // Refused as a whole: the inputs are unspent and still reserved for this row. Catch the counter
+          // up, then try once more with new outputs.
+          await this.skipSignedCounters(w, row.mint, row.unit, counters);
+          continue;
+        }
+        throw this.swapOutFailure(id, e);
       }
-      throw new PaymentError('mint_unavailable', `mint did not answer; payout is saved and can be retried: ${errText(e)}`, 503);
     }
     if (this.opts.faults?.afterSendSwap) throw new Error('fault injected after send swap');
     const token = getEncodedToken({ mint: row.mint, unit: row.unit, proofs: res.send });
     this.finalizeOutgoing(id, token, res.keep);
     return token;
+  }
+
+  /** The error a refused or unanswered payout swap becomes. */
+  private swapOutFailure(id: string, e: unknown): PaymentError {
+    if (isDefinitiveSpent(e)) {
+      // Our own proofs were spent elsewhere (should not happen). Burn them and re-owe.
+      this.reowe(id, true);
+      return new PaymentError('wallet_inconsistent', 'gateway proofs were already spent; retry', 503);
+    }
+    return new PaymentError('mint_unavailable', `mint did not answer; payout is saved and can be retried: ${errText(e)}`, 503);
   }
 
   /** A pinned payout: exactly the proofs held under op_id = row.id, less the swap's input fee. */
@@ -735,6 +810,215 @@ export class GatewayWallet {
     return { incoming: inc.length, outgoing: out.length, errors };
   }
 
+  /** Set at startup when the database held no wallet state: counters must be recovered before any use. */
+  needsCounterScan = false;
+
+  private scanSettings() {
+    const c = this.opts.counterScan ?? {};
+    return {
+      batchSize: c.batchSize ?? COUNTER_SCAN_DEFAULTS.batchSize,
+      gap: c.gap ?? COUNTER_SCAN_DEFAULTS.gap,
+      maxBatches: c.maxBatches ?? COUNTER_SCAN_DEFAULTS.maxBatches,
+      timeoutMs: c.timeoutMs ?? COUNTER_SCAN_DEFAULTS.timeoutMs,
+      retryBaseMs: c.retryBaseMs ?? 5_000,
+      retryMaxMs: c.retryMaxMs ?? 300_000,
+    };
+  }
+
+  /** Mints closed until their counter scan completes. */
+  get closedMints(): string[] {
+    return [...this.closed.keys()];
+  }
+
+  /**
+   * At boot, on a database with no wallet state: for every mint, every unit and every keyset (active or
+   * not), scan from counter 0 for what the mint has signed under this seed, move each counter past it, and
+   * keep the unspent eCash found, aside, as recovered funds (recordRecovered). Each mint is closed (wallet() refuses
+   * it with 503) until its scan completes. A mint that cannot be scanned stays closed and is retried with
+   * backoff, so no output is ever made there with a counter the mint may have signed.
+   */
+  async recoverCounters(mints: string[]): Promise<CounterRecovery> {
+    const t0 = Date.now();
+    const list = [...new Set(mints.map(normalizeMintUrl))];
+    for (const m of list) {
+      this.scannedMints.add(m);
+      this.closed.set(m, 'its wallet counters are being recovered after a restart');
+    }
+    const results = await Promise.all(list.map((m) => this.scanMint(m)));
+    const out: CounterRecovery = { scanned: [], pending: [], batches: 0, ms: 0, recovered: {} };
+    results.forEach((r, i) => {
+      out.batches += r.batches;
+      if (r.ok) out.scanned.push(list[i]!);
+      else out.pending.push(list[i]!);
+      addRecovered(out.recovered, r.recovered);
+    });
+    out.ms = Date.now() - t0;
+    const fields: Record<string, number | string> = { mints: list.length, scanned: out.scanned.length, pending: out.pending.length, batches: out.batches, ms: out.ms };
+    for (const [unit, v] of Object.entries(out.recovered)) {
+      fields[`recovered_${unit}`] = v.amount;
+      fields[`recovered_${unit}_proofs`] = v.proofs;
+    }
+    log.info('counter_recovery', fields);
+    results.forEach((r, i) => {
+      if (!r.ok) {
+        log.warn('counter_recovery_pending', { mint: list[i]!, err: r.error ?? 'incomplete', retry_s: Math.round(this.retryDelay(0) / 1000) });
+        this.scheduleRetry(list[i]!, 0);
+      }
+    });
+    return out;
+  }
+
+  private retryDelay(attempt: number): number {
+    const s = this.scanSettings();
+    return Math.min(s.retryMaxMs, s.retryBaseMs * 2 ** attempt);
+  }
+
+  private scheduleRetry(mint: string, attempt: number) {
+    const t = setTimeout(async () => {
+      this.retryTimers.delete(mint);
+      const r = await this.scanMint(mint);
+      if (r.ok) {
+        const fields: Record<string, number | string> = { mint, attempt: attempt + 1, batches: r.batches };
+        for (const [unit, v] of Object.entries(r.recovered)) fields[`recovered_${unit}`] = v.amount;
+        log.info('counter_recovery_retry_ok', fields);
+      } else {
+        log.warn('counter_recovery_pending', { mint, err: r.error ?? 'incomplete', retry_s: Math.round(this.retryDelay(attempt + 1) / 1000) });
+        this.scheduleRetry(mint, attempt + 1);
+      }
+    }, this.retryDelay(attempt));
+    t.unref?.();
+    this.retryTimers.set(mint, t);
+  }
+
+  /** Stops the retry timers (shutdown). */
+  stop(): void {
+    for (const t of this.retryTimers.values()) clearTimeout(t);
+    this.retryTimers.clear();
+  }
+
+  /** Scans every keyset of a closed mint from 0. Opens the mint only when every scan completed. */
+  async scanMint(mint: string): Promise<{ ok: boolean; batches: number; recovered: Record<string, { proofs: number; amount: number }>; error?: string }> {
+    const m = normalizeMintUrl(mint);
+    const s = this.scanSettings();
+    const deadline = Date.now() + s.timeoutMs;
+    const recovered: Record<string, { proofs: number; amount: number }> = {};
+    let batches = 0;
+    try {
+      for (const unit of this.opts.units) {
+        const w = await this.openWallet(m, unit);
+        let keysets: Array<{ id: string }>;
+        try {
+          keysets = w.keyChain.getKeysets();
+        } catch {
+          continue; // this mint has no keyset in this unit
+        }
+        for (const ks of keysets) {
+          const r = await this.scanKeyset(w, m, unit, ks.id, 0, deadline);
+          batches += r.batches;
+          addRecovered(recovered, { [unit]: { proofs: r.proofs, amount: r.amount } });
+          if (!r.complete) return { ok: false, batches, recovered, error: `scan of keyset ${ks.id} reached its bound before the gap` };
+        }
+      }
+    } catch (e) {
+      return { ok: false, batches, recovered, error: errText(e) };
+    }
+    this.closed.delete(m);
+    return { ok: true, batches, recovered };
+  }
+
+  /**
+   * Scans one keyset from `from` (or from its stored counter when that is higher), with every reservation
+   * of counters on the keyset waiting until it is done. Stores the unspent proofs found as recovered funds
+   * and moves the counter past the highest one the mint signed.
+   */
+  private async scanKeyset(
+    w: Wallet,
+    mint: string,
+    unit: Unit,
+    keysetId: string,
+    from: number | 'current',
+    deadline: number,
+    /** Also restore this range: an operation's own outputs the mint refused as already signed. */
+    collided?: OperationCounters,
+  ): Promise<{ batches: number; proofs: number; amount: number; complete: boolean; next: number }> {
+    const key = `${mint}|${keysetId}`;
+    for (let r = this.scans.get(key); r; r = this.scans.get(key)) await r.catch(() => {});
+    const run = (async () => {
+      const cur = (this.db.prepare('SELECT next FROM counters WHERE mint = ? AND keyset_id = ?').get(mint, keysetId) as { next: number } | undefined)?.next ?? 0;
+      const start = from === 'current' ? cur : from;
+      const s = this.scanSettings();
+      const limits: ScanLimits = { batchSize: Math.max(1, Math.min(s.batchSize, w.getMintInfo().maxArrayLength)), gap: s.gap, maxBatches: s.maxBatches, deadline };
+      const scan = await scanCounters((st, n) => restoreWithRetry(() => w.restore(st, n, { keysetId }), deadline), start, limits);
+      if (!scan.complete) return { batches: scan.batches, proofs: 0, amount: 0, complete: false, next: cur };
+      if (collided && collided.count > 0 && collided.start < start) {
+        // Below the stored counter, so the forward scan does not cover it. The mint signed these outputs
+        // before this database existed: what it returns is from an earlier life, not this one.
+        const old = await restoreWithRetry(() => w.restore(collided.start, collided.count, { keysetId }), deadline);
+        scan.proofs.push(...old.proofs);
+        scan.batches++;
+      }
+      // NUT-07: only what is still unspent is worth keeping. checkProofsStates answers in order, in batches.
+      const states = scan.proofs.length ? await w.checkProofsStates(scan.proofs) : [];
+      const unspent = scan.proofs.filter((_, j) => states[j]?.state === 'UNSPENT');
+      const stored = tx(this.db, () => {
+        const got = this.recordRecovered(unspent, mint, unit);
+        this.db
+          .prepare('INSERT INTO counters (mint, keyset_id, next) VALUES (?, ?, ?) ON CONFLICT (mint, keyset_id) DO UPDATE SET next = MAX(next, excluded.next)')
+          .run(mint, keysetId, scan.next);
+        return got;
+      });
+      return { batches: scan.batches, proofs: stored.proofs, amount: stored.amount, complete: true, next: Math.max(cur, scan.next) };
+    })();
+    this.scans.set(key, run);
+    try {
+      return await run;
+    } finally {
+      if (this.scans.get(key) === run) this.scans.delete(key);
+    }
+  }
+
+  /**
+   * The mint refused our outputs as already signed: the counter is behind (a database that lost its
+   * counters, and a scan that stopped at a gap). Scans forward from the stored counter and moves it on.
+   */
+  private async skipSignedCounters(w: Wallet, mint: string, unit: Unit, collided: OperationCounters): Promise<void> {
+    const r = await this.scanKeyset(w, normalizeMintUrl(mint), unit, collided.keysetId, 'current', Date.now() + this.scanSettings().timeoutMs, collided);
+    log.warn('counters_behind', { mint: normalizeMintUrl(mint), keyset: collided.keysetId, batches: r.batches, next: r.next, complete: r.complete, recovered: r.amount });
+    if (!r.complete) throw new PaymentError('mint_unavailable', 'the mint has signed outputs this wallet has not caught up with yet; retry shortly', 503);
+  }
+
+  /**
+   * Stores unspent proofs no row accounts for, in state 'recovered', and adds what was new to the recovered
+   * funds. 'recovered' is never picked for a payout and is not part of the wallet's holdings or of what is
+   * sweepable: among these proofs may be payouts already handed to people (a refund or change token they
+   * have not redeemed yet), which are derived from the same seed and cannot be told apart. Spending one
+   * would take it from them. The operator decides what to do with them (docs/OPERATE.md).
+   * Only for the mints this wallet scans at boot; what a forward scan finds at another mint is left alone.
+   */
+  private recordRecovered(proofs: Proof[], mint: string, unit: Unit): { proofs: number; amount: number } {
+    if (!this.isTrusted(mint) && !this.scannedMints.has(mint)) return { proofs: 0, amount: 0 };
+    const stmt = this.db.prepare(
+      "INSERT INTO proofs (secret, mint, unit, keyset_id, amount, proof, state, op_id, created_at) VALUES (?, ?, ?, ?, ?, ?, 'recovered', NULL, ?) ON CONFLICT (secret) DO NOTHING",
+    );
+    let n = 0;
+    let amount = 0;
+    for (const p of proofs) {
+      if (Number(stmt.run(p.secret, mint, unit, p.id, proofAmount(p), serializeProofs(p)[0]!, now()).changes) === 1) {
+        n++;
+        amount += proofAmount(p);
+      }
+    }
+    if (n > 0) this.db.prepare('INSERT INTO recovered_funds (mint, unit, proofs, amount, created_at) VALUES (?, ?, ?, ?, ?)').run(mint, unit, n, amount, now());
+    return { proofs: n, amount };
+  }
+
+  /** Recovered funds per mint and unit: eCash found by counter scans that no balance is owed. */
+  recovered(): Array<{ mint: string; unit: string; proofs: number; amount: number }> {
+    return this.db
+      .prepare('SELECT mint, unit, SUM(proofs) AS proofs, SUM(amount) AS amount FROM recovered_funds GROUP BY mint, unit ORDER BY mint, unit')
+      .all() as Array<{ mint: string; unit: string; proofs: number; amount: number }>;
+  }
+
   /** Holdings and obligations per mint+unit, in whole units. */
   holdings(): Array<{ mint: string; unit: string; unspent: number; reserved: number; owed: number }> {
     const rows = this.db
@@ -746,6 +1030,27 @@ export class GatewayWallet {
       .prepare("SELECT mint, unit, SUM(amount) AS owed FROM outgoing WHERE status IN ('owed', 'reserved', 'prepared') GROUP BY mint, unit")
       .all() as Array<{ mint: string; unit: string; owed: number }>;
     return rows.map((r) => ({ ...r, owed: owed.find((o) => o.mint === r.mint && o.unit === r.unit)?.owed ?? 0 }));
+  }
+}
+
+function addRecovered(into: Record<string, { proofs: number; amount: number }>, add: Record<string, { proofs: number; amount: number }>) {
+  for (const [unit, v] of Object.entries(add)) {
+    const cur = (into[unit] ??= { proofs: 0, amount: 0 });
+    cur.proofs += v.proofs;
+    cur.amount += v.amount;
+  }
+}
+
+/** A restore request, tried again after a network error or a rate limit while the deadline allows. */
+async function restoreWithRetry<T>(f: () => Promise<T>, deadline: number): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await f();
+    } catch (e) {
+      const wait = 500 * 2 ** attempt;
+      if (attempt >= 3 || Date.now() + wait >= deadline || (e instanceof MintOperationError && !/rate/i.test(e.message))) throw e;
+      await new Promise((r) => setTimeout(r, wait));
+    }
   }
 }
 

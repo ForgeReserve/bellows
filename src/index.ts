@@ -36,6 +36,7 @@ for (const sig of ['SIGINT', 'SIGTERM'] as const) {
     deps.funding.stop();
     deps.discovery.stop();
     deps.identity.stop();
+    deps.wallet.stop();
     server.close(() => {
       deps.db.close();
       process.exit(0);

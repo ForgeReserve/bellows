@@ -325,6 +325,7 @@ export function createAdminRouter(d: Deps): Hono {
     const exported = db
       .prepare("SELECT e.unit, COALESCE(SUM(e.amount), 0) AS s, COUNT(*) AS n FROM revenue_exports e JOIN outgoing o ON o.id = e.outgoing_id WHERE o.status = 'done' GROUP BY e.unit")
       .all() as Array<{ unit: Unit; s: number; n: number }>;
+    const recovered = wallet.recovered();
     const units = env.BELLOWS_UNITS.map((u) => {
       const rv = revenue(d, u);
       const owedBy = db
@@ -342,6 +343,9 @@ export function createAdminRouter(d: Deps): Hono {
         customer_balances: rv.liabilities,
         reserved_msub: rv.reserved_msub,
         sweepable: rv.sweepable,
+        // eCash a counter scan found after the database was lost, held aside: not in wallet_trusted, not
+        // sweepable and owed to no balance (docs/OPERATE.md, Running without a volume).
+        recovered: recovered.filter((x) => x.unit === u).reduce((sum, x) => sum + x.amount, 0),
         accounts: (db.prepare('SELECT COUNT(*) AS n FROM accounts WHERE unit = ?').get(u) as { n: number }).n,
         frozen_accounts: (db.prepare('SELECT COUNT(*) AS n FROM accounts WHERE unit = ? AND frozen_at IS NOT NULL').get(u) as { n: number }).n,
       };
@@ -369,6 +373,8 @@ export function createAdminRouter(d: Deps): Hono {
       rate: rs ? { btc_usd: rs.rate, age_s: Math.round(rs.ageMs / 1000), sources: rs.sources, usable: rates.current() !== undefined } : null,
       units,
       holdings: holdings(d),
+      recovered,
+      mints_closed: wallet.closedMints,
       tinfoil: await tinfoilBilling(),
       tokenfactory: await tokenFactoryKey(),
       windows: {

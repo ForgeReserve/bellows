@@ -279,7 +279,7 @@ A request that opens a new balance (a topup or a funding sent without a known ba
 
 | Path | Answer |
 | - | - |
-| `GET /healthz` | `{ok, rate: {btc_usd, age_s} \| null, invite_only}` |
+| `GET /healthz` | `{ok, rate: {btc_usd, age_s} \| null, invite_only, mints_closed}`. `mints_closed` counts mints whose counter scan has not finished since a restart on a new database; funding and withdrawals there answer `503 mint_unavailable` until it has |
 | `GET /.well-known/bellows` | The attested identity ([below](#well-knownbellows)) |
 | `GET /.well-known/hpke-keys` | The model enclave's HPKE key configuration, passed through. `404` without an enclave supplier |
 | `GET /attestation` | The model enclave's attestation bundle, passed through. `404` without one |
@@ -313,7 +313,7 @@ A request that opens a new balance (a topup or a funding sent without a known ba
 | Endpoint | Send | Answer |
 | - | - | - |
 | `GET /admin/api/session` | | `{ok: true}`: checks the token |
-| `GET /admin/api/overview` | | `{at, markup, rate, units, holdings, windows, health, ...}`. `units` has per unit: revenue collected and exported, wallet holdings, owed payouts, customer balances, what can be swept, and counts of balances and frozen balances. `windows` (`today`, `d7`, `d30`) has requests, tokens, charged and supplier cost by model, tier and supplier, from daily aggregates. `health` has suppliers, mints, open fundings by state and method, quote-check budget and unfinished exports |
+| `GET /admin/api/overview` | | `{at, markup, rate, units, holdings, recovered, mints_closed, windows, health, ...}`. `units` has per unit: revenue collected and exported, wallet holdings, owed payouts, customer balances, what can be swept, recovered funds, and counts of balances and frozen balances. `recovered` is the eCash found at boot on a new database, per mint and unit (`proofs`, `amount`): owed to no balance, never spent by Bellows, and outside the holdings and what can be swept ([OPERATE.md](OPERATE.md#running-without-a-volume)). `mints_closed` lists mints whose counter scan has not finished. `windows` (`today`, `d7`, `d30`) has requests, tokens, charged and supplier cost by model, tier and supplier, from daily aggregates. `health` has suppliers, mints, open fundings by state and method, quote-check budget and unfinished exports |
 | `POST /admin/api/export/preview` | `{unit, amount?, mint?, pubkey?}` | `{unit, mint, amount, max, sweepable, locked_to}`: what an export would sweep |
 | `POST /admin/api/export` | The preview's fields plus `confirm_amount`, `confirm_mint`, `confirm_pubkey` copied from the preview | `200 {id, status: "done", unit, mint, amount, locked_to, token}`, or `202` with `status: "owed"` and `token: null` when the mint did not answer. `409 confirm_mismatch` if the confirmation differs |
 | `GET /admin/api/exports` | | `{data: [...]}`: export history (amount, lock, a hash of the token; never the token) |

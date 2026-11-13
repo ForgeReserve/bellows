@@ -217,7 +217,13 @@ The volume has no rollback protection: whoever controls the disk can put back an
 
 Use this only while your Tinfoil organization has no encrypted volumes. Set `BELLOWS_STORAGE: "memory"` in the `bellows` env, remove the `volumes` block, `persistent_volumes` and the volume key from `secrets`, and point `BELLOWS_SEALED_MOUNTS` at a `tmpfs` (`/tmp`, `size=256m`) with `BELLOWS_DB_PATH` under it. `pnpm deploy:check` accepts that and nothing in between. Create the instance without `--volume`.
 
-The database then lives in memory inside the sealed machine. Every restart, update or redeploy loses every balance, every unfinished funding and the ledger. The eCash Bellows held is not in the new database. Tell users to keep only what they are about to spend and to withdraw the rest. Bellows logs a `storage_memory` warning at boot, and `/.well-known/bellows` says `"storage": "memory"` in its attested statement, so clients can see it.
+The database then lives in memory inside the sealed machine. Every restart, update or redeploy loses every balance, every unfinished funding and the ledger. People's balances are gone. Tell users to keep only what they are about to spend and to withdraw the rest. Bellows logs a `storage_memory` warning at boot, and `/.well-known/bellows` says `"storage": "memory"` in its attested statement, so clients can see it.
+
+The eCash behind those balances is not lost. It was made from the wallet secret, so at boot, on a new database, Bellows asks each mint (NUT-09 restore) which of its outputs the mint has signed, keyset by keyset, until 1,000 counters in a row come back empty (batches of up to 500, at most 400 batches per keyset, at most 2 minutes per mint). It moves its counters past them, so no top-up or withdrawal is refused for reusing one, and keeps what is still unspent (NUT-07) as recovered funds. The boot log line `counter_recovery` gives the totals and the number of batches. The admin overview shows them as `recovered`, per mint and unit and per unit, next to the other totals.
+
+Recovered funds belong to nobody's balance: Bellows credits them to no one, never spends them, and leaves them out of the wallet totals and of what is sweepable. They can include withdrawals and change people took before the restart and have not redeemed yet, which come from the same wallet secret and cannot be told apart. You, the operator, decide what to do with them. This is one more reason to keep balances small in memory mode.
+
+While a mint cannot be reached for its scan, Bellows keeps that mint closed: top-ups, fundings and withdrawals there answer `503 mint_unavailable`, `/healthz` counts it in `mints_closed`, and the scan is retried with backoff (5 seconds, doubling, up to 5 minutes). The other mints work meanwhile. A restart with the same database does not scan again.
 
 The keyserver needs no volume key for this. Leave `BELLOWS_DATA_VOLUME_KEY` out of the policy, or leave it unused; the config does not ask for it.
 

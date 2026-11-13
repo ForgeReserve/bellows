@@ -28,7 +28,7 @@ Parts of this depend on sealed hardware and on Tinfoil's platform behaving as do
 
 ## What the operator can do
 
-- **Stop the service or destroy its data.** Deleting the volume loses the ledger. The wallet secret, kept offline, restores the gateway's eCash from the mint; customer balances held only in the ledger are lost. Clients keep balances small and move them between operators ([OPERATORS.md](OPERATORS.md)). A deployment without a volume (`"storage": "memory"` in `/.well-known/bellows`) loses every balance on every restart, so the operator destroys them just by restarting it ([OPERATE.md](OPERATE.md#running-without-a-volume)).
+- **Stop the service or destroy its data.** Deleting the volume loses the ledger. The wallet secret, kept offline, restores the gateway's eCash from the mint; customer balances held only in the ledger are lost. Clients keep balances small and move them between operators ([OPERATORS.md](OPERATORS.md)). A deployment without a volume (`"storage": "memory"` in `/.well-known/bellows`) loses every balance on every restart, so the operator destroys them just by restarting it. The eCash behind those balances is then recovered by the operator's wallet and shown as recovered funds, and the operator decides what to do with it. Keep balances small there ([OPERATE.md](OPERATE.md#running-without-a-volume)).
 - **Change prices, mints or suppliers.** Only by releasing a new build, whose config is public and measured.
 - **See timing and volume** at the host, and client addresses unless clients use a relay or Tor.
 - **Run the relay too.** A relay and a Bellows run by the same party hide nothing from that party.
