@@ -1,0 +1,20 @@
+// The relay core and the Worker typecheck against Web APIs only, so a Node-only API fails to compile.
+// server.ts (Node) is checked by the root tsconfig.
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "types": [],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "files": ["./relay.ts", "./worker.ts"]
+}

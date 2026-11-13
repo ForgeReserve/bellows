@@ -1,0 +1,8 @@
+{
+  "bellows/data-volume": { "key": "replace with the output of: openssl rand -base64 32" },
+  "bellows/wallet": { "secret": "replace with the output of: openssl rand -hex 32" },
+  "bellows/admin": { "token_hash": "replace with the sha256 hex of your admin token" },
+  "bellows/suppliers": { "tinfoil": "replace with your Tinfoil API key", "tokenfactory": "replace with your Token Factory API key" },
+  "bellows/announcement": { "event": "replace with the JSON text that pnpm announce --out writes" },
+  "bellows/onion-volume": { "key": "replace with the output of: openssl rand -base64 32" }
+}

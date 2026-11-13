@@ -1,0 +1,162 @@
+# Tinfoil Release, step 1 of 2: build the images, pin their digests, tag the release.
+#
+# Run it from the Actions tab of your public deploy repository (a copy of this repository with your own
+# tinfoil-config.yml), or from Tinfoil's dashboard or CLI, which start the workflow with this file name and a
+# `version` such as v1.0.0. It:
+#   1. checks, type-checks and tests the code it is about to build;
+#   2. builds and pushes the Bellows image (and the Tor sidecar image) to GitHub's container registry;
+#   3. pins their digests into tinfoil-config.yml, the file Tinfoil measures: every container it has
+#      (bellows, and tor when you use the onion service). The templates in deploy/ stay as they are;
+#   4. refuses a config that fails `pnpm deploy:check --release`;
+#   5. commits the pinned config, tags that commit with the version and pushes the tag (not a branch);
+#   6. starts tinfoil-release-publish.yml on the new tag, which measures the release with Tinfoil's action
+#      and opens a pull request adding it to builds.json.
+#
+# Every action is pinned by commit. Step by step: docs/OPERATE.md (Release).
+name: Tinfoil Release
+
+run-name: Release ${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. v1.0.0 (without the v it must equal package.json)"
+        required: true
+        type: string
+
+concurrency:
+  group: bellows-release-${{ inputs.version }}
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the release tag
+      packages: write # push the images
+      actions: write # start tinfoil-release-publish.yml on the new tag
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true # pushes the release tag below
+
+      - name: Check the version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! printf '%s' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::version must look like v1.2.3"; exit 1
+          fi
+          if [ "v$(node -p 'require("./package.json").version')" != "$VERSION" ]; then
+            echo "::error::package.json version is not ${VERSION#v}"; exit 1
+          fi
+          if git ls-remote --tags origin "refs/tags/$VERSION" | grep -q .; then
+            echo "::error::tag $VERSION already exists"; exit 1
+          fi
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Install
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Type-check and test
+        run: |
+          pnpm typecheck
+          pnpm test
+          pnpm builds:check
+          pnpm deploy:check
+
+      - name: End-to-end tests against local mints
+        run: |
+          pnpm mint:up
+          pnpm test:e2e
+          pnpm mint:down
+
+      - name: Image names
+        id: names
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "version=${VERSION#v}" >> "$GITHUB_OUTPUT"
+          repo="$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')"
+          echo "bellows=ghcr.io/$repo" >> "$GITHUB_OUTPUT"
+          echo "tor=ghcr.io/$repo-tor" >> "$GITHUB_OUTPUT"
+          echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to the container registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Timestamps come from the release commit, so a rebuild of the same commit can be compared with the
+      # published image (reproducibility is not verified; see docs/OPERATE.md).
+      - name: Build and push the Bellows image
+        id: bellows
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        env:
+          SOURCE_DATE_EPOCH: ${{ steps.names.outputs.epoch }}
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          provenance: false
+          tags: ${{ steps.names.outputs.bellows }}:${{ steps.names.outputs.version }}
+          outputs: type=image,push=true,rewrite-timestamp=true
+
+      - name: Build and push the Tor sidecar image
+        id: tor
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        env:
+          SOURCE_DATE_EPOCH: ${{ steps.names.outputs.epoch }}
+        with:
+          context: deploy/tor
+          file: deploy/tor/Dockerfile
+          platforms: linux/amd64
+          provenance: false
+          tags: ${{ steps.names.outputs.tor }}:${{ steps.names.outputs.version }}
+          outputs: type=image,push=true,rewrite-timestamp=true
+
+      - name: Pin the image digests
+        env:
+          BELLOWS_IMAGE: ${{ steps.names.outputs.bellows }}@${{ steps.bellows.outputs.digest }}
+          TOR_IMAGE: ${{ steps.names.outputs.tor }}@${{ steps.tor.outputs.digest }}
+        run: |
+          pnpm deploy:pin tinfoil-config.yml bellows="$BELLOWS_IMAGE" tor="$TOR_IMAGE"
+          {
+            echo "Bellows image: \`$BELLOWS_IMAGE\`"
+            echo "Tor sidecar image: \`$TOR_IMAGE\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check the release config
+        run: pnpm deploy:check --release tinfoil-config.yml
+
+      - name: Commit, tag and push the tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tinfoil-config.yml
+          git commit -m "release: $VERSION, image digests pinned"
+          git tag "$VERSION"
+          git push origin "refs/tags/$VERSION"
+
+      - name: Start the publish workflow on the new tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ inputs.version }}
+        run: gh workflow run tinfoil-release-publish.yml --ref "$VERSION"

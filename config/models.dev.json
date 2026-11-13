@@ -1,0 +1,357 @@
+{
+  "_comment": "Local development catalog: the mock supplier plus the real ones. Mock prices are arbitrary test values.",
+  "suppliers": {
+    "tokenfactory": {
+      "type": "openai",
+      "baseUrl": "https://gateway.trytokenfactory.dev/v1",
+      "apiKeySecret": "TOKENFACTORY_API_KEY",
+      "tier": "standard",
+      "pricing": "metered"
+    },
+    "tinfoil": {
+      "type": "tinfoil",
+      "baseUrl": "https://inference.tinfoil.sh/v1",
+      "apiKeySecret": "TINFOIL_API_KEY",
+      "tier": "enclave",
+      "pricing": "metered",
+      "allowPlaintext": true,
+      "enclaveHosts": [
+        "tinfoil.sh"
+      ],
+      "attestationUrl": "https://atc.tinfoil.sh/attestation",
+      "flat": {
+        "buckets": [
+          {
+            "maxBytes": 8192,
+            "usd": 0.002
+          },
+          {
+            "maxBytes": 65536,
+            "usd": 0.01
+          },
+          {
+            "maxBytes": 1000000,
+            "usd": 0.05
+          }
+        ],
+        "output_usd_per_mtok": 20
+      }
+    },
+    "mock": {
+      "type": "mock",
+      "tier": "standard",
+      "pricing": "metered"
+    }
+  },
+  "models": [
+    {
+      "id": "mock-slow",
+      "supplier": "mock",
+      "upstream": "mock-slow",
+      "input_usd_per_mtok": 10,
+      "output_usd_per_mtok": 100,
+      "price_verified": true,
+      "max_output_tokens": 512,
+      "uncensored": false
+    },
+    {
+      "id": "mock-echo",
+      "supplier": "mock",
+      "upstream": "mock-echo",
+      "input_usd_per_mtok": 10,
+      "output_usd_per_mtok": 100,
+      "price_verified": true,
+      "max_output_tokens": 512,
+      "uncensored": false
+    },
+    {
+      "id": "mock-think",
+      "supplier": "mock",
+      "upstream": "mock-think",
+      "input_usd_per_mtok": 10,
+      "output_usd_per_mtok": 100,
+      "price_verified": true,
+      "max_output_tokens": 512,
+      "uncensored": false,
+      "name": "Mock (reasoning demo)",
+      "reasoning": true,
+      "reasoning_efforts": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    {
+      "id": "mock-vision",
+      "supplier": "mock",
+      "upstream": "mock-echo",
+      "input_usd_per_mtok": 10,
+      "output_usd_per_mtok": 100,
+      "price_verified": true,
+      "max_output_tokens": 512,
+      "uncensored": false,
+      "name": "Mock (vision demo)",
+      "vision": true
+    },
+    {
+      "id": "mock-uncensored",
+      "name": "Mock (uncensored demo)",
+      "supplier": "mock",
+      "upstream": "mock-echo",
+      "input_usd_per_mtok": 10,
+      "output_usd_per_mtok": 100,
+      "price_verified": true,
+      "max_output_tokens": 512,
+      "uncensored": true
+    },
+    {
+      "id": "qwen3.8-27b",
+      "supplier": "tokenfactory",
+      "upstream": "qwen3.8-27b",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": false,
+      "context_length": 196608
+    },
+    {
+      "id": "glm-5.3",
+      "supplier": "tokenfactory",
+      "upstream": "glm-5.3",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": false,
+      "context_length": 917504
+    },
+    {
+      "id": "glm-5.3-flash",
+      "supplier": "tokenfactory",
+      "upstream": "glm-5.3-flash",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": false,
+      "context_length": 917504
+    },
+    {
+      "id": "deepseek-v4.1-flash-1017",
+      "supplier": "tokenfactory",
+      "upstream": "deepseek-v4.1-flash-1017",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": false,
+      "context_length": 917504
+    },
+    {
+      "id": "kimi-k3.1-pro",
+      "supplier": "tokenfactory",
+      "upstream": "kimi-k3.1-pro",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": false,
+      "context_length": 917504
+    },
+    {
+      "id": "minimax-m3.1-flash",
+      "supplier": "tokenfactory",
+      "upstream": "minimax-m3.1-flash",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": false,
+      "context_length": 917504
+    },
+    {
+      "id": "nemotron-3-ultra",
+      "supplier": "tokenfactory",
+      "upstream": "nemotron-3-ultra",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": false,
+      "context_length": 917504
+    },
+    {
+      "id": "nemotron-3-super",
+      "supplier": "tokenfactory",
+      "upstream": "nemotron-3-super",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": false,
+      "context_length": 917504
+    },
+    {
+      "id": "nemotron-3.5-lightning",
+      "supplier": "tokenfactory",
+      "upstream": "nemotron-3.5-lightning",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": false,
+      "context_length": 917504
+    },
+    {
+      "id": "glm-5.3-uncensored-fp8",
+      "supplier": "tokenfactory",
+      "upstream": "glm-5.3-uncensored-fp8",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": true,
+      "context_length": 917504
+    },
+    {
+      "id": "glm-5.3-flash-uncensored-fp8",
+      "supplier": "tokenfactory",
+      "upstream": "glm-5.3-flash-uncensored-fp8",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": true,
+      "context_length": 917504
+    },
+    {
+      "id": "deepseek-v4.1-flash-1017-uncensored-fp8",
+      "supplier": "tokenfactory",
+      "upstream": "deepseek-v4.1-flash-1017-uncensored-fp8",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": true,
+      "context_length": 917504
+    },
+    {
+      "id": "kimi-k3-abliterated",
+      "supplier": "tokenfactory",
+      "upstream": "kimi-k3-abliterated",
+      "input_usd_per_mtok": 1.0,
+      "output_usd_per_mtok": 4.0,
+      "price_verified": false,
+      "max_output_tokens": 8192,
+      "uncensored": true,
+      "context_length": 917504
+    },
+    {
+      "id": "tinfoil/kimi-k3-1-pro",
+      "supplier": "tinfoil",
+      "upstream": "kimi-k3-1-pro",
+      "input_usd_per_mtok": 4,
+      "output_usd_per_mtok": 20,
+      "price_verified": true,
+      "max_output_tokens": 8192,
+      "context_length": 262144,
+      "uncensored": false,
+      "vision": true,
+      "reasoning": true,
+      "reasoning_efforts": [
+        "low",
+        "high",
+        "max"
+      ]
+    },
+    {
+      "id": "tinfoil/glm-5-3",
+      "supplier": "tinfoil",
+      "upstream": "glm-5-3",
+      "input_usd_per_mtok": 1.8,
+      "output_usd_per_mtok": 5.75,
+      "price_verified": true,
+      "max_output_tokens": 8192,
+      "context_length": 1048576,
+      "uncensored": false,
+      "vision": false,
+      "reasoning": true,
+      "reasoning_efforts": [
+        "low",
+        "high",
+        "max"
+      ]
+    },
+    {
+      "id": "tinfoil/deepseek-v4-1-flash",
+      "supplier": "tinfoil",
+      "upstream": "deepseek-v4-1-flash",
+      "input_usd_per_mtok": 0.6,
+      "output_usd_per_mtok": 1.45,
+      "price_verified": true,
+      "max_output_tokens": 8192,
+      "context_length": 1048576,
+      "uncensored": false,
+      "vision": true,
+      "reasoning": true,
+      "reasoning_efforts": [
+        "low",
+        "high",
+        "max"
+      ],
+      "speed": "fast"
+    },
+    {
+      "id": "tinfoil/gemma4-31b",
+      "supplier": "tinfoil",
+      "upstream": "gemma4-31b",
+      "input_usd_per_mtok": 0.4,
+      "output_usd_per_mtok": 1.0,
+      "price_verified": true,
+      "max_output_tokens": 8192,
+      "context_length": 262144,
+      "uncensored": false,
+      "vision": true,
+      "reasoning": true,
+      "reasoning_efforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "speed": "fast"
+    },
+    {
+      "id": "tinfoil/gpt-oss-120b",
+      "supplier": "tinfoil",
+      "upstream": "gpt-oss-120b",
+      "input_usd_per_mtok": 0.15,
+      "output_usd_per_mtok": 0.6,
+      "price_verified": true,
+      "max_output_tokens": 8192,
+      "context_length": 131072,
+      "uncensored": false,
+      "vision": false,
+      "reasoning": true,
+      "reasoning_efforts": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "speed": "fast"
+    },
+    {
+      "id": "tinfoil/llama3-3-70b",
+      "supplier": "tinfoil",
+      "upstream": "llama3-3-70b",
+      "input_usd_per_mtok": 1.75,
+      "output_usd_per_mtok": 2.75,
+      "price_verified": true,
+      "max_output_tokens": 8192,
+      "context_length": 131072,
+      "uncensored": false,
+      "vision": false,
+      "reasoning": false
+    }
+  ]
+}

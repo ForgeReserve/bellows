@@ -1,0 +1,109 @@
+# Bellows on Tinfoil Containers. Tinfoil measures tinfoil-config.yml at the repository root at each
+# release tag and publishes the measurement, so every line here is part of what clients verify. Step by
+# step: docs/OPERATE.md.
+#
+# deploy/tinfoil-config.example.yml is the template, and tinfoil-config.yml starts as a copy of it. Edit
+# tinfoil-config.yml, your deployment, and leave the template as it is.
+#
+# Before a release, replace every example value (the keyserver and the mint) with your own.
+# `pnpm deploy:check --release` refuses the file until you have. The release workflow pins the image
+# digests for you (.github/workflows/tinfoil-release.yml).
+#
+# Rules this file keeps (checked by `pnpm deploy:check` and test/unit/deploy.test.ts):
+#  - Only the bellows container has `attestation: true`. Any container that can reach the attestation
+#    socket can obtain a quote over any nonce (docs/ATTESTATION.md).
+#  - Secrets come from your own keyserver (`keyserver-url`), never from Tinfoil's secret store and never
+#    from `env`.
+#  - The database is on the encrypted volume, unlocked at boot with a key only your keyserver releases.
+#  - Every setting is a measured literal. No container has admin access or open ports.
+
+cvm-version: "0.14.17"
+cpus: 2
+memory: 8192
+
+# Your keyserver (github.com/tinfoilsh/keyserver). It releases the secrets below only to an enclave that
+# proves it runs this repository at an approved tag, served at your domain. Example policy:
+# deploy/keyserver/policy.example.yaml.
+keyserver-url: https://keys.example.com
+
+networks:
+  # Bellows may reach only these hosts. Add every mint in BELLOWS_TRUSTED_MINTS and BELLOWS_FUND_MINT,
+  # and the host of every supplier in config/models.json.
+  egress:
+    egress: allowlist
+    allow:
+      - mint.example.com
+      - inference.tinfoil.sh
+      - atc.tinfoil.sh
+      - gateway.trytokenfactory.dev
+      - api.coinbase.com
+      - api.kraken.com
+      - www.bitstamp.net
+      - relay.damus.io
+      - nos.lol
+      - relay.primal.net
+
+volumes:
+  # The encrypted volume. Its key is a private secret your keyserver releases at every boot; Tinfoil
+  # never holds it. Back the key up offline before you write anything to the volume (docs/OPERATE.md).
+  - name: data
+    key-secret: BELLOWS_DATA_VOLUME_KEY
+    owner: "1000:1000"
+
+containers:
+  - name: bellows
+    image: "ghcr.io/example/bellows@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    user: "1000:1000"
+    attestation: true
+    read_only: true
+    tmpfs:
+      /tmp: "size=64m,mode=1777"
+    persistent_volumes: [data:/data]
+    networks: [egress]
+    restart: always
+    stop_signal: SIGTERM
+    stop_timeout: 15
+    env:
+      - NODE_ENV: "production"
+      - PORT: "8787"
+      - BELLOWS_MODE: "sealed"
+      - BELLOWS_SECRETS: "platform"
+      - BELLOWS_SEALED_MOUNTS: "/data"
+      - BELLOWS_DB_PATH: "/data/bellows.db"
+      - BELLOWS_ATTESTER: "tinfoil"
+      - BELLOWS_TRUSTED_MINTS: "https://mint.example.com"
+      - BELLOWS_UNITS: "usd,sat"
+      - BELLOWS_DEFAULT_UNIT: "usd"
+      - BELLOWS_MARKUP: "1.25"
+      - BELLOWS_RATE_SOURCES: "coinbase,kraken,bitstamp"
+      - BELLOWS_FOREIGN_DISCOVERY_RELAYS: "wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net"
+      - BELLOWS_LOG_LEVEL: "info"
+    secrets:
+      - BELLOWS_WALLET_SECRET
+      - BELLOWS_ADMIN_TOKEN_HASH
+      - TINFOIL_API_KEY
+      - TOKENFACTORY_API_KEY
+      # Your signed operator announcement (pnpm announce). Public, but it names the build this file is
+      # measured into, so it cannot be a literal here; the keyserver releases it with the secrets.
+      - BELLOWS_OPERATOR_ANNOUNCEMENT
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 2m
+
+shim:
+  upstream-container: bellows
+  upstream-port: 8787
+  paths:
+    - /healthz
+    - /v1/*
+    - /.well-known/*
+    - /attestation
+    - /ohttp
+    - /ohttp-keys
+    # The operator API, on the public origin: TLS ends in the enclave, so no proxy of yours can guard it.
+    # Its only protection is the admin token (openssl rand -hex 32). Remove these two lines to keep it closed.
+    - /admin/api
+    - /admin/api/*

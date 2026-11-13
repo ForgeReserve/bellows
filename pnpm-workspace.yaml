@@ -1,0 +1,6 @@
+packages:
+  - "."
+minimumReleaseAge: 4320
+# esbuild ships its platform binary as an optional dependency; its postinstall is not needed.
+allowBuilds:
+  esbuild: false
