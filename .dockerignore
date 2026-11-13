@@ -1,0 +1,13 @@
+node_modules
+.env
+data
+*.db
+.git
+.github
+test
+docs
+deploy
+examples
+relay
+scripts
+secrets.json

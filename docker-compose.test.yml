@@ -1,0 +1,36 @@
+# Local Cashu mints for the e2e suite. FakeWallet backends: quotes are paid automatically.
+x-mint: &mint
+  image: cashubtc/nutshell:0.22.1
+  command: ["poetry", "run", "mint"]
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3338/v1/info')"]
+    interval: 2s
+    timeout: 3s
+    retries: 30
+services:
+  mint-a:
+    <<: *mint
+    ports: ["127.0.0.1:3338:3338"]
+    environment: &env
+      MINT_LISTEN_HOST: 0.0.0.0
+      MINT_LISTEN_PORT: "3338"
+      MINT_BACKEND_BOLT11_SAT: FakeWallet
+      MINT_BACKEND_BOLT11_USD: FakeWallet
+      MINT_INPUT_FEE_PPK: "0"
+      MINT_RATE_LIMIT: "FALSE"
+      MINT_DATABASE: data/mint
+      MINT_MNEMONIC: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+  mint-b:
+    <<: *mint
+    ports: ["127.0.0.1:3339:3338"]
+    environment:
+      <<: *env
+      MINT_MNEMONIC: "legal winner thank year wave sausage worth useful legal winner thank yellow"
+  # A "foreign" mint for the other-mint funding tests: charges input fees so fee math is exercised.
+  mint-c:
+    <<: *mint
+    ports: ["127.0.0.1:3340:3338"]
+    environment:
+      <<: *env
+      MINT_INPUT_FEE_PPK: "100"
+      MINT_MNEMONIC: "letter advice cage absurd amount doctor acoustic avoid letter advice cage above"

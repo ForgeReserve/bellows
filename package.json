@@ -1,0 +1,49 @@
+{
+  "name": "bellows",
+  "version": "0.1.0",
+  "description": "Operator-blind, OpenAI-compatible AI gateway paid per request with Cashu eCash",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit && tsc -p relay/tsconfig.json --noEmit",
+    "test": "vitest run test/unit",
+    "test:e2e": "vitest run test/e2e",
+    "test:live": "node --env-file-if-exists=.env node_modules/vitest/vitest.mjs run test/live",
+    "mint:up": "docker compose -f docker-compose.test.yml up -d --wait",
+    "mint:down": "docker compose -f docker-compose.test.yml down",
+    "admin": "node src/admin.ts",
+    "demo:agent": "tsx examples/agent-pays.ts",
+    "test-token": "tsx scripts/test-token.ts",
+    "builds:check": "node scripts/check-builds.ts",
+    "builds:add": "node scripts/add-build.ts",
+    "deploy:check": "node scripts/check-deploy.ts",
+    "deploy:pin": "node scripts/pin-image.ts",
+    "announce": "node scripts/announce.ts",
+    "relay": "node relay/server.ts"
+  },
+  "dependencies": {
+    "@cashu/cashu-ts": "^4.13.0",
+    "@hono/node-server": "^2.1.6",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
+    "bhttp-ts": "0.6.1",
+    "hono": "^4.13.17",
+    "hpke": "1.1.8",
+    "ohttp-ts": "0.6.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0",
+    "yaml": "2.9.1"
+  },
+  "packageManager": "pnpm@12.15.0"
+}

@@ -1,0 +1,95 @@
+# Tinfoil Release, step 2 of 2: measure the tagged release and propose it for builds.json.
+#
+# Normally started by tinfoil-release.yml; run by hand only to recover (docs/OPERATE.md, If a step fails).
+# Run on the new v<version> tag, it:
+#   1. measures tinfoil-config.yml at the tag with Tinfoil's measure action, which signs the measurement
+#      into the Sigstore transparency log and publishes a GitHub release with tinfoil-deployment.json;
+#   2. reads the measurement from tinfoil-deployment.json and adds the build to builds.json
+#      (`pnpm builds:add`), on a new branch from the default branch;
+#   3. opens a pull request. A person reviews and merges it: approving a build is never automatic.
+#
+# Clients accept the build only once it is in the builds.json they trust (docs/OPERATE.md, Release).
+name: Tinfoil Release - Publish (auto-triggered)
+
+run-name: Publish ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: bellows-release-publish-${{ github.ref_name }}
+
+permissions: {}
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub release, push the builds.json branch
+      packages: write # attach the attestation
+      id-token: write # keyless Sigstore signing
+      attestations: write # publish the attestation
+      pull-requests: write # open the builds.json pull request
+    steps:
+      - name: Refuse anything but a release tag
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" != "tag" ] || ! printf '%s' "$REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::run this on a v<version> tag (tinfoil-release.yml does)"; exit 1
+          fi
+
+      - name: Measure, attest and publish the release
+        uses: tinfoilsh/measure-image-action@beba4296251f7a9bc44b481ebafe4863509e4380 # v0.14.1
+        with:
+          config-file: ${{ github.workspace }}/tinfoil-config.yml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Keep the measurement
+        run: cp output/tinfoil-deployment.json "$RUNNER_TEMP/tinfoil-deployment.json"
+
+      - name: Checkout the default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: true # pushes the builds.json branch below
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Install
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Add the build to builds.json
+        env:
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          pnpm builds:add \
+            --deployment-file "$RUNNER_TEMP/tinfoil-deployment.json" \
+            --version "${TAG#v}" \
+            --deployment "$REPO@$TAG"
+          pnpm builds:check
+
+      - name: Open the pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          BASE: ${{ github.event.repository.default_branch }}
+        run: |
+          branch="builds/$TAG"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add builds.json
+          git commit -m "builds: approve $TAG"
+          git push origin "refs/heads/$branch"
+          gh pr create --base "$BASE" --head "$branch" \
+            --title "builds: approve $TAG" \
+            --body "Adds the measured release $TAG to builds.json. Check the measurement against the GitHub release $TAG (tinfoil-deployment.json and its Sigstore entry) and review tinfoil-config.yml at $TAG before merging. Clients trust a build once this is merged."

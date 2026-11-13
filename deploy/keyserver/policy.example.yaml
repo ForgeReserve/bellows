@@ -1,0 +1,39 @@
+# Keyserver policy for a Bellows deployment (github.com/tinfoilsh/keyserver). The keyserver releases these
+# secrets only to an enclave whose fresh attestation proves it runs `repo` at `tag`, served at `domain`.
+# Nothing the enclave merely claims authorizes anything.
+#
+# Copy this file, replace every example value, and keep it next to your keyserver, not in a public repo.
+# The keyserver reads it at startup: restart it after an edit.
+#
+# Approving a release is this file. Add an entry for a new tag before you deploy it, and keep the previous
+# entry while that release may still need to boot (for a rollback). Approve only a release whose
+# measurement is listed in the public builds.json: clients refuse any other build, but this file alone
+# decides who receives your secrets. Step by step: docs/OPERATE.md.
+workloads:
+  bellows-v1-0-0:
+    # Your public deploy repository: the one holding the measured tinfoil-config.yml.
+    repo: example/bellows-deploy
+    # The release tag Tinfoil measured. Its measurement is the builds.json entry with
+    # "deployment": "example/bellows-deploy@v1.0.0".
+    tag: v1.0.0
+    # Where your instance is served. Required: anyone can deploy a public repo at the same tag, and only
+    # an enclave with a CA-issued certificate for this domain qualifies.
+    domain: bellows.example.com
+    secrets:
+      # Unlocks the encrypted volume at boot. Base64 of at least 16 random bytes. It never changes: a new
+      # key cannot open the existing volume. Back it up offline (docs/OPERATE.md).
+      BELLOWS_DATA_VOLUME_KEY: { path: bellows/data-volume, field: key }
+      # The wallet secret: 32 random bytes as hex. The wallet seed is derived from it. Back it up offline.
+      BELLOWS_WALLET_SECRET: { path: bellows/wallet, field: secret }
+      # SHA-256 (hex) of the admin token. The token itself need not be stored anywhere.
+      BELLOWS_ADMIN_TOKEN_HASH: { path: bellows/admin, field: token_hash }
+      # Supplier keys, named by apiKeySecret in config/models.json.
+      TINFOIL_API_KEY: { path: bellows/suppliers, field: tinfoil }
+      TOKENFACTORY_API_KEY: { path: bellows/suppliers, field: tokenfactory }
+      # Your signed operator announcement, the JSON that `pnpm announce --out` writes. Not secret, but it
+      # names this release's measurement, so it cannot be in the measured config. Update it here and
+      # redeploy when your announcement changes (for example once you have an onion address).
+      BELLOWS_OPERATOR_ANNOUNCEMENT: { path: bellows/announcement, field: event }
+      # Only with the onion service (deploy/tinfoil-config.onion.example.yml): unlocks the volume that holds the
+      # onion service's keys. Base64 of at least 16 random bytes.
+      BELLOWS_ONION_VOLUME_KEY: { path: bellows/onion-volume, field: key }

@@ -1,0 +1,566 @@
+[
+  {
+    "content": "",
+    "created_at": 1794123748,
+    "id": "ac0aac7e336dcb90ad047fdb1888db9680a0a704de7ffbc442a23a6a2a5d7284",
+    "kind": 38172,
+    "pubkey": "d5792f1044ca61572d652dce832d06c1c26ce278c06e01bb753f44d92e634a20",
+    "sig": "dfc392639cc8f795193620494355bdaf410638f12e4c2ec62e53452779aeb0dc97829e207452e8ca70098b27fe8b132c169c7d6088d2edceaf3d267fd8d52090",
+    "tags": [
+      [
+        "d",
+        "03fdf1e25e49365ed4bbccfd88f07d5c73ef46fe853048ca94f04157a02000b017"
+      ],
+      ["u", "https://mint.gitvid.net"],
+      ["nuts", "4,5,7,8,9,10,11,12,14,17,20,29"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1794067201,
+    "id": "a82841a95057c03eac9f82ab18efe19a852fb570f44b5e9b2e691a8dc51f6cd0",
+    "kind": 38172,
+    "pubkey": "7dab8507197a661454c3438a8fc2079564b9dc4afcbc496b509baf1466f0b00e",
+    "sig": "7454f19eae197b419320d64413e24c335aea2e595df02f4ab98a9dcc9ff794e91d6c8a18c3cf254eb5c4ad8e677bcdf04ac60cc82463f990b437efb083e5129c",
+    "tags": [
+      ["u", "https://mint.cashu.chat"],
+      ["d", "https://mint.cashu.chat"],
+      ["n", "Cashu Mint"],
+      [
+        "description",
+        "Community Cashu ecash mint (Nutshell 0.20+, Phoenixd backend)"
+      ]
+    ]
+  },
+  {
+    "content": "[1/5]",
+    "created_at": 1794129725,
+    "id": "c49ffcde04e829a24e82eb1228cd38a34e01d8de6e5edf386213c2307dd77d3b",
+    "kind": 38000,
+    "pubkey": "e5f28f6caf0e00e416f3c4d6260e52fb1229f24da334c4a91064f20303888fb4",
+    "sig": "415994275837bc7d80510e08efb380d7b8682d84d1afcafee1ee08e17a9c15371f06c66037e78eaeef532d35281f49f74463c621ddffebad6fc7e184bb62003e",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://antifiat.cash"],
+      ["d", "https://antifiat.cash"]
+    ]
+  },
+  {
+    "content": "[5/5]",
+    "created_at": 1794104698,
+    "id": "c2d2cdc55d146150bc50744d51c315b407926a35e9ebf4f62e850e66d84744e2",
+    "kind": 38000,
+    "pubkey": "7a4820a2a1db72cc607b1ba2b2367c5b32d7e9462ccb2ee75d4e6895a185634b",
+    "sig": "fe2592435a86657625110e9abdb4b69d323cab4a1c13fa2c6b7c560f8e1dec8b6b45670414c9ea8338a9142f789f99024f07ffeb9c97302d99e6c92221b0ee36",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://antifiat.cash"],
+      ["d", "https://antifiat.cash"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1793936314,
+    "id": "67a5f9b22f0570d4a5c8017ea0fac7c6d962194ef49bcb85603050f3528a9e90",
+    "kind": 38000,
+    "pubkey": "1e6da4b312e05ca8d1e3b255965eba8ce0b7ed7e3da55253e354c234feacc083",
+    "sig": "6ea4ec8f7b6d943fc9f47e3fba0a25042a3058ef361d91e9e1348b148236e1046ef99587e6e58c88a50b3fb0116c216b1f04ca87692239ba1dade84e625169ff",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.coinos.io"],
+      ["d", "https://mint.coinos.io"]
+    ]
+  },
+  {
+    "content": "[5/5] good luck",
+    "created_at": 1793926528,
+    "id": "bc93d0c57dd702dfc0489299319fa04e61cbce1e2c7e8970c7dbd8b9e6182e23",
+    "kind": 38000,
+    "pubkey": "dae901c7163615991632ec50501459e83ff0446bc548ecad299fd963124882b5",
+    "sig": "22b9e133c361cf9b9471fe930a8efdedad9a2e2f8e90ed1412d33cf70a74dddbbe49d71b2ee2d13eb4ab824f007e1184370f527960a7de5ae0b52d5022563233",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.cashu.chat", "cashu"],
+      [
+        "d",
+        "021bce61ecb2628d96f5fba9b2e640b7c2d2a1c5e20dfdf4dede764ae17c60c872"
+      ]
+    ]
+  },
+  {
+    "content": "[5/5] good luck",
+    "created_at": 1793926301,
+    "id": "c22275b9c79a67ddabc0efe9f922a5432045cf1b829c6b4936ff5e470498286e",
+    "kind": 38000,
+    "pubkey": "dae901c7163615991632ec50501459e83ff0446bc548ecad299fd963124882b5",
+    "sig": "8907f088b2438199c4f02cbb4117a2dcea49ef80a360bbe0b155a1a6cbaa1c5481c45e60b3a83a815a2b59fc69f2e87148dfe07f541f8a9e8d640ecd4c50714e",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin", "cashu"],
+      [
+        "d",
+        "03c21ef6f899f661356103552c1945579b0f36f96f9f7d2190ca0cbdab3add4af9"
+      ]
+    ]
+  },
+  {
+    "content": "[5/5] what a great mint - a tremendous mint",
+    "created_at": 1793739134,
+    "id": "882a8c169ffa70ee0f96758b88469746484b578d754867a3249cb5b392e6aac5",
+    "kind": 38000,
+    "pubkey": "4faaa16714f6340b17b248cee24a6f8558348af5be604928800fd92a3869234d",
+    "sig": "e083493d428f38425b10edf82b4f65e1c5418cd6989599c3b453ae6861051b903126fbe5bfb7ba2e79f76b2ce95373cac222f0483c57ea9dc3f9134632cb93d1",
+    "tags": [
+      ["k", "38172"],
+      ["d", "https://antifiat.cash"],
+      ["u", "https://antifiat.cash"]
+    ]
+  },
+  {
+    "content": "[5/5] Love this mint",
+    "created_at": 1793684978,
+    "id": "4a8bca67a651921b3b7282a90c9aba64ff814404caee07ea0334cec3ab9834cf",
+    "kind": 38000,
+    "pubkey": "c317b76a655ace828b7280343f1215e99e0ece001d3efbfdfc0a7fa78185ee00",
+    "sig": "57b06d7e27f19bf4eed324a2f4cdfeff127f5823d03310faad3c08abfba2ac784c52104825473881e0cdf97e9962d087e0703c30d5f9474ebe3905a9218101f0",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://21mint.me", "cashu"],
+      [
+        "d",
+        "0353208248b23df42633d981fc6a75ffb4020c554d0a445f01a00d97fdd2f31de0"
+      ]
+    ]
+  },
+  {
+    "content": "[5/5] Good&reliable",
+    "created_at": 1793652684,
+    "id": "7c5d87b0a6938785ba7ac505e3a5bada071da180d0aa241334bb74fce047fc88",
+    "kind": 38000,
+    "pubkey": "d94d9ab7fc8df508666419ed6d6db087a2e21a5c0e9c6189b9f54c8218d29938",
+    "sig": "c58f4be6ed09639774328360e37195d9a187d944fb2f1d7d45244e346308651b5a50a0c499ea791b4b295f93f2fef37932cdb8b82c0561adb4af401a1367643b",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://cashu.cz", "cashu"],
+      [
+        "d",
+        "03865af45367ddc059b1dcaddbda60152504cf0a715a0a263ebe39b92cf60f4d60"
+      ]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1793491489,
+    "id": "3ac2c71803feb4ac8fd9402409f442a33df1702013313be89ad7f523d8f921e4",
+    "kind": 38000,
+    "pubkey": "c7c23233472361bc9f6bb45ae258e39d91e898e0b2f07668995c1c5552a5ee14",
+    "sig": "abf79adde9bda08cbadfd54832f2e72c68c77140af6b4ce44b08f49c61d88848c6f0a823bf990cef4297dd7a4cdac96529dbab0b9faca4cf35bf7e6fc0a9b9fc",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://testnut.cashu.space"],
+      ["d", "https://testnut.cashu.space"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1793433962,
+    "id": "6fc5833bb512010b7271811fc6322e15fb7f55577a97727d9434a91846736c5c",
+    "kind": 38000,
+    "pubkey": "d1f3b9f0fc71b58e46d4624d5b31f60495b3f9004f46981950c25efba6ccb7aa",
+    "sig": "1b222046225dc9dd4b17cc918ec0ed588f7983af41fde7b4ddb147c5a4b4f15b4abb9c2412d59b8f6677ca8855d3b278d82cd27e91de5617cc707a8dcb0a3f1a",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin"],
+      ["d", "https://mint.minibits.cash/Bitcoin"]
+    ]
+  },
+  {
+    "content": "[3/5]",
+    "created_at": 1793433851,
+    "id": "e995d742fd19f590052ec475cba9b8146988dd7f4279819d3a94d267a6514c4f",
+    "kind": 38000,
+    "pubkey": "5c465b6152f53da655dcc8986d2d0d4616e937625c3ce9beeba5f6300f44dc1e",
+    "sig": "5ab43ee3d7aeeba0c3296332206fa595b78d607d0e298dcdbe1daeb241e3197858133474e4569f1c4e620942a0b02ab8587690a5395aca77e434db73710f30c5",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin"],
+      ["d", "https://mint.minibits.cash/Bitcoin"]
+    ]
+  },
+  {
+    "content": "[1/5] Was good at the beginning but now offline since days",
+    "created_at": 1793295038,
+    "id": "7d411bad72d16ab5d324ed6a4055acde00f093839160aa34dbbf409437dfd9e6",
+    "kind": 38000,
+    "pubkey": "20aa5300b76b1fdeca2542869ace89129f998d63425fe116bde5e5c4030de259",
+    "sig": "5dba14741f40836837680e43a5df7ae383cf0830188ea13ffd4fa18c543a3811bbffc63227381bb70708c790e1ee34e0ef9bf5b1c891008f206dbbfe7b6edbb9",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.lnserver.com", "cashu"],
+      [
+        "d",
+        "03febac620c2d95112bb35b7686081a1b6a14e30ed937cf7d431dab2e33f37ab1e"
+      ]
+    ]
+  },
+  {
+    "content": "[5/5]",
+    "created_at": 1793175774,
+    "id": "2b8c487c741f1a7af01ce5f9c5704e0ffbb99cb3813e589728a605f931b81666",
+    "kind": 38000,
+    "pubkey": "39fd4e75e603d4c870a9f304d7eb275c2d363730ce41c7fe3547ec83438d25e7",
+    "sig": "4412f3f395556b8aa4649213ca24aadefdc299fc482d7a8492086f36875f63267bbc0e86b410ab04a37ea2af77f38a29698b4e22d1d07eae108f9d421d45d784",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin", "cashu"],
+      [
+        "d",
+        "03c21ef6f899f661356103552c1945579b0f36f96f9f7d2190ca0cbdab3add4af9"
+      ]
+    ]
+  },
+  {
+    "content": "[5/5]",
+    "created_at": 1792940986,
+    "id": "da1d7721bea97c32bedf1d588d4f94f2ade8a499fcc01470629a31a4da501120",
+    "kind": 38000,
+    "pubkey": "8b369c62fdcc3e5d7bce588e986188bb9a65cfbab5233d01e1c1e1731cfb8caa",
+    "sig": "30ce1adcaaa06d3dd71bd3436698b306810212b8918a16d582b351d4d710e450a3bc413c0e7224cd7d37ae69c2163c50a166650dbaae46b77de06bfd2d3a6755",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin"],
+      ["d", "https://mint.minibits.cash/Bitcoin"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1792940958,
+    "id": "1e28f9331548956c2d29fe544b420e90eeca79fb606072be745a3ed9ab50872f",
+    "kind": 38000,
+    "pubkey": "577f44a1956855594dc22d923407da5af5fddcbfbd3a259102d6c72d19b7c1f9",
+    "sig": "f95eb7f6c4e869a4445340ebe489c2998704d1c2b0fcee1734839eb200305683a0d9673ec441058f0fbb864708288a22ae67294814c93200814e0c808215e5d4",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin"],
+      ["d", "https://mint.minibits.cash/Bitcoin"]
+    ]
+  },
+  {
+    "content": "Nice",
+    "created_at": 1792859380,
+    "id": "a7eea6cc9fd477838086f44b224f27dde157d65abdb6de6d5df94214ec2885a7",
+    "kind": 38000,
+    "pubkey": "bd09735ce0a53ebc65ff372f9fe3f29eaee203d05c3e25d7a0cb74f11d5318f2",
+    "sig": "9df078d8346b9c3783d4003be3f51a62addcff228450d35954eb51926fef6329ed88253ef5d9292c4173a73fe7d505383d89602b3d20c98a9921a35689dc30b8",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.nostrfeed.com"],
+      ["d", "https://mint.nostrfeed.com"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1792756035,
+    "id": "82e9eafcf4db94a8f071c5e3ff2d9983d2bee2a96967f266305af8a4145b8605",
+    "kind": 38000,
+    "pubkey": "55c6d55b03ec1a90c770b1b9067ccbdfe5a3d838f958189aa9535859aeb1d86a",
+    "sig": "d4e0dbecbf7a682b84280a83e567cf35345e5e4cbc5e5a61382ff6f6b11a201695c01bca0c5419b0f1d40e22231c92f07d753d5b97c7624f7ec2b22be671c88b",
+    "tags": [
+      ["d", "https://mint.minibits.cash/bitcoin"],
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/bitcoin"],
+      ["client", "Amethyst"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1792756016,
+    "id": "bfcd222d6536d99aae3c39ae77fcfb0a6256ed18a4f6dd21b5ffdffca9df8db0",
+    "kind": 38000,
+    "pubkey": "55c6d55b03ec1a90c770b1b9067ccbdfe5a3d838f958189aa9535859aeb1d86a",
+    "sig": "8819c5b97eef64ed88a88e757038378bbc7ea38ad2c3fe2ef1e9974a689a29fcedf6226787b24706884600fe9d15c26918100cf8c17fedca8d3b64b4f8e38716",
+    "tags": [
+      ["d", "2p99r473z3ro1roi"],
+      ["k", "38172"],
+      ["u", "https://mint.coinos.io"],
+      ["client", "Amethyst"]
+    ]
+  },
+  {
+    "content": "[5/5]",
+    "created_at": 1792443110,
+    "id": "d5d8c9850ed1fcbf873d5a298fdc8cdbeb84d20d45a65bf4be0fed6861fa30c2",
+    "kind": 38000,
+    "pubkey": "c88728aa7931c277941f79c6ce0a0efd8341ae7474015cde0217f7d59c05a1cf",
+    "sig": "f95e8e8e394340161487adba0a7a94f68e58b09b3973c185731264c75c434e8ceb452395ec7b2321b8812431df2ab6ff0a86e2addc5ee2d9f18ef04af725a9aa",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.coinos.io"],
+      ["d", "https://mint.coinos.io"]
+    ]
+  },
+  {
+    "content": "[5/5]",
+    "created_at": 1792436599,
+    "id": "6fd417f578482091b756b6d457916fc962cfe11865cb217e9254eac1356cd1f5",
+    "kind": 38000,
+    "pubkey": "89efc37061b248977a56c6856943582a6e325df18c1194cc70d2f4ccdf1fda13",
+    "sig": "010371120b1aaf5cfd27451d0b8d817532004c063412f661fe739b74dd812f1508f70f48ad476dde0f121b7a5fde21e84045421c92a3fb73a836df8a040dc419",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.21linz.at", "cashu"],
+      [
+        "d",
+        "02fdd2f40867c79dfe1de03409a1ffdb1119b53d2102b4c3bd256e39b854ad9d43"
+      ]
+    ]
+  },
+  {
+    "content": "[5/5]",
+    "created_at": 1792018957,
+    "id": "709c1dea632a4e38b9fbe06922f99248f34640ce242d64f713cc9a99a85f03bd",
+    "kind": 38000,
+    "pubkey": "557c5eaf76fd3e1228cf3f1d69341114e5b01a7d256f3c366f733fe8915b9779",
+    "sig": "1d780827928c86b7903dd986476a1153d60bb0ec1777a59cdae466bd757ad1fda0160dcc3a22cf65b42fc76a0dae952c9f7b68c9bdd22a29f2ed600409eb56a9",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin"],
+      ["d", "https://mint.minibits.cash/Bitcoin"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1791981035,
+    "id": "15f10fdbdc7cbb7258a33e3e04aa1fe54dce22795d07935b4cdf46b8c5fb9547",
+    "kind": 38000,
+    "pubkey": "ea1c71f46d33759e388c0c11f6c7b3ba8d056c4ab897f906db0c42e3239ae008",
+    "sig": "bc591123888843be21f671e9bf3c14afc2a4d152d86db546eab43efc46629178b3662877f361a2f70a1c0a7e4d825e5fa037f38259f64adf3b3ae25e08307320",
+    "tags": [
+      ["d", "https://mint.nostrzap.me"],
+      ["k", "38172"],
+      ["u", "https://mint.nostrzap.me"],
+      ["client", "Amethyst"]
+    ]
+  },
+  {
+    "content": "[5/5]",
+    "created_at": 1791643942,
+    "id": "cd5f7e88867b6b8ca73d09a989a413cb084042d03d54b2bed569ac36a41a8314",
+    "kind": 38000,
+    "pubkey": "4ab3bd53c558f2e26352e4663cb5d839c2430d1f491acce0f3a31c517afd10fb",
+    "sig": "34aac5eb34042858799d3fa831c35e8bfc239bbb4956cc1bf01d088865159529e4429ae1edb01e2144cd5f815442ae55c16ff9bb91a01560729acb861830b763",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin"],
+      ["d", "https://mint.minibits.cash/Bitcoin"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1791433844,
+    "id": "9f568ed6860401d24b91112aa76c6d385238efffd9b7b75f8678b91ea473e279",
+    "kind": 38000,
+    "pubkey": "dab84e5901833aa76ffca0693e85411077e5512a3ca04a0036b664d4dcfbf6e4",
+    "sig": "94e5a9686ba191d0810437a1c754872b5f8cbc67db25b31ec60ec873c9cca7663c40cb4bf25deda61effde2ab894b2abd891ef86620b3ab7554d5a1dac1cbaa5",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.lnserver.com"],
+      ["d", "https://mint.lnserver.com"]
+    ]
+  },
+  {
+    "content": "[5/5]",
+    "created_at": 1791420755,
+    "id": "79d1db2ec273a0daedebd6588c7cb9d7e0fca29b6fd7b78dd8d9e3ac1a8e2edb",
+    "kind": 38000,
+    "pubkey": "5baa47089e28030f71735794a89a8dc802a2619ff585e16c0837260c5f874e0f",
+    "sig": "532587d085b771daa4e700d725d295638f8857ea7936e2334a063be56f0e8bb772a01b467baa2e952039b5f2b51a829f0682dd7bc4c304e989a1c32fa9cecaad",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin"],
+      ["d", "https://mint.minibits.cash/Bitcoin"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1791375036,
+    "id": "f79dee2fdb665f8ffdb325001e0b219e1aa9fa7e056a03b12d19e54d7df821a4",
+    "kind": 38000,
+    "pubkey": "af2db865d21995e10d67ff7f28ba89d757b028dd28d18ab007d971426c2f8966",
+    "sig": "5bee25f0f6b4afc0b6399b57eae9e084fb90ffb11d43bd6cdf92c62e188f36a4463297a9bc2c7db6b6ac69a742c58b3aca63c17604ac289c277a1db5bf478227",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.lnw.cash"],
+      ["d", "https://mint.lnw.cash"]
+    ]
+  },
+  {
+    "content": "[5/5] very good mint",
+    "created_at": 1791216672,
+    "id": "65b02c77dac3d9b29d11544f71e2e2bf251ab1d6ef13cdc1a9f38e3f24622831",
+    "kind": 38000,
+    "pubkey": "1757995286af8c2bcdcfd13a300e9c40bc4a67e761118c5b365573406c6b37bc",
+    "sig": "eeb2bcf79c8b89640b03aaadb8c7a503548c56d41fefc2ffb521f4390abd808a9d983617b563442f29c2d2fe1757533ab1d1c4629568647df9616fe6fbe93f0b",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://kashu.me", "cashu"],
+      ["rating", "5"],
+      [
+        "d",
+        "029e23f9fdef5e6686c16357be347b1edfbbdda5c3737d0316818483897c40dc7e"
+      ],
+      [
+        "a",
+        "38172:029e23f9fdef5e6686c16357be347b1edfbbdda5c3737d0316818483897c40dc7e:029e23f9fdef5e6686c16357be347b1edfbbdda5c3737d0316818483897c40dc7e",
+        "wss://relay.cashumints.space"
+      ]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1791160072,
+    "id": "debbee552706daef697ac2881871b7be9398177699727fef4c4034a675d6e7c7",
+    "kind": 38000,
+    "pubkey": "ca3e104a21f152150cd4e41e5f9651bf85b0929c3639d7e877328dc435ee66e5",
+    "sig": "089df7cdc5dff3bd0db70607e0857a3aff2318a070e989db804780ba3717c0b8f420b47b54ca397a4e665029b21a0f4255c9f322d5681412fccd76fdcaacc38d",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://antifiat.cash"],
+      ["d", "https://antifiat.cash"]
+    ]
+  },
+  {
+    "content": "[5/5]",
+    "created_at": 1791141988,
+    "id": "7f9e06d8eb3fb6d8741bbf1e68152e360468a18d65dca1f33f08ce7dea303453",
+    "kind": 38000,
+    "pubkey": "516b58b217af117d0a7aa62721681174b82762bb92d63463d22f705325bbe03a",
+    "sig": "4ced08ee84b2ab9beebac6ee2f7b0222f0774b732790ea6c9054b20fa64e38251b16e83be1756d9e17b45200de26716879090ceee3fb2309a43b1d4121ffdd47",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin"],
+      ["d", "https://mint.minibits.cash/Bitcoin"]
+    ]
+  },
+  {
+    "content": "[5/5]",
+    "created_at": 1790983146,
+    "id": "78fc58e05d83088c24cd2ec413eb62442b1cbd37fa3fb8cf15352c8f006370a0",
+    "kind": 38000,
+    "pubkey": "a8a6980ff920d3011e0afec1ed81ccdb7d990658ba2c60645a6b98a32ba5eee2",
+    "sig": "885ecf9fce4670a6c737239e0882934ac174cc6d247b229e6651c97609f1d5d3a36c034f476a9543f973f6ecbd4063c1848bb8933db5b457c351f4d663f2b23b",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.satscribe.me", "cashu"],
+      [
+        "d",
+        "02a38e04917c11b82f646ac001c6ec73c3ca1f7248dbb5f7f73873ea640d6cd6ba"
+      ]
+    ]
+  },
+  {
+    "content": "[1/5]",
+    "created_at": 1790981585,
+    "id": "0333fbad38e654ac715f0aaf80a04f40eddac0469203aa3d573bddaa055e354e",
+    "kind": 38000,
+    "pubkey": "fe1e361bdc125d71adc2cea1fc7de43a2e579ecc6a955383aae82c41c4310388",
+    "sig": "b22a18825dc57a732bcb5c03c0ae62f80076c1c85e28625c4d51b9508dda2944c81eeca29054a434773da29e54716f72296a6e26b1285a3038166763d00671d5",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.lnserver.com"],
+      ["d", "https://mint.lnserver.com"]
+    ]
+  },
+  {
+    "content": "[5/5] Great mint! Always online!",
+    "created_at": 1790972774,
+    "id": "ac49c17a44e774596cf391cb08d0d53bceadad0a69aec29f3bd07c41b26f2751",
+    "kind": 38000,
+    "pubkey": "ea0111e0f4bfb4cd4b0afc03c4ba6a906157d00744580866fbbe23f1f6fb64c9",
+    "sig": "ee7c57a6f644dc0211e4117f1b44d849dfddc842b0cf8cec5b9e7067227a2aed42001f31401693efd50424bb17fc82d30c5c1c967e53b35d364f84b7ecaa1941",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.unclerics.cash", "cashu"],
+      ["rating", "5"],
+      [
+        "d",
+        "03d0976b8ceb860c9922dde44bc9ee291aa6e857941967f800b8a22b584f6c5964"
+      ],
+      [
+        "a",
+        "38172:03d0976b8ceb860c9922dde44bc9ee291aa6e857941967f800b8a22b584f6c5964:03d0976b8ceb860c9922dde44bc9ee291aa6e857941967f800b8a22b584f6c5964",
+        "wss://relay.cashumints.space"
+      ]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1790917473,
+    "id": "e26650d45fab7f77459bbb009f3b559e06a65ff3eb0f0f2595134b8411b8d47d",
+    "kind": 38000,
+    "pubkey": "77b7682ca0ebec4d6accf32d3b0a18b8538175e18f4f9393d1c373dbe81328d1",
+    "sig": "d8d2db1a6ae7e770f7397bed726d961d588362186129cf1299bb05a439b2a23466b6859412881da0894424f86c6c7af2a45aef2424c1336cd6d408f095a50332",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.nostrzap.me"],
+      ["d", "https://mint.nostrzap.me"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1794188548,
+    "id": "e654abd2b5f350bbd72267c4ff44eb2c7b6c50e9d6b7b58ceecaa8ee67760136",
+    "kind": 38172,
+    "pubkey": "d5792f1044ca61572d652dce832d06c1c26ce278c06e01bb753f44d92e634a20",
+    "sig": "08c01caf4ed0dad727036e34a145505acd7ffa4ea086f5c05f52064f592c25f203ba00d983683d530a3688ca0ecc75939f034dd17fc5f30ecab2a6abc2584463",
+    "tags": [
+      [
+        "d",
+        "03fdf1e25e49365ed4bbccfd88f07d5c73ef46fe853048ca94f04157a02000b017"
+      ],
+      ["u", "https://mint.gitvid.net"],
+      ["nuts", "4,5,7,8,9,10,11,12,14,17,20,29"]
+    ]
+  },
+  {
+    "content": "[5/5] Just built an AI agent. It's a mint factory designed for agents to plug right in.我",
+    "created_at": 1791426397,
+    "id": "f0134e992bdfed40dd289c5e288781a679221d7d1704579986b1183eb5068fe4",
+    "kind": 38000,
+    "pubkey": "762d81eba281c707b45972ec2592689496efb747b9ae595ff695700126c1cb59",
+    "sig": "b18228ee5ca10bf9d3c361d278d9cab32dd8c297d7f2088c04abc7262db8e669aa2a33b5df28351191d7bb5f436c8c59d277bcab121a56206984ff07a4c362b5",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.cashu.chat"],
+      ["d", "https://mint.cashu.chat"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1791266256,
+    "id": "6c7099b7e244cbfb7a910f9ef3cba876eb247500c71002524d687e3a564a7432",
+    "kind": 38000,
+    "pubkey": "ff35af654bca700d4e83a0d5c7691367162701faacecd77094f6539b6f1df280",
+    "sig": "cd9cc1640a4235dfa1a5f6e192b21d2411bb3d01f9f5a5f1ecd4914e55e83113cd66125228e8034b6da456f61483096e622fadcb7ae7e85bc435f870f880c637",
+    "tags": [
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin"],
+      ["d", "https://mint.minibits.cash/Bitcoin"]
+    ]
+  },
+  {
+    "content": "",
+    "created_at": 1783586936,
+    "id": "52116961f6cd9767c0339e662b807c4b31dcb5eee88b427ceb3cadf48a9d0050",
+    "kind": 38000,
+    "pubkey": "c45041618951bb6012ac23f5cdf3d740465f2d640be841fd9bb1d0733370cd3c",
+    "sig": "71e12bace6d321249b0f0d79aa6a51d8ed7202fddd54cfc841d99b689fac83120836a1ef7552df68e68de994c2749fe1d36c83ede66b658b97c1e07c622c87cc",
+    "tags": [
+      ["alt", "Mint Recommendation"],
+      ["d", "rz5btn60uytjp86f"],
+      ["k", "38172"],
+      ["u", "https://mint.minibits.cash/Bitcoin"],
+      ["client", "Amethyst"]
+    ]
+  }
+]

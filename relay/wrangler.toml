@@ -1,0 +1,14 @@
+# The Bellows relay as a Cloudflare Worker. Deploy with: npx wrangler deploy --config relay/wrangler.toml
+# Name the Bellows gateways this relay forwards to; clients then use https://<worker host>/relay/<gateway host>.
+name = "bellows-relay"
+main = "worker.ts"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# The relay writes no logs. Keep the platform's request logs off too.
+[observability]
+enabled = false
+
+[vars]
+BELLOWS_RELAY_TARGETS = "https://bellows.example/ohttp"
+# BELLOWS_RELAY_MAX_BODY_BYTES = "2097152"
