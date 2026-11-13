@@ -24,7 +24,7 @@ memory: 8192
 # Your keyserver (github.com/tinfoilsh/keyserver). It releases the secrets below only to an enclave that
 # proves it runs this repository at an approved tag, served at your domain. Example policy:
 # deploy/keyserver/policy.example.yaml.
-keyserver-url: https://keys.example.com
+keyserver-url: https://keys.forge-reserve.com:8443
 
 networks:
   # Bellows may reach only these hosts. Add every mint in BELLOWS_TRUSTED_MINTS and BELLOWS_FUND_MINT,
@@ -32,7 +32,7 @@ networks:
   egress:
     egress: allowlist
     allow:
-      - mint.example.com
+      - forge.flashapp.me
       - inference.tinfoil.sh
       - atc.tinfoil.sh
       - gateway.trytokenfactory.dev
@@ -71,7 +71,8 @@ containers:
       - BELLOWS_SEALED_MOUNTS: "/data"
       - BELLOWS_DB_PATH: "/data/bellows.db"
       - BELLOWS_ATTESTER: "tinfoil"
-      - BELLOWS_TRUSTED_MINTS: "https://mint.example.com"
+      - BELLOWS_TRUSTED_MINTS: "https://forge.flashapp.me"
+      - BELLOWS_MINT_ALIASES: "https://mint.forge-reserve.com=https://forge.flashapp.me"
       - BELLOWS_UNITS: "usd,sat"
       - BELLOWS_DEFAULT_UNIT: "usd"
       - BELLOWS_MARKUP: "1.25"
@@ -83,9 +84,6 @@ containers:
       - BELLOWS_ADMIN_TOKEN_HASH
       - TINFOIL_API_KEY
       - TOKENFACTORY_API_KEY
-      # Your signed operator announcement (pnpm announce). Public, but it names the build this file is
-      # measured into, so it cannot be a literal here; the keyserver releases it with the secrets.
-      - BELLOWS_OPERATOR_ANNOUNCEMENT
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s

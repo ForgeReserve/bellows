@@ -87,7 +87,7 @@ With the onion service, back up `BELLOWS_ONION_VOLUME_KEY` the same way. Losing 
 
 ## 3. Run your keyserver
 
-Run Tinfoil's reference keyserver ([github.com/tinfoilsh/keyserver](https://github.com/tinfoilsh/keyserver)) on your server, with its TLS certificate. Pin its image to a release; this kit was written against `v0.0.5`.
+Run Tinfoil's reference keyserver ([github.com/tinfoilsh/keyserver](https://github.com/tinfoilsh/keyserver)) on your server, with its TLS certificate. Pin its image to a release; this kit was written against release `v0.0.5` (its image tag has no `v`: `ghcr.io/tinfoilsh/keyserver:0.0.5`).
 
 - Copy `deploy/keyserver/policy.example.yaml` and fill it in. You add the approval for your first release in step 5.
 - Choose a backend: HashiCorp Vault, AWS Secrets Manager or a local file. For the file backend, copy `deploy/keyserver/store.example.json`, fill it in on the offline machine, move it to the server and `chmod 600` it.
