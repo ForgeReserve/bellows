@@ -1,7 +1,7 @@
 import { createServer, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { getEncodedToken, Mint } from '@cashu/cashu-ts';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { getEncodedToken, Mint, Wallet } from '@cashu/cashu-ts';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CASHU_REQUEST_OPTIONS, GatewayWallet, PaymentError } from '../../src/cashu/wallet.ts';
 import { openDb } from '../../src/db.ts';
 
@@ -94,6 +94,37 @@ describe('Cashu transport: redirects are refused, untrusted mints are vetted bef
   });
 
   it('an untrusted mint is vetted on every load, cached or not', async () => {
+    let allow = true;
+    const vetted: string[] = [];
+    // loadMint is stubbed so the first load succeeds without a network call and the second one is served
+    // from the cache (same Wallet instance). The check must still run before each load.
+    const w = new GatewayWallet(openDb(':memory:'), {
+      trustedMints: ['https://mint.example'],
+      units: ['sat'],
+      maxTokenBytes: 2000,
+      seed,
+      vetMint: async (m) => {
+        vetted.push(m);
+        if (!allow) throw new PaymentError('mint_not_allowed', 'this mint address is not allowed');
+      },
+    });
+    const spy = vi.spyOn(Wallet.prototype, 'loadMint').mockResolvedValue(undefined as any);
+    try {
+      const a = await w.wallet(target.url, 'sat');
+      const b = await w.wallet(target.url, 'sat');
+      expect(a).toBe(b);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(vetted).toEqual([target.url, target.url]);
+      allow = false;
+      await expect(w.wallet(target.url, 'sat')).rejects.toMatchObject({ code: 'mint_not_allowed' });
+      expect(vetted).toEqual([target.url, target.url, target.url]);
+      expect(target.hits).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('an untrusted mint whose load fails is vetted again before the next attempt', async () => {
     let allow = true;
     const vetted: string[] = [];
     // The target answers 200 with a document that is not a mint, so the load fails after the check passes;

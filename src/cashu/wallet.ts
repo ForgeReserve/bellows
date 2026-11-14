@@ -26,8 +26,9 @@ import { errText, log } from '../log.ts';
 const SPENT = 11001;
 
 /**
- * Transport policy for every cashu-ts request in this process. The SDK applies these fields to every
- * call, over the per-call values, and setting them again replaces the whole set, so they live here only.
+ * Transport policy for every cashu-ts request in this process. The SDK spreads these fields over each
+ * call's options, so `redirect` cannot be overridden per call; `requestTimeout` is the default and a
+ * per-call value wins. Setting them again replaces the whole set, so they live here only.
  *  - redirect 'error': a mint may never send a Cashu request (discovery, keysets, keys, swap, melt,
  *    checks, restore) on to another address. The safety check vets the mint URL; a redirect would take
  *    the request to a host that was never vetted. The SDK already refuses redirects on POSTs.
