@@ -18,7 +18,7 @@ import {
 import { toHex } from '../../client/bytes.ts';
 import { devAttester, devMeasurement } from '../../src/attest/dev.ts';
 import { createApp, type Deps } from '../../src/app.ts';
-import { BELLOWS_VERSION, EnvSchema, loadConfig } from '../../src/config.ts';
+import { BELLOWS_VERSION, EnvSchema, loadConfig, ohttpAdmitPerSecond } from '../../src/config.ts';
 import { buildDeps } from '../../src/deps.ts';
 import { generateHpkeKeyPair, Identity } from '../../src/identity.ts';
 import { setLogSilent, setLogSink } from '../../src/log.ts';
@@ -443,6 +443,82 @@ describe('refusals', () => {
     expect((await gw.handle(post(good.bytes))).status).toBe(400);
     expect(ran).toBe(1);
     expect(gw.replayCacheSize).toBe(1);
+  });
+
+  it('admits at most admitPerSecond new requests: past it 503 with Retry-After, and refused or replayed requests use none', async () => {
+    const identity = devIdentity();
+    let now = Date.now();
+    let ran = 0;
+    const lines: string[] = [];
+    setLogSink((l) => lines.push(l));
+    try {
+      const gw = new OhttpGateway({ identity, dispatch: () => (ran++, new Response('ok')), maxSkewMs: 60_000, replayCacheMax: 1000, admitPerSecond: 2, maxMessageBytes: 1 << 20, now: () => now });
+      const make = (path = '/healthz', init: RequestInit = {}) => encapsulate(identity.keyConfig, dated(path, init, now));
+      // Refused for path, method or date, they take nothing from the bound.
+      for (let i = 0; i < 5; i++) {
+        const { bytes, context } = await make(i % 2 ? '/admin/api/overview' : '/v1/wallet', i % 2 ? {} : { method: 'PUT', body: '{}' });
+        expect((await gw.handle(post(bytes))).status).toBe(200);
+        expect([404, 405]).toContain((await context.decapsulateResponse(await gw.handle(post(bytes)))).status);
+      }
+      const first = await make();
+      expect((await gw.handle(post(first.bytes))).status).toBe(200);
+      // A replay is refused as a replay and uses none either.
+      for (let i = 0; i < 3; i++) expect((await gw.handle(post(first.bytes))).status).toBe(400);
+      expect((await gw.handle(post((await make()).bytes))).status).toBe(200);
+      const over = await gw.handle(post((await make()).bytes));
+      expect(over.status).toBe(503);
+      expect(over.headers.get('retry-after')).toBe('1');
+      expect(await over.text()).toBe('');
+      expect(lines.some((l) => l.includes('"ohttp_refused"') && l.includes('"busy"'))).toBe(true);
+      // Turned away by the bound, it took no cache slot, so it can be sent again once there is room.
+      expect(gw.replayCacheSize).toBe(2);
+      now += 1000;
+      expect((await gw.handle(post((await make()).bytes))).status).toBe(200);
+      expect(ran).toBe(3);
+    } finally {
+      setLogSink(undefined);
+    }
+  });
+
+  it('at the default bound a flood longer than a key lifetime never fills the cache', async () => {
+    const identity = devIdentity();
+    const skew = 5;
+    const max = 50;
+    let now = Date.now();
+    const reasons: string[] = [];
+    setLogSink((l) => reasons.push(JSON.parse(l).reason));
+    try {
+      const admitPerSecond = ohttpAdmitPerSecond({ BELLOWS_OHTTP_MAX_SKEW_SECONDS: skew, BELLOWS_OHTTP_REPLAY_CACHE_MAX: max, BELLOWS_OHTTP_ADMIT_PER_SECOND: undefined });
+      const gw = new OhttpGateway({ identity, dispatch: () => new Response('ok'), maxSkewMs: skew * 1000, replayCacheMax: max, admitPerSecond, maxMessageBytes: 1 << 20, now: () => now });
+      let admitted = 0;
+      // Every quarter second for 30 s (almost three key lifetimes), send until turned away, each dated at the
+      // far edge of the window so its key is kept as long as possible.
+      for (let t = 0; t < 120; t++, now += 250) {
+        for (;;) {
+          const res = await gw.handle(post((await encapsulate(identity.keyConfig, dated('/healthz', {}, now + skew * 1000 - 500))).bytes));
+          if (res.status !== 200) {
+            expect(res.status).toBe(503);
+            break;
+          }
+          admitted++;
+        }
+        expect(gw.replayCacheSize).toBeLessThanOrEqual(max);
+      }
+      expect(admitted).toBeGreaterThan(100);
+      expect(reasons).not.toContain('replay_cache_full');
+      expect(reasons).toContain('busy');
+    } finally {
+      setLogSink(undefined);
+    }
+  });
+
+  it('the app bounds admission by BELLOWS_OHTTP_ADMIT_PER_SECOND', async () => {
+    const { app, deps } = bellows({ BELLOWS_OHTTP_ADMIT_PER_SECOND: '1' });
+    const send = async () => app.fetch(post((await encapsulate(deps.identity.keyConfig, dated('/healthz'))).bytes));
+    expect((await send()).status).toBe(200);
+    const over = await send();
+    expect(over.status).toBe(503);
+    expect(Number(over.headers.get('retry-after'))).toBeGreaterThanOrEqual(1);
   });
 
   it('ReplayGuard forgets a key only after its time', () => {

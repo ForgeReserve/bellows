@@ -198,6 +198,13 @@ export const EnvSchema = z.object({
   /** Most encapsulated keys remembered at once for replay refusal; past this the gateway answers 503. */
   BELLOWS_OHTTP_REPLAY_CACHE_MAX: z.coerce.number().int().min(1000).default(200_000),
   /**
+   * Most new encapsulated requests admitted per second, across all clients (anonymous traffic has no
+   * identity to limit by). Past it the gateway answers 503 with Retry-After. Unset, it is the most the replay
+   * cache can hold for the whole time a key is kept (ohttpAdmitPerSecond), so the cache cannot fill; a set
+   * value above that is refused at startup.
+   */
+  BELLOWS_OHTTP_ADMIT_PER_SECOND: z.coerce.number().positive().optional(),
+  /**
    * Largest Binary HTTP message (padding included) in an OHTTP request, and in a plain (not chunked) answer.
    * Chunked answers stream and are bounded only by what the client accepts (1 GiB). The client's plain-mode
    * default is the same value, so it opens every answer this gateway sends.
@@ -350,6 +357,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
   if (!env.BELLOWS_UNITS.includes(env.BELLOWS_DEFAULT_UNIT)) {
     throw new Error('BELLOWS_DEFAULT_UNIT must be one of BELLOWS_UNITS');
   }
+  ohttpAdmitPerSecond(env);
   const raw = catalogOverride ?? JSON.parse(readFileSync(resolve(env.BELLOWS_MODELS_FILE), 'utf8'));
   const cat = CatalogSchema.safeParse(raw);
   if (!cat.success) throw new Error(`invalid model catalog: ${z.prettifyError(cat.error)}`);
@@ -405,6 +413,34 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
     buildMeasurement,
     operatorAnnouncement: operatorAnnouncementOf({ env, trustedMints, buildMeasurement }),
   };
+}
+
+/** The burst of the OHTTP admission bucket: one second's worth, and at least one request. */
+export function ohttpAdmitBurst(perSecond: number): number {
+  return Math.max(1, perSecond);
+}
+
+/**
+ * New encapsulated requests admitted per second. A key is kept for at most 2 * skew + 1 s (a request dated at
+ * the far edge of the window, kept until its date leaves it), so a bucket of `perSecond` with burst
+ * ohttpAdmitBurst admits at most burst + perSecond * that many requests while one key lives. The default is
+ * the most that keeps this within BELLOWS_OHTTP_REPLAY_CACHE_MAX, so the cache cannot fill; a set value that
+ * would let it fill is refused.
+ */
+export function ohttpAdmitPerSecond(env: Pick<Env, 'BELLOWS_OHTTP_MAX_SKEW_SECONDS' | 'BELLOWS_OHTTP_REPLAY_CACHE_MAX' | 'BELLOWS_OHTTP_ADMIT_PER_SECOND'>): number {
+  const keptS = 2 * env.BELLOWS_OHTTP_MAX_SKEW_SECONDS + 1;
+  const max = env.BELLOWS_OHTTP_REPLAY_CACHE_MAX;
+  const fits = (r: number) => ohttpAdmitBurst(r) + r * keptS <= max + 1e-9;
+  const most = max / (keptS + 1) >= 1 ? max / (keptS + 1) : (max - 1) / keptS;
+  const set = env.BELLOWS_OHTTP_ADMIT_PER_SECOND;
+  if (set === undefined) return most;
+  if (!fits(set)) {
+    throw new Error(
+      `BELLOWS_OHTTP_ADMIT_PER_SECOND=${set} could fill the replay cache (BELLOWS_OHTTP_REPLAY_CACHE_MAX=${max}, keys kept up to ${keptS} s): ` +
+        `set it to at most ${Math.floor(most * 1000) / 1000}, or raise BELLOWS_OHTTP_REPLAY_CACHE_MAX`,
+    );
+  }
+  return set;
 }
 
 function attestationSettings(env: Env): { attester: 'dev' | 'tinfoil'; buildMeasurement: Measurement | null } {

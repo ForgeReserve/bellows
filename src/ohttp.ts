@@ -10,6 +10,8 @@
  * is refused before it runs; one dated outside the window is answered (encapsulated) with stale_request and
  * this gateway's date, so an honest client with a wrong clock can retry. The date, method and path are
  * checked before a key is remembered, so a request that runs nothing never takes a place in the cache.
+ * New keys are admitted at a bounded rate for all clients together (BELLOWS_OHTTP_ADMIT_PER_SECOND), by
+ * default the most the cache holds for a key's whole lifetime, so a flood cannot fill it.
  *
  * Streaming: a chunked answer is sealed piece by piece as the app produces it, so a streamed chat answer
  * reaches the client as it is written. The crypto (HPKE, chunk sealing and its nonces) is ohttp-ts; this
@@ -36,8 +38,10 @@ import {
   OHTTPServer,
 } from 'ohttp-ts';
 import { DEFAULT_MAX_CHUNKED_ANSWER_BYTES, OHTTP_DATE_HEADER, ohttpSuite, STALE_REQUEST } from '../client/ohttp.ts';
+import { ohttpAdmitBurst } from './config.ts';
 import type { Identity } from './identity.ts';
 import { errText, log } from './log.ts';
+import { RateLimiter } from './ratelimit.ts';
 
 /** X25519 is the only KEM Bellows offers: 7 header bytes (key id, KEM, KDF, AEAD) then a 32-byte enc. */
 const KEM_X25519 = 0x0020;
@@ -66,6 +70,13 @@ export interface OhttpGatewayOptions {
   dispatch: (req: Request) => Response | Promise<Response>;
   maxSkewMs: number;
   replayCacheMax: number;
+  /**
+   * Most new requests admitted per second, for all clients together (anonymous requests carry no identity to
+   * limit by), with a burst of ohttpAdmitBurst. Only a request that would take a replay-cache slot uses one;
+   * past the bound it gets 503 with Retry-After. The app sets it from config (ohttpAdmitPerSecond) so the cache
+   * cannot fill. Omitted, only the cache bounds admission.
+   */
+  admitPerSecond?: number;
   /** Largest Binary HTTP request, and largest plain (not chunked) answer, padding included. */
   maxMessageBytes: number;
   now?: () => number;
@@ -97,7 +108,7 @@ export class ReplayGuard {
   }
 }
 
-type Refusal = { status: number; reason: string };
+type Refusal = { status: number; reason: string; retryAfter?: number };
 type Encapsulate = (r: Response) => Promise<Response>;
 
 export class OhttpGateway {
@@ -107,6 +118,7 @@ export class OhttpGateway {
   readonly #maxMessageBytes: number;
   readonly #now: () => number;
   readonly #replays: ReplayGuard;
+  readonly #admit?: RateLimiter;
   readonly keysBody: Uint8Array<ArrayBuffer>;
   #servers?: Promise<{ plain: OHTTPServer; chunked: ChunkedOHTTPServer }>;
   #inserts = 0;
@@ -118,6 +130,7 @@ export class OhttpGateway {
     this.#maxMessageBytes = o.maxMessageBytes;
     this.#now = o.now ?? Date.now;
     this.#replays = new ReplayGuard(o.replayCacheMax);
+    if (o.admitPerSecond !== undefined) this.#admit = new RateLimiter(o.admitPerSecond * 60, ohttpAdmitBurst(o.admitPerSecond));
     // application/ohttp-keys: each configuration with a two-byte length (RFC 9458 section 3.2).
     this.keysBody = KeyConfig.serializeMultiple([KeyConfig.parse(o.identity.keyConfig)]);
   }
@@ -199,6 +212,8 @@ export class OhttpGateway {
     if (!ohttpPathAllowed(url.pathname)) return this.#answer(encapsulate, innerError(404, 'not_found', `${url.pathname} is not available through Oblivious HTTP`, now), 'path');
 
     if (this.#replays.seen(replayKey, now)) return this.#refuse({ status: 400, reason: 'replay' });
+    const wait = this.#admit?.take('ohttp', now) ?? 0;
+    if (wait > 0) return this.#refuse({ status: 503, reason: 'busy', retryAfter: wait });
     // Kept until the request's date has left the window, plus the second an HTTP date rounds away.
     if (!this.#replays.remember(replayKey, date + this.#maxSkewMs + 1000, now)) return this.#refuse({ status: 503, reason: 'replay_cache_full' });
     if (++this.#inserts % 1024 === 0) this.#replays.prune(now);
@@ -227,7 +242,9 @@ export class OhttpGateway {
 
   #refuse(r: Refusal): Response {
     log.info('ohttp_refused', { reason: r.reason });
-    return new Response(null, { status: r.status, headers: { 'cache-control': 'no-store' } });
+    const headers: Record<string, string> = { 'cache-control': 'no-store' };
+    if (r.retryAfter) headers['retry-after'] = String(r.retryAfter);
+    return new Response(null, { status: r.status, headers });
   }
 }
 

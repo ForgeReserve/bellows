@@ -7,7 +7,7 @@ import { openAccount, releaseIfEmpty } from './accounts.ts';
 import { createAdminRouter } from './admin-api.ts';
 import { parseOptionalLockPubkey } from './cashu/lock.ts';
 import { type GatewayWallet, PaymentError } from './cashu/wallet.ts';
-import type { Config, ModelConfig, Unit } from './config.ts';
+import { type Config, type ModelConfig, ohttpAdmitPerSecond, type Unit } from './config.ts';
 import { type DB, now, tx } from './db.ts';
 import { FOREIGN_MINTS_PATH, type FundingService } from './funding.ts';
 import type { MintDiscovery } from './mint-discovery.ts';
@@ -480,6 +480,7 @@ export function createApp(d: Deps) {
     dispatch: (r) => app.fetch(r),
     maxSkewMs: env.BELLOWS_OHTTP_MAX_SKEW_SECONDS * 1000,
     replayCacheMax: env.BELLOWS_OHTTP_REPLAY_CACHE_MAX,
+    admitPerSecond: ohttpAdmitPerSecond(env),
     maxMessageBytes: env.BELLOWS_OHTTP_MAX_MESSAGE_BYTES,
   });
   app.get(OHTTP_KEYS_PATH, () => ohttp.keys());

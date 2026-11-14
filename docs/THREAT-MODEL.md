@@ -62,4 +62,5 @@ The disk encryption hides contents, not which blocks are read and written, or wh
 - A client whose own device is compromised.
 - Traffic analysis by a party that sees both sides of a relay or of Tor.
 - Denial of service by the operator, the platform or the network.
+- A flood of anonymous requests. Oblivious HTTP requests carry no identity, so they share one admission bound: a sender above it crowds out other OHTTP clients while it keeps sending, though it cannot fill the replay cache or shut new requests out after it stops ([OHTTP.md](OHTTP.md#admission)).
 - The AI supplier's handling of plaintext models.

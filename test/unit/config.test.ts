@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EnvSchema, loadConfig } from '../../src/config.ts';
+import { EnvSchema, loadConfig, ohttpAdmitBurst, ohttpAdmitPerSecond } from '../../src/config.ts';
 
 const catalog = {
   suppliers: { mock: { type: 'mock', tier: 'standard' } },
@@ -50,5 +50,32 @@ describe('environment variables', () => {
     expect(c.env.BELLOWS_MINT_ALIASES).toEqual([]);
     expect(c.env.BELLOWS_DB_PATH).toBe('data/bellows.db');
     expect(loadConfig({ ...base, BELLOWS_INVITE_ONLY: 'true' } as NodeJS.ProcessEnv, catalog).env.BELLOWS_INVITE_ONLY).toBe(true);
+  });
+});
+
+describe('Oblivious HTTP admission bound', () => {
+  const lifetime = (skew: number) => 2 * skew + 1;
+  /** Most requests the bucket admits while one remembered key is still live. */
+  const admittedPerLifetime = (perSecond: number, skew: number) => ohttpAdmitBurst(perSecond) + perSecond * lifetime(skew);
+
+  it('defaults to the most the replay cache holds for a whole key lifetime', () => {
+    const c = loadConfig(base as NodeJS.ProcessEnv, catalog);
+    expect(c.env.BELLOWS_OHTTP_ADMIT_PER_SECOND).toBeUndefined();
+    const r = ohttpAdmitPerSecond(c.env);
+    // 200,000 keys, each kept up to 601 s: about 332 new requests a second.
+    expect(r).toBeCloseTo(200_000 / 602, 6);
+    expect(admittedPerLifetime(r, 300)).toBeLessThanOrEqual(200_000 + 1e-6);
+    for (const [skew, max] of [[5, 1000], [3600, 1000], [3600, 200_000], [60, 5000]] as const) {
+      const d = ohttpAdmitPerSecond({ BELLOWS_OHTTP_MAX_SKEW_SECONDS: skew, BELLOWS_OHTTP_REPLAY_CACHE_MAX: max, BELLOWS_OHTTP_ADMIT_PER_SECOND: undefined });
+      expect(d, `${skew}/${max}`).toBeGreaterThan(0);
+      expect(admittedPerLifetime(d, skew), `${skew}/${max}`).toBeLessThanOrEqual(max + 1e-6);
+    }
+  });
+
+  it('takes a lower BELLOWS_OHTTP_ADMIT_PER_SECOND and refuses one that could fill the cache', () => {
+    expect(ohttpAdmitPerSecond(loadConfig({ ...base, BELLOWS_OHTTP_ADMIT_PER_SECOND: '50' } as NodeJS.ProcessEnv, catalog).env)).toBe(50);
+    expect(() => loadConfig({ ...base, BELLOWS_OHTTP_ADMIT_PER_SECOND: '333' } as NodeJS.ProcessEnv, catalog)).toThrow(/BELLOWS_OHTTP_ADMIT_PER_SECOND=333 could fill the replay cache.*at most 332\.225/);
+    expect(() => loadConfig({ ...base, BELLOWS_OHTTP_ADMIT_PER_SECOND: '50', BELLOWS_OHTTP_REPLAY_CACHE_MAX: '1000' } as NodeJS.ProcessEnv, catalog)).toThrow(/REPLAY_CACHE_MAX/);
+    expect(() => loadConfig({ ...base, BELLOWS_OHTTP_ADMIT_PER_SECOND: '0' } as NodeJS.ProcessEnv, catalog)).toThrow(/invalid environment/);
   });
 });

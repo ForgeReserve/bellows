@@ -190,6 +190,18 @@ The tor container runs as an unprivileged user on a read-only root file system. 
 
 Checked locally: the image builds, and `--verify-config` accepts the configuration the entrypoint writes, in a read-only container with no capabilities. NOT VERIFIED: Tor reaching its relays from Tinfoil's open egress, the onion service answering, and the onion keys persisting across boots. The entrypoint resolves `bellows` once at start; if the Bellows container's address changes, restart the tor container.
 
+## Oblivious HTTP under load
+
+Anyone can send `POST /ohttp`, and an encapsulated request names no account, so the gateway bounds new encapsulated requests for all clients together ([OHTTP.md](OHTTP.md#admission)):
+
+- Only a request that will run takes a place in the replay cache. One refused for its method, path or date never does, so requests that run nothing cannot fill it.
+- `BELLOWS_OHTTP_ADMIT_PER_SECOND` new requests a second are admitted, with a burst of one second's worth. Past that, `/ohttp` answers `503` with `Retry-After` and logs `ohttp_refused` with reason `busy`.
+- Left unset, the bound is `BELLOWS_OHTTP_REPLAY_CACHE_MAX / (2 * BELLOWS_OHTTP_MAX_SKEW_SECONDS + 2)`: about 332 a second with the defaults (200,000 keys, 300 s skew). At that rate the replay cache cannot fill, so `replay_cache_full` should not appear in the logs. If it does, the gateway's clock has jumped.
+- To admit more, raise `BELLOWS_OHTTP_REPLAY_CACHE_MAX` (the default 200,000 keys take a few tens of megabytes) or lower `BELLOWS_OHTTP_MAX_SKEW_SECONDS`. Setting `BELLOWS_OHTTP_ADMIT_PER_SECOND` above what the cache holds is refused at startup, with the most it can be.
+- Lower it on a small instance. Every admitted request runs in the app, where payment, rate limits and proof of work apply to it as to a direct request.
+
+Many `busy` lines mean someone is sending more than the bound. They crowd out other OHTTP clients while they keep sending, but nothing stays shut once they stop. Direct requests to `/v1` are not counted.
+
 ## Updating
 
 A new version is a new release (step 4), a new `builds.json` entry, a new keyserver approval (step 5) and then:
