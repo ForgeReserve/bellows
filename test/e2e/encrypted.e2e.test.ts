@@ -28,6 +28,7 @@ describe.skipIf(!up)('EHBP encrypted pass-through (fake enclave)', () => {
   let key: string;
   const seen: Seen[] = [];
   let reply: Buffer;
+  let breakBody = false;
   let logs: ReturnType<typeof captureLogs>;
 
   beforeAll(async () => {
@@ -52,6 +53,10 @@ describe.skipIf(!up)('EHBP encrypted pass-through (fake enclave)', () => {
             }
           };
           tick();
+        } else if (breakBody) {
+          // Headers and part of the body, then the connection drops.
+          res.writeHead(200, { 'content-type': 'application/json', 'ehbp-response-nonce': 'cd'.repeat(32), 'content-length': String(reply.length) });
+          res.write(reply.subarray(0, 10), () => res.socket?.destroy());
         } else {
           res.writeHead(200, { 'content-type': 'application/json', 'ehbp-response-nonce': 'cd'.repeat(32), 'x-tinfoil-usage-metrics': usage });
           res.end(reply);
@@ -119,6 +124,24 @@ describe.skipIf(!up)('EHBP encrypted pass-through (fake enclave)', () => {
     expect(row.status).toBe('ok');
     expect(row.usage_source).toBe('tinfoil-metrics');
     expect(row.charged_msub).toBe(expectedMsub(50, 7));
+  });
+
+  it('charges nothing and releases the reservation when the body breaks after the headers', async () => {
+    reply = frames(3);
+    const wallet = async () => (await fetch(`${g.url}/v1/wallet`, { headers: { authorization: `Bearer ${key}` } })).json();
+    const before = await wallet();
+    breakBody = true;
+    try {
+      const res = await send(frames(2));
+      expect(res.status).toBe(502);
+      expect((await res.json()).error.code).toBe('upstream_error');
+      expect(res.headers.get('x-forge-charged-msub')).toBe('0');
+    } finally {
+      breakBody = false;
+    }
+    const after = await wallet();
+    expect(after.balance_msub).toBe(before.balance_msub);
+    expect(after.available_msub).toBe(before.available_msub);
   });
 
   it('refuses enclave URLs outside the allowlist', async () => {

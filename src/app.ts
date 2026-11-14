@@ -813,8 +813,9 @@ export function createApp(d: Deps) {
         try {
           for await (const ch of up.body) chunks.push(ch as Buffer);
         } catch (e) {
-          await finish(false);
-          throw new UpstreamError(`enclave stream failed: ${errText(e)}`);
+          // As on the plaintext path: the client gets no answer, so nothing is charged and all change comes back.
+          const r = await settle(undefined, 'none', 'upstream_error');
+          return apiError(c, 502, 'upstream_error', `enclave response failed: ${errText(e)}. You were not charged.`, resultHeaders(r));
         }
         const r = await finish(true);
         return new Response(Buffer.concat(chunks), { status: up.status, headers: { ...passHeaders, ...resultHeaders(r), 'X-Forge-Request-Id': requestId, 'X-Forge-Privacy': privacy } });
