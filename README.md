@@ -61,7 +61,7 @@ The agent demo pays for a request end to end over NUT-24:
 BELLOWS_URL=http://localhost:8787 DEMO_FAKE_MINT=1 pnpm demo:agent "What is eCash?"
 ```
 
-On first start Bellows creates `data/secrets.json` next to the new database, holding a fresh wallet secret (see [Secrets and sealed state](#secrets-and-sealed-state)). `config/models.dev.json` adds an in-process mock supplier (`mock-echo`, `mock-slow`) so everything works without upstream keys. To use the real suppliers, add `TOKENFACTORY_API_KEY` and `TINFOIL_API_KEY` to that file.
+On first start Bellows creates `data/secrets.json` next to the new database, holding a fresh wallet secret (see [Secrets and sealed state](#secrets-and-sealed-state)). `config/models.dev.json` adds an in-process mock supplier (`mock-echo`, `mock-slow`) so everything works without upstream keys. To use the real suppliers, add `TOKENFACTORY_API_KEY` and `TINFOIL_API_KEY` to that file. Token Factory models in the dev catalog are marked `price_verified: false`, so they are served only with `BELLOWS_SERVE_UNVERIFIED_PRICES=true` (see [Model catalog](#model-catalog)).
 
 ## Running a Bellows
 
