@@ -153,9 +153,17 @@ Restoring by counter range (the unlocked path) is never used for a locked row: i
 
 ### Reservations
 
-At startup every active reservation is released without charge (nothing is in flight in a fresh process), and a periodic sweep releases any older than `BELLOWS_STALE_RESERVATION_SECONDS`. A crash mid-request therefore costs the gateway the upstream bill for that request, never the user. A request still running when the sweep releases its reservation finishes normally and settles with no charge.
+A request holds its reservation until it settles. The process serving it keeps, in memory, which reservations its running requests hold, and the sweep never releases one of those, however long the request streams.
+
+At startup every active reservation is released without charge (nothing is in flight in a fresh process). A periodic sweep releases, without charge, active reservations older than `BELLOWS_STALE_RESERVATION_SECONDS` that no running request holds: those made by another process on the same database, and those of a request that ended in an error before it settled. It logs `stale_reservations_released` with how many it released. A crash mid-request therefore costs the gateway the upstream bill for that request, never the user.
+
+A request whose reservation was released anyway while it ran (by another process sharing the database) still pays what it used: `min(actual, reserved)`, capped at what the balance covers once its other reservations are held. Whatever the balance cannot cover is the shortfall. It is added to `shortfall_msub` in the day's `usage_daily` row and logged as `settled_after_release` with the amounts owed, charged and short, never the balance id. The shortfall is the gateway's loss; the balance never goes below zero.
+
+A request that never ends (an upstream that stops sending without closing the stream) keeps its reservation until the client disconnects or the process restarts; only that balance's available amount is affected.
 
 ### What these tests prove
+
+`test/unit/stale-reservation.test.ts` runs the sweep against a balance-paid stream that is still running: the reservation stays held and the stream pays for what it used. It also releases the reservation from a second ledger on the same database mid-stream and checks the stream is still charged in full, then with the balance spent meanwhile, checks the late charge is capped, the shortfall lands in `usage_daily` and the log carries no balance id. A request whose upstream body read fails leaves its reservation to the sweep without a restart. `test/unit/ledger.test.ts` covers the same rules on the ledger alone.
 
 `test/e2e/recovery.e2e.test.ts` injects a fault after the mint swap and before the database write, restarts the gateway on the same database, and checks the balance is credited exactly once (through replay and through restore), that a retry is idempotent, that an interrupted refund is recovered by restore and the token redeems at the mint, and that an interrupted NUT-24 request owes full change.
 
