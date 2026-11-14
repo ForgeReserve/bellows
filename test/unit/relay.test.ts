@@ -101,6 +101,19 @@ describe('forwarding', () => {
     expect(await res.text()).toBe('');
   });
 
+  it('passes on a busy gateway\'s Retry-After, and only a plain number of seconds on a 503', async () => {
+    const answer = (status: number, retryAfter: string) => createRelay({ targets: [GW], fetch: recordingFetch(() => new Response(null, { status, headers: { 'retry-after': retryAfter } })).fn });
+    const busy = await answer(503, '2')(relayReq('/relay/bellows.example'));
+    expect(busy.status).toBe(503);
+    expect(busy.headers.get('retry-after')).toBe('2');
+    expect(busy.headers.get('access-control-expose-headers')).toContain('Retry-After');
+    expect(await busy.text()).toBe('');
+    // A date, a long value or another status carries nothing back.
+    expect((await answer(503, 'Wed, 21 Oct 2026 07:28:00 GMT')(relayReq('/relay/bellows.example'))).headers.get('retry-after')).toBeNull();
+    expect((await answer(503, '1234567')(relayReq('/relay/bellows.example'))).headers.get('retry-after')).toBeNull();
+    expect((await answer(429, '2')(relayReq('/relay/bellows.example'))).headers.get('retry-after')).toBeNull();
+  });
+
   it('accepts plain OHTTP requests too', async () => {
     const { fn, seen } = recordingFetch();
     const relay = createRelay({ targets: [GW], fetch: fn });
@@ -156,7 +169,7 @@ describe('refusals', () => {
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
     expect(res.headers.get('access-control-allow-headers')).toBe('Content-Type');
     const err = await relay().handler(relayReq('/relay/evil.example'));
-    expect(err.headers.get('access-control-expose-headers')).toBe(RELAY_ERROR_HEADER);
+    expect(err.headers.get('access-control-expose-headers')).toBe(`${RELAY_ERROR_HEADER}, Retry-After`);
   });
 });
 

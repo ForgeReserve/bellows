@@ -48,11 +48,14 @@ export class BellowsFetchError extends Error {
   readonly code: FetchErrorCode;
   /** HTTP status of the outer answer, when there was one. */
   readonly status?: number;
-  constructor(code: FetchErrorCode, message: string, status?: number) {
+  /** Seconds to wait before sending again, when a busy gateway (503) said so in Retry-After. */
+  readonly retryAfter?: number;
+  constructor(code: FetchErrorCode, message: string, status?: number, retryAfter?: number) {
     super(message);
     this.name = 'BellowsFetchError';
     this.code = code;
     this.status = status;
+    if (retryAfter !== undefined) this.retryAfter = retryAfter;
   }
 }
 
@@ -163,7 +166,9 @@ export async function bellowsFetch(operator: BellowsOperator, path: string, init
       const relayError = res.headers.get(RELAY_ERROR_HEADER);
       await res.body?.cancel().catch(() => {});
       if (relayError) throw new BellowsFetchError('relay_error', `the relay refused the request: ${relayError}`, res.status);
-      throw new BellowsFetchError('gateway_refused', `the Oblivious HTTP gateway refused the request (HTTP ${res.status})`, res.status);
+      const retryAfter = res.headers.get('retry-after') ?? '';
+      const wait = res.status === 503 && /^\d{1,6}$/.test(retryAfter) ? Number(retryAfter) : undefined;
+      throw new BellowsFetchError('gateway_refused', `the Oblivious HTTP gateway refused the request (HTTP ${res.status})`, res.status, wait);
     }
     let answer: Response;
     try {

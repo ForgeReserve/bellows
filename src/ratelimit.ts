@@ -15,7 +15,9 @@ export class RateLimiter {
     if (now - this.lastSweep > 60_000) this.sweep(now);
     const rate = this.perMinute / 60_000;
     const b = this.buckets.get(key) ?? { tokens: this.burst, at: now };
-    b.tokens = Math.min(this.burst, b.tokens + (now - b.at) * rate);
+    // A clock that steps back refills nothing, and takes nothing away.
+    const elapsed = Math.max(0, now - b.at);
+    b.tokens = Math.min(this.burst, b.tokens + elapsed * rate);
     b.at = now;
     if (b.tokens >= 1) {
       b.tokens -= 1;

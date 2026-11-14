@@ -480,6 +480,16 @@ describe('refusals', () => {
     }
   });
 
+  it('a clock that steps back does not shut new requests out of the bound', async () => {
+    const identity = devIdentity();
+    let now = Date.now();
+    const gw = new OhttpGateway({ identity, dispatch: () => new Response('ok'), maxSkewMs: 60_000, replayCacheMax: 1000, admitPerSecond: 2, maxMessageBytes: 1 << 20, now: () => now });
+    const send = async () => gw.handle(post((await encapsulate(identity.keyConfig, dated('/healthz', {}, now))).bytes));
+    expect((await send()).status).toBe(200);
+    now -= 600_000;
+    expect((await send()).status).toBe(200);
+  });
+
   it('at the default bound a flood longer than a key lifetime never fills the cache', async () => {
     const identity = devIdentity();
     const skew = 5;
@@ -596,6 +606,11 @@ describe('client errors', () => {
     const relayErr = () => Promise.resolve(new Response('unknown_target\n', { status: 404, headers: { [RELAY_ERROR_HEADER]: 'unknown_target' } }));
     await expect(bellowsFetch(operator(), '/healthz', {}, { fetch: relayErr })).rejects.toMatchObject({ code: 'relay_error', status: 404 });
     await expect(bellowsFetch(operator(), '/healthz', {}, { fetch: () => Promise.resolve(new Response(null, { status: 400 })) })).rejects.toMatchObject({ code: 'gateway_refused', status: 400 });
+    const busy = () => Promise.resolve(new Response(null, { status: 503, headers: { 'retry-after': '3' } }));
+    await expect(bellowsFetch(operator(), '/healthz', {}, { fetch: busy })).rejects.toMatchObject({ code: 'gateway_refused', status: 503, retryAfter: 3 });
+    const refused = await bellowsFetch(operator(), '/healthz', {}, { fetch: () => Promise.resolve(new Response(null, { status: 400, headers: { 'retry-after': '3' } })) }).catch((e: unknown) => e);
+    expect(refused).toMatchObject({ code: 'gateway_refused', status: 400 });
+    expect((refused as { retryAfter?: number }).retryAfter).toBeUndefined();
     await expect(bellowsFetch(operator(), '/healthz', {}, { fetch: () => Promise.reject(new TypeError('fetch failed')) })).rejects.toMatchObject({ code: 'network' });
     const garbage = () => Promise.resolve(new Response(new Uint8Array(80), { status: 200, headers: { 'content-type': MediaType.CHUNKED_RESPONSE } }));
     const p = bellowsFetch(operator(), '/healthz', {}, { fetch: garbage });
