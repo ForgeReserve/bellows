@@ -30,7 +30,12 @@ describe.skipIf(!KEY || !up)('Token Factory live: through the gateway', () => {
   let key: string;
   beforeAll(async () => {
     const tf = catalogJson.models.find((m) => m.id === MODEL)!;
-    g = await startGatewayWithCatalog({ suppliers: { tokenfactory: catalogJson.suppliers.tokenfactory }, models: [tf] }, { TOKENFACTORY_API_KEY: KEY! });
+    // The shipped Token Factory prices are unverified placeholders, which the gateway withholds unless the
+    // operator setting serves them. This suite talks to the supplier directly, so it opts in.
+    g = await startGatewayWithCatalog(
+      { suppliers: { tokenfactory: catalogJson.suppliers.tokenfactory }, models: [tf] },
+      { TOKENFACTORY_API_KEY: KEY!, BELLOWS_SERVE_UNVERIFIED_PRICES: 'true' },
+    );
     const invite = createInvite(g);
     const r = await fetch(`${g.url}/v1/wallet/topup`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: await mintToken(MINT_A, 'usd', 100), invite }) });
     key = (await r.json()).key;

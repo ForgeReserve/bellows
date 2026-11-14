@@ -470,7 +470,7 @@ describe('verifyBellows', () => {
 });
 
 describe('configuration', () => {
-  const catalog = { suppliers: { mock: { type: 'mock', tier: 'standard' } }, models: [{ id: 'm', supplier: 'mock', upstream: 'm', input_usd_per_mtok: 1, output_usd_per_mtok: 1 }] };
+  const catalog = { suppliers: { mock: { type: 'mock', tier: 'standard' } }, models: [{ id: 'm', supplier: 'mock', upstream: 'm', input_usd_per_mtok: 1, output_usd_per_mtok: 1, price_verified: true }] };
   const base = { BELLOWS_TRUSTED_MINTS: 'http://127.0.0.1:1', BELLOWS_DB_PATH: ':memory:' };
   const load = (env: Record<string, string>) => loadConfig({ ...base, ...env } as NodeJS.ProcessEnv, catalog);
   const sealedOpts = { secrets: memorySecrets({ [WALLET_SECRET]: newWalletSecret() }), mounts: { mountPoints: () => ['/', '/sealed'] } };

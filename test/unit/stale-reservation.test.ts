@@ -19,8 +19,8 @@ setLogSilent(true);
 const catalog = {
   suppliers: { mock: { type: 'mock', tier: 'standard' } },
   models: [
-    { id: 'mock-slow', supplier: 'mock', upstream: 'mock-slow', input_usd_per_mtok: 1000, output_usd_per_mtok: 2000 },
-    { id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1000, output_usd_per_mtok: 2000 },
+    { id: 'mock-slow', supplier: 'mock', upstream: 'mock-slow', input_usd_per_mtok: 1000, output_usd_per_mtok: 2000, price_verified: true },
+    { id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1000, output_usd_per_mtok: 2000, price_verified: true },
   ],
 };
 

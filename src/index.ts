@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server';
 import { createApp, startupRecovery } from './app.ts';
-import { loadConfig } from './config.ts';
+import { announceUnverifiedPrices, loadConfig } from './config.ts';
 import { applyCashuRequestPolicy } from './cashu/wallet.ts';
 import { buildDeps } from './deps.ts';
 import { errText, log, setLogLevel } from './log.ts';
@@ -9,6 +9,7 @@ import { errText, log, setLogLevel } from './log.ts';
 applyCashuRequestPolicy();
 const config = loadConfig();
 setLogLevel(config.env.BELLOWS_LOG_LEVEL);
+announceUnverifiedPrices(config);
 const deps = buildDeps(config);
 await startupRecovery(deps).catch((e) => log.error('startup_recovery_failed', { err: errText(e) }));
 if (config.env.BELLOWS_UNITS.includes('sat')) {

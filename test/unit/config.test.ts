@@ -3,7 +3,7 @@ import { EnvSchema, loadConfig, ohttpAdmitBurst, ohttpAdmitPerSecond } from '../
 
 const catalog = {
   suppliers: { mock: { type: 'mock', tier: 'standard' } },
-  models: [{ id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2 }],
+  models: [{ id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2, price_verified: true }],
 };
 const base = { BELLOWS_TRUSTED_MINTS: 'http://127.0.0.1:1' };
 

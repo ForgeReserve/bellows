@@ -7,6 +7,7 @@ import { parseOperatorAnnouncement } from '../client/operator.ts';
 import { DEFAULT_MAX_MESSAGE_BYTES } from '../client/ohttp.ts';
 import { devMeasurement } from './attest/dev.ts';
 import { TINFOIL_ATTESTATION_SOCKET } from './attest/tinfoil.ts';
+import { log } from './log.ts';
 import { type MountTable, procMounts, sealedMountOf } from './sealed.ts';
 import {
   ADMIN_TOKEN,
@@ -70,6 +71,13 @@ export const EnvSchema = z.object({
   /** Optional gate: a new balance or a NUT-24 request needs an invite code. Off by default. */
   BELLOWS_INVITE_ONLY: bool.default(false),
   BELLOWS_MARKUP: z.coerce.number().min(1).max(10).default(1.25),
+  /**
+   * Serve models whose catalog price is not checked against the supplier's rate card (price_verified false).
+   * Off by default: such a model is neither listed nor routable, whatever supplier keys are present, because
+   * a placeholder price can overcharge customers or leave the operator paying the difference. On, startup
+   * logs the models it serves this way at error level.
+   */
+  BELLOWS_SERVE_UNVERIFIED_PRICES: bool.default(false),
   BELLOWS_BYTES_PER_TOKEN: z.coerce.number().min(0.5).max(8).default(2),
   BELLOWS_RATE_SOURCES: csv.default(['coinbase', 'kraken', 'bitstamp']),
   BELLOWS_RATE_MIN_SOURCES: z.coerce.number().int().min(1).default(2),
@@ -308,6 +316,11 @@ export interface Config {
   buildMeasurement: Measurement | null;
   /** The operator announcement published in /.well-known/bellows, or null. */
   operatorAnnouncement: unknown;
+  /**
+   * Models of available suppliers (key present, or none needed) whose price is not verified, and whether
+   * they are served (BELLOWS_SERVE_UNVERIFIED_PRICES). When not served they are absent from catalog.models.
+   */
+  unverifiedPrices: { served: boolean; models: string[] };
 }
 
 /** The release version, from package.json. */
@@ -395,8 +408,18 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
       .filter(([, s]) => s.apiKeySecret && !secrets.get(s.apiKeySecret))
       .map(([id]) => id),
   );
-  const models = cat.data.models.filter((m) => !keyless.has(m.supplier));
-  if (models.length === 0) throw new Error('no models left: put the API key of at least one supplier in the secrets source');
+  const available = cat.data.models.filter((m) => !keyless.has(m.supplier));
+  // A price not checked against the supplier's rate card is never charged unless the operator says so.
+  const serveUnverified = env.BELLOWS_SERVE_UNVERIFIED_PRICES;
+  const unverified = available.filter((m) => !m.price_verified).map((m) => m.id);
+  const models = serveUnverified ? available : available.filter((m) => m.price_verified);
+  if (models.length === 0) {
+    throw new Error(
+      available.length === 0
+        ? 'no models left: put the API key of at least one supplier in the secrets source'
+        : 'no models left: every model with a supplier key has price_verified false. Check the prices against the rate card and set price_verified, or set BELLOWS_SERVE_UNVERIFIED_PRICES=true',
+    );
+  }
   const { attester, buildMeasurement } = attestationSettings(env);
   const trustedMints = env.BELLOWS_TRUSTED_MINTS.map(normalizeMintUrl);
   return {
@@ -412,7 +435,20 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
     attester,
     buildMeasurement,
     operatorAnnouncement: operatorAnnouncementOf({ env, trustedMints, buildMeasurement }),
+    unverifiedPrices: { served: serveUnverified, models: unverified },
   };
+}
+
+/**
+ * Startup notice for models with unverified prices. Served (the operator setting is on): logged at error
+ * level, so no BELLOWS_LOG_LEVEL hides it. Withheld: a warning naming them, so a missing model is explained.
+ */
+export function announceUnverifiedPrices(config: Pick<Config, 'unverifiedPrices'>): void {
+  const { served, models } = config.unverifiedPrices;
+  if (models.length === 0) return;
+  const fields = { models: models.join(','), count: models.length };
+  if (served) log.error('unverified_prices_served', { ...fields, setting: 'BELLOWS_SERVE_UNVERIFIED_PRICES' });
+  else log.warn('unverified_prices_withheld', fields);
 }
 
 /** The burst of the OHTTP admission bucket: one second's worth, and at least one request. */

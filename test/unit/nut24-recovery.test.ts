@@ -16,7 +16,7 @@ setLogSilent(true);
 const MINT = 'http://127.0.0.1:1';
 const catalog = {
   suppliers: { mock: { type: 'mock', tier: 'standard' } },
-  models: [{ id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1000, output_usd_per_mtok: 2000 }],
+  models: [{ id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1000, output_usd_per_mtok: 2000, price_verified: true }],
 };
 
 function setup() {
