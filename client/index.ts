@@ -31,7 +31,7 @@ export {
   parseKeyConfig,
 } from './hpke.ts';
 export type { CipherSuite, KeyConfig } from './hpke.ts';
-export { bindingFor, decodeStatement, encodeStatement, IDENTITY_FORMAT, WELL_KNOWN_PATH } from './identity.ts';
+export { bindingFor, decodeStatement, encodeStatement, IDENTITY_FORMAT, STORAGE_KINDS, WELL_KNOWN_PATH } from './identity.ts';
 export {
   BellowsFetchError,
   bellowsFetch,
@@ -45,7 +45,7 @@ export {
   STALE_REQUEST,
 } from './ohttp.ts';
 export type { BellowsFetchOptions, BellowsOperator, FetchErrorCode } from './ohttp.ts';
-export type { AttestationDocument, IdentityDocument, Statement } from './identity.ts';
+export type { AttestationDocument, IdentityDocument, Statement, Storage } from './identity.ts';
 export {
   checkTinfoilBinding,
   TINFOIL_RELEASE_MEASUREMENT_TYPE,

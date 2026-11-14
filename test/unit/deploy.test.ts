@@ -8,7 +8,7 @@
  * config. 'an operator's deploy repository passes the unit suite' checks exactly that.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -164,6 +164,8 @@ describe('tinfoil-config.yml', () => {
       ['twice', (c) => container(c, 'bellows').env.push({ BELLOWS_MARKUP: '2' }), /BELLOWS_MARKUP is set twice/],
       ['setting as secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_SERVE_UNVERIFIED_PRICES'), /BELLOWS_SERVE_UNVERIFIED_PRICES is a setting/],
       ['any setting as secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_MARKUP'), /BELLOWS_MARKUP is a setting/],
+      ['invite gate as secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_INVITE_ONLY'), /BELLOWS_INVITE_ONLY is a setting/],
+      ['memory cap as secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_MEMORY_MAX_BALANCE_SAT'), /BELLOWS_MEMORY_MAX_BALANCE_SAT is a setting/],
       ['domain', (c) => container(c, 'bellows').env.push({ DOMAIN: 'bellows.operator.test' }), /DOMAIN: reserved/],
       ['secrets file', (c) => container(c, 'bellows').env.push({ BELLOWS_SECRETS_FILE: '/data/secrets.json' }), /BELLOWS_SECRETS_FILE: must not be set/],
       ['file source', (c) => (container(c, 'bellows').env.find((e: Obj) => 'BELLOWS_SECRETS' in e).BELLOWS_SECRETS = 'file'), /BELLOWS_SECRETS: must be "platform"/],
@@ -195,6 +197,112 @@ describe('tinfoil-config.yml', () => {
       ['own measurement', (c) => setEnv(c, 'BELLOWS_BUILD_MEASUREMENT', '{}'), /cannot hold its own measurement/],
     ];
     for (const [name, fn, re] of cases) expect(checkTinfoilConfig(mutate(EXAMPLE, fn)).join('\n'), name).toMatch(re);
+  });
+
+  describe('BELLOWS_STORAGE memory: no volume', () => {
+    const setEnv = (c: Obj, name: string, value: string) => {
+      const env = container(c, 'bellows').env as Obj[];
+      const item = env.find((e) => name in e);
+      if (item) item[name] = value;
+      else env.push({ [name]: value });
+    };
+    /** The plain template run without a volume, as docs/OPERATE.md says. */
+    const toMemory = (c: Obj) => {
+      delete c.volumes;
+      const b = container(c, 'bellows');
+      delete b.persistent_volumes;
+      b.tmpfs = { '/tmp': 'size=256m,mode=1777' };
+      setEnv(c, 'BELLOWS_STORAGE', 'memory');
+      setEnv(c, 'BELLOWS_SEALED_MOUNTS', '/tmp');
+      setEnv(c, 'BELLOWS_DB_PATH', '/tmp/bellows.db');
+      setEnv(c, 'BELLOWS_INVITE_ONLY', 'true');
+    };
+    const MEMORY = mutate(EXAMPLE, toMemory);
+    const memoryWith = (fn: (c: Obj) => void) => mutate(MEMORY, fn);
+
+    it('accepts a config with no volume, the database on a tmpfs the sealed mounts cover, and no volume key', () => {
+      expect(checkTinfoilConfig(MEMORY)).toEqual([]);
+      expect(checkTinfoilConfig(filledIn(MEMORY), { release: true })).toEqual([]);
+      // tmpfs as a list of "path:options", an empty volume list and a sealed mount with a trailing slash.
+      expect(checkTinfoilConfig(memoryWith((c) => (container(c, 'bellows').tmpfs = ['/tmp:size=256m'])))).toEqual([]);
+      expect(checkTinfoilConfig(memoryWith((c) => (c.volumes = [])))).toEqual([]);
+      expect(checkTinfoilConfig(memoryWith((c) => setEnv(c, 'BELLOWS_SEALED_MOUNTS', '/tmp/')))).toEqual([]);
+      // Volume, said out loud, is the template as it is.
+      expect(checkTinfoilConfig(mutate(EXAMPLE, (c) => setEnv(c, 'BELLOWS_STORAGE', 'volume')))).toEqual([]);
+    });
+
+    it('refuses each way a memory config can go wrong', () => {
+      const cases: [string, (c: Obj) => void, RegExp][] = [
+        ['a volume', (c) => (c.volumes = cfgOf(EXAMPLE).volumes), /^volumes: must not be set; BELLOWS_STORAGE is "memory"/],
+        [
+          'a mounted volume',
+          (c) => {
+            c.volumes = cfgOf(EXAMPLE).volumes;
+            container(c, 'bellows').persistent_volumes = ['data:/data'];
+          },
+          /\(bellows\)\.persistent_volumes: must not be set; BELLOWS_STORAGE is "memory"/,
+        ],
+        ['a volume key', (c) => container(c, 'bellows').secrets.push('BELLOWS_DATA_VOLUME_KEY'), /secrets: BELLOWS_DATA_VOLUME_KEY is a volume key; with BELLOWS_STORAGE "memory" there is no volume/],
+        ['no tmpfs', (c) => delete container(c, 'bellows').tmpfs, /BELLOWS_SEALED_MOUNTS: \/tmp is not one of this container's tmpfs mounts/],
+        ['db off the tmpfs', (c) => setEnv(c, 'BELLOWS_DB_PATH', '/var/bellows.db'), /BELLOWS_DB_PATH: \/var\/bellows\.db is not on a tmpfs mount of this container/],
+        ['db relative', (c) => setEnv(c, 'BELLOWS_DB_PATH', 'bellows.db'), /BELLOWS_DB_PATH: must be an absolute path on a tmpfs mount/],
+        ['no sealed mounts', (c) => setEnv(c, 'BELLOWS_SEALED_MOUNTS', ''), /BELLOWS_SEALED_MOUNTS: name the tmpfs mount path that holds the database/],
+        ['sealed mount not a tmpfs', (c) => setEnv(c, 'BELLOWS_SEALED_MOUNTS', '/run'), /BELLOWS_SEALED_MOUNTS: \/run is not one of this container's tmpfs mounts/],
+        [
+          'db on a tmpfs the sealed mounts miss',
+          (c) => {
+            container(c, 'bellows').tmpfs = { '/tmp': 'size=256m', '/run': 'size=16m' };
+            setEnv(c, 'BELLOWS_DB_PATH', '/run/bellows.db');
+          },
+          /BELLOWS_DB_PATH: \/run\/bellows\.db is not under BELLOWS_SEALED_MOUNTS/,
+        ],
+        ['an unknown storage', (c) => setEnv(c, 'BELLOWS_STORAGE', 'disk'), /BELLOWS_STORAGE: must be "volume" or "memory"/],
+        // A restart loses every balance, so only invited people may hold one, and only up to the cap.
+        ['invite-only off', (c) => setEnv(c, 'BELLOWS_INVITE_ONLY', 'false'), /env\.BELLOWS_INVITE_ONLY: must be "true" with BELLOWS_STORAGE "memory"/],
+        [
+          'invite-only unset',
+          (c) => (container(c, 'bellows').env = (container(c, 'bellows').env as Obj[]).filter((e) => !('BELLOWS_INVITE_ONLY' in e))),
+          /env\.BELLOWS_INVITE_ONLY: must be "true" with BELLOWS_STORAGE "memory"/,
+        ],
+        ['on-chain funding', (c) => setEnv(c, 'BELLOWS_ONCHAIN_ENABLED', 'true'), /env\.BELLOWS_ONCHAIN_ENABLED: must not be on with BELLOWS_STORAGE "memory"/],
+        ['the cap as a secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_MEMORY_MAX_BALANCE_USD'), /BELLOWS_MEMORY_MAX_BALANCE_USD is a setting/],
+      ];
+      for (const [name, fn, re] of cases) {
+        const problems = checkTinfoilConfig(memoryWith(fn));
+        expect(problems.join('\n'), name).toMatch(re);
+      }
+    });
+
+    it('refuses volume storage with the database on a tmpfs, and keeps every volume rule', () => {
+      // The volume-less config without BELLOWS_STORAGE, or with it set to volume.
+      for (const storage of [undefined, 'volume']) {
+        const text = memoryWith((c) => {
+          const env = container(c, 'bellows').env as Obj[];
+          container(c, 'bellows').env = env.filter((e) => !('BELLOWS_STORAGE' in e));
+          if (storage) setEnv(c, 'BELLOWS_STORAGE', storage);
+        });
+        const problems = checkTinfoilConfig(text).join('\n');
+        expect(problems, String(storage)).toMatch(/BELLOWS_DB_PATH: \/tmp\/bellows\.db is on the tmpfs \/tmp, which every restart empties, and BELLOWS_STORAGE is "volume" \(the default\)/);
+        expect(problems, String(storage)).toMatch(/BELLOWS_SEALED_MOUNTS: \/tmp is not one of this container's persistent_volumes/);
+      }
+      // The template with its database moved to /tmp: the old refusal and the new, clearer one.
+      const moved = checkTinfoilConfig(mutate(EXAMPLE, (c) => setEnv(c, 'BELLOWS_DB_PATH', '/tmp/bellows.db'))).join('\n');
+      expect(moved).toMatch(/is not under BELLOWS_SEALED_MOUNTS/);
+      expect(moved).toMatch(/is on the tmpfs \/tmp/);
+    });
+
+    it('Bellows starts from the memory env with storage memory on the tmpfs, and refuses volume there', () => {
+      const env: Record<string, string> = envOf(container(cfgOf(MEMORY), 'bellows'));
+      env.BELLOWS_WALLET_SECRET = '11'.repeat(32);
+      env.TINFOIL_API_KEY = 'test-only';
+      env.TOKENFACTORY_API_KEY = 'test-only';
+      // /tmp as this machine resolves it (macOS links it to /private/tmp).
+      const tmp = realpathSync('/tmp');
+      const mounts: MountTable = { mountPoints: () => ['/', tmp], fsType: (m) => (m === tmp ? 'tmpfs' : 'overlay') };
+      const config = loadConfig(env as NodeJS.ProcessEnv, undefined, { mounts });
+      expect(config).toMatchObject({ mode: 'sealed', storage: 'memory', sealedMount: tmp });
+      expect(() => loadConfig({ ...env, BELLOWS_STORAGE: 'volume' } as NodeJS.ProcessEnv, undefined, { mounts })).toThrow(/a tmpfs mount that every restart empties, and BELLOWS_STORAGE is volume/);
+    });
   });
 
   it('refuses open egress for bellows, bad allowlists, two egress networks and routes to anything but bellows', () => {

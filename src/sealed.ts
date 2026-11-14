@@ -10,7 +10,12 @@ import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 export interface MountTable {
   /** Every current mount point, or undefined when the table cannot be read. */
   mountPoints(): string[] | undefined;
+  /** The file system type of a mount point (such as tmpfs), or undefined when unknown. */
+  fsType?(mountPoint: string): string | undefined;
 }
+
+/** File systems that live in memory: what is on them is gone after a restart. */
+export const MEMORY_FS_TYPES: readonly string[] = ['tmpfs', 'ramfs'];
 
 /** Decodes the octal escapes mountinfo uses for space, tab, newline and backslash. */
 function unescapeMount(s: string): string {
@@ -27,14 +32,36 @@ export function parseMountInfo(text: string): string[] {
   return out;
 }
 
+/**
+ * Parses /proc/self/mountinfo into mount point and file system type: the type is the first field after the
+ * lone "-" separator. A later line for the same mount point (a mount on top of another) wins.
+ */
+export function parseMountTypes(text: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const line of text.split('\n')) {
+    const fields = line.trim().split(' ');
+    const sep = fields.indexOf('-', 6);
+    if (fields.length >= 5 && fields[4] && sep > 0 && fields[sep + 1]) out.set(unescapeMount(fields[4]), fields[sep + 1]!);
+  }
+  return out;
+}
+
 export function procMounts(path = '/proc/self/mountinfo'): MountTable {
+  const read = () => {
+    try {
+      return readFileSync(path, 'utf8');
+    } catch {
+      return undefined;
+    }
+  };
   return {
     mountPoints() {
-      try {
-        return parseMountInfo(readFileSync(path, 'utf8'));
-      } catch {
-        return undefined;
-      }
+      const text = read();
+      return text === undefined ? undefined : parseMountInfo(text);
+    },
+    fsType(mountPoint) {
+      const text = read();
+      return text === undefined ? undefined : parseMountTypes(text).get(trimSlash(mountPoint));
     },
   };
 }

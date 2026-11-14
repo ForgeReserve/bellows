@@ -3,12 +3,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import { type Measurement, measurementEquals, measurementProblems } from '../client/builds.ts';
+import { STORAGE_KINDS, type Storage } from '../client/identity.ts';
 import { parseOperatorAnnouncement } from '../client/operator.ts';
 import { DEFAULT_MAX_MESSAGE_BYTES } from '../client/ohttp.ts';
 import { devMeasurement } from './attest/dev.ts';
 import { TINFOIL_ATTESTATION_SOCKET } from './attest/tinfoil.ts';
 import { log } from './log.ts';
-import { type MountTable, procMounts, sealedMountOf } from './sealed.ts';
+import { MEMORY_FS_TYPES, type MountTable, procMounts, sealedMountOf } from './sealed.ts';
 import {
   ADMIN_TOKEN,
   ADMIN_TOKEN_HASH,
@@ -52,6 +53,20 @@ export const EnvSchema = z.object({
   BELLOWS_SECRETS_FILE: z.string().trim().min(1).optional(),
   /** Mount points of the encrypted volume. Sealed mode refuses a database (or secrets file) anywhere else. */
   BELLOWS_SEALED_MOUNTS: csv.default([]),
+  /**
+   * Where the database lives, published in /.well-known/bellows (docs/OPERATE.md, Running without a volume).
+   * volume: on the encrypted volume, so balances survive a restart. memory: on a tmpfs inside the sealed
+   * machine, for a deployment that has no volume yet; every restart loses every balance. Sealed mode refuses
+   * volume when the database's mount is in memory.
+   */
+  BELLOWS_STORAGE: z.enum(STORAGE_KINDS).default('volume'),
+  /**
+   * BELLOWS_STORAGE=memory only: the most one balance may hold, in whole units (cents for usd), counting what
+   * is on its way to it. A restart loses every balance, so this is the most anyone can lose to one. A credit
+   * that would pass it is refused before any eCash is taken. Memory storage also needs BELLOWS_INVITE_ONLY.
+   */
+  BELLOWS_MEMORY_MAX_BALANCE_SAT: z.coerce.number().int().min(1).default(20_000),
+  BELLOWS_MEMORY_MAX_BALANCE_USD: z.coerce.number().int().min(1).default(2_000),
   PORT: z.coerce.number().int().min(1).max(65535).default(8787),
   HOST: z.string().default('0.0.0.0'),
   BELLOWS_DB_PATH: z.string().default('data/bellows.db'),
@@ -306,6 +321,13 @@ export interface Config {
   adminTokenHash?: string;
   /** Sealed mode: the mount the database is on. */
   sealedMount?: string;
+  /** Where the database lives (BELLOWS_STORAGE): volume, or memory, which every restart empties. */
+  storage: Storage;
+  /**
+   * Memory storage: the most one balance may hold, per unit taken, in whole units (BELLOWS_MEMORY_MAX_BALANCE_*).
+   * null: no cap (volume storage).
+   */
+  balanceMax: Partial<Record<Unit, number>> | null;
   /** Development, new database: the secrets file buildDeps writes before it creates the database. */
   pendingSecretsFile?: PendingSecretsFile;
   /** This Bellows' release version (package.json). */
@@ -371,6 +393,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
     throw new Error('BELLOWS_DEFAULT_UNIT must be one of BELLOWS_UNITS');
   }
   ohttpAdmitPerSecond(env);
+  checkMemoryStorage(env);
   const raw = catalogOverride ?? JSON.parse(readFileSync(resolve(env.BELLOWS_MODELS_FILE), 'utf8'));
   const cat = CatalogSchema.safeParse(raw);
   if (!cat.success) throw new Error(`invalid model catalog: ${z.prettifyError(cat.error)}`);
@@ -378,6 +401,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
   const mode = env.BELLOWS_MODE;
   const mounts = opts.mounts ?? procMounts();
   const sealedMount = mode === 'sealed' ? sealedMountOf('the database', env.BELLOWS_DB_PATH, env.BELLOWS_SEALED_MOUNTS, mounts) : undefined;
+  if (sealedMount !== undefined) checkStorage(env.BELLOWS_STORAGE, sealedMount, mounts);
   const { secrets, pending } = opts.secrets ? { secrets: opts.secrets, pending: undefined } : openSecrets(env, source, mounts);
 
   // One source: a secret also set in the environment is refused rather than silently preferred or ignored.
@@ -430,6 +454,8 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
     secrets,
     adminTokenHash,
     sealedMount,
+    storage: env.BELLOWS_STORAGE,
+    balanceMax: env.BELLOWS_STORAGE === 'memory' ? Object.fromEntries(env.BELLOWS_UNITS.map((u) => [u, memoryMaxBalance(env, u)])) : null,
     pendingSecretsFile: pending,
     version: BELLOWS_VERSION,
     attester,
@@ -437,6 +463,57 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
     operatorAnnouncement: operatorAnnouncementOf({ env, trustedMints, buildMeasurement }),
     unverifiedPrices: { served: serveUnverified, models: unverified },
   };
+}
+
+function memoryMaxBalance(env: Env, unit: Unit): number {
+  return unit === 'sat' ? env.BELLOWS_MEMORY_MAX_BALANCE_SAT : env.BELLOWS_MEMORY_MAX_BALANCE_USD;
+}
+
+/**
+ * Memory storage loses every balance on every restart, so it runs only in the shape that bounds that loss:
+ * invite-only, and without on-chain funding, whose deposit address takes any amount the cap cannot bound
+ * (and whose key a restart loses). Refused rather than changed, so the measured config says what runs.
+ */
+function checkMemoryStorage(env: Env): void {
+  if (env.BELLOWS_STORAGE !== 'memory') return;
+  if (!env.BELLOWS_INVITE_ONLY) {
+    throw new Error(
+      'BELLOWS_STORAGE=memory needs BELLOWS_INVITE_ONLY=true: every restart loses every balance, so only people you invite may hold one (docs/OPERATE.md, Running without a volume)',
+    );
+  }
+  if (env.BELLOWS_ONCHAIN_ENABLED) {
+    throw new Error(
+      'BELLOWS_STORAGE=memory cannot run with BELLOWS_ONCHAIN_ENABLED=true: a deposit address takes any amount, so the balance cap cannot bound it, and a restart loses the key that mints it. Turn on-chain funding off',
+    );
+  }
+}
+
+/** At boot: one warning line when balances live in memory. Nothing for a volume. */
+export function warnStorage(config: Pick<Config, 'storage' | 'env' | 'balanceMax'>): void {
+  if (config.storage !== 'memory') return;
+  log.warn('storage_memory', {
+    db: config.env.BELLOWS_DB_PATH,
+    balance_max_usd: config.balanceMax?.usd,
+    balance_max_sat: config.balanceMax?.sat,
+    note: 'BELLOWS_STORAGE=memory: no encrypted volume, balances live in memory and every restart loses all of them',
+  });
+}
+
+/**
+ * Sealed mode: what BELLOWS_STORAGE says must not overstate what the database's mount keeps. A database on a
+ * memory file system under BELLOWS_STORAGE=volume is refused, since /.well-known/bellows would tell clients
+ * their balances survive a restart. The other way round only understates it, and is a warning.
+ */
+function checkStorage(storage: Storage, mount: string, mounts: MountTable): void {
+  const type = mounts.fsType?.(mount);
+  if (type === undefined) return;
+  const inMemory = MEMORY_FS_TYPES.includes(type);
+  if (storage === 'volume' && inMemory) {
+    throw new Error(
+      `sealed mode: the database is on ${mount}, a ${type} mount that every restart empties, and BELLOWS_STORAGE is volume. Put it on the encrypted volume, or set BELLOWS_STORAGE=memory to say it lives in memory`,
+    );
+  }
+  if (storage === 'memory' && !inMemory) log.warn('storage_mount_not_memory', { mount, fs_type: type, storage });
 }
 
 /**

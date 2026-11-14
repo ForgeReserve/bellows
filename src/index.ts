@@ -1,6 +1,6 @@
 import { serve } from '@hono/node-server';
 import { createApp, startupRecovery } from './app.ts';
-import { announceUnverifiedPrices, loadConfig } from './config.ts';
+import { announceUnverifiedPrices, loadConfig, warnStorage } from './config.ts';
 import { applyCashuRequestPolicy } from './cashu/wallet.ts';
 import { buildDeps } from './deps.ts';
 import { errText, log, setLogLevel } from './log.ts';
@@ -9,6 +9,7 @@ import { errText, log, setLogLevel } from './log.ts';
 applyCashuRequestPolicy();
 const config = loadConfig();
 setLogLevel(config.env.BELLOWS_LOG_LEVEL);
+warnStorage(config);
 announceUnverifiedPrices(config);
 const deps = buildDeps(config);
 await startupRecovery(deps).catch((e) => log.error('startup_recovery_failed', { err: errText(e) }));
@@ -39,6 +40,7 @@ for (const sig of ['SIGINT', 'SIGTERM'] as const) {
     deps.funding.stop();
     deps.discovery.stop();
     deps.identity.stop();
+    deps.wallet.stop();
     server.close(() => {
       deps.db.close();
       process.exit(0);

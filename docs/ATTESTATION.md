@@ -22,7 +22,8 @@ The statement, after base64 decoding:
   "measurement": { "type": "<format URI>", "registers": ["<lowercase hex>"] },
   "hpke": { "key_config": "<base64, RFC 9458 key configuration>" },
   "relays": ["https://relay.example/relay/bellows.example"],
-  "operator": null
+  "operator": null,
+  "storage": "volume"
 }
 ```
 
@@ -31,6 +32,8 @@ The statement, after base64 decoding:
 - `hpke.key_config` is one key configuration in the encoding of RFC 9458, section 3.1: key id, KEM `0x0020`, the 32-byte public key, and the cipher suites (HKDF-SHA256 with AES-128-GCM).
 - `relays` lists the Oblivious HTTP relays for this Bellows (`BELLOWS_RELAYS`), each the full URL a client posts encapsulated requests to ([OHTTP.md](OHTTP.md)).
 - `operator` is the operator's signed announcement (a Nostr event, [OPERATORS.md](OPERATORS.md)) from `BELLOWS_OPERATOR_ANNOUNCEMENT_FILE`, or `null`. Startup checks that it is signed and matches the configuration. Because the attestation covers it, a client can check that the Bellows it verified belongs to the operator who announced it.
+- `storage` is `BELLOWS_STORAGE`: `volume`, or `memory` for a deployment without a volume, where every restart loses every balance ([OPERATE.md](OPERATE.md#running-without-a-volume)). The measured config sets it, `pnpm deploy:check` refuses a config where it does not match the mounts, and a sealed Bellows refuses to start saying `volume` with its database on a `tmpfs`. A statement without it means `volume`.
+- `balance_max` is present with `memory` only: the most one balance may hold, per unit, in whole units (`BELLOWS_MEMORY_MAX_BALANCE_USD` in cents and `BELLOWS_MEMORY_MAX_BALANCE_SAT`), so a client can warn people before they fund past it. Being in the statement, it cannot be raised in transit.
 
 The attestation binds
 
@@ -111,7 +114,7 @@ const bellows = await verifyBellows('https://bellows.example', {
 2. picks the verifier for the attestation format and has it check that the attestation is authentic and binds the statement;
 3. finds the proved measurement in the approved builds;
 4. refuses a statement whose claimed measurement or version differs from the approved build;
-5. returns the key configuration, the build, the relays and the operator announcement.
+5. returns the key configuration, the build, the relays, the operator announcement, the storage and the balance cap (`balanceMax`, or `null`).
 
 Every refusal is a `BellowsVerifyError` with a stable `code`.
 

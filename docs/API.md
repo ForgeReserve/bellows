@@ -208,6 +208,7 @@ For a request that failed before it was served while its payment's outcome was u
 | `GET /v1/wallet/refunds` | Bearer key | `{data: [{id, amount, unit, mint, status, token, locked_to}]}`: every withdrawal of this balance, for re-delivery |
 
 - **Topup.** The token must be from one of the `mints` in `/v1/models`. Its unit sets the balance's unit; a token in another unit gets `400 wrong_unit`. `key` is returned only when the Bellows generated it, once: keep it. Sending the same token again is safe: the answer has `replay: true` and `credited: 0`. If the mint cannot be reached mid-swap, the answer is `503 topup_pending` with the `key` (when generated) and `account_id`: retry with that key and the same token.
+- **Balance cap.** A Bellows that keeps balances in memory (`storage: "memory"`) caps every balance at `balance_max` (in `/v1/wallet/fund/methods` and in the attested statement), counting open fundings and top-ups still settling. A top-up, Lightning quote or other-mint quote that would pass it gets `400 balance_limit` with `{unit, balance_max, room}`, where `room` is what still fits, in whole units. Nothing is taken: the token stays yours and no invoice is made. Send less, or spend first. A retry of a token the mint already took is never refused.
 - **Balance.** `available_msub` is the balance minus what running requests have reserved. `refundable` is the whole units that can be withdrawn now.
 - **Refund.** Answers `200` with the token, or `202` with `status: "owed"` and `token: null` when the mint did not answer; the refund is saved and `GET /v1/wallet/refunds` (or the next refund call) delivers it. A remainder below one unit stays on the balance. `refunds` lists every withdrawal, as `GET /v1/wallet/refunds` does. Errors: `400 invalid_amount` (outside `1..refundable`), `503 wallet_insufficient`.
 - **Unknown key.** A key the Bellows does not know gets `401 invalid_key` on `GET /v1/wallet`, refunds, funding status and chat. On a topup or a funding, a well-formed key it does not know opens a new balance under that key.
@@ -231,6 +232,8 @@ A balance can be funded without eCash from an accepted mint: by a Lightning invo
 
 ```json
 {
+  "storage": "volume",
+  "balance_max": null,
   "ecash": { "mints": ["https://mint.example"], "units": ["usd", "sat"] },
   "lightning": { "enabled": true, "units": ["sat", "usd"], "min": { "sat": 1, "usd": 1 }, "max": { "sat": 1000000, "usd": 100000 } },
   "onchain": { "enabled": false, "unit": "sat", "min_amount": 0, "confirmations": 3 },
@@ -245,6 +248,8 @@ A balance can be funded without eCash from an accepted mint: by a Lightning invo
   "invite_only": false
 }
 ```
+
+`storage` is where balances are kept (as in [`/.well-known/bellows`](#well-knownbellows)). With `memory`, `balance_max` is the most one balance may hold, per unit, in whole units (cents for `usd`), for example `{"usd": 2000, "sat": 20000}`, and Lightning's `max` is no higher than it; warn people before they fund past it. With `volume` it is `null`.
 
 `GET /v1/wallet/fund/mints`: `{enabled, policy, mints: [{url, name?, reviewers?, source}], updated_at}`, where `source` is `discovered` (from Cashu mint reviews on Nostr, NIP-87) or `operator`. Denied mints are never listed.
 
@@ -284,7 +289,7 @@ A request that opens a new balance (a topup or a funding sent without a known ba
 
 | Path | Answer |
 | - | - |
-| `GET /healthz` | `{ok, rate: {btc_usd, age_s} \| null, invite_only}` |
+| `GET /healthz` | `{ok, rate: {btc_usd, age_s} \| null, invite_only, mints_closed}`. `mints_closed` counts mints whose counter scan has not finished since a restart on a new database; funding and withdrawals there answer `503 mint_unavailable` until it has |
 | `GET /.well-known/bellows` | The attested identity ([below](#well-knownbellows)) |
 | `GET /.well-known/hpke-keys` | The model enclave's HPKE key configuration, passed through. `404` without an enclave supplier |
 | `GET /attestation` | The model enclave's attestation bundle, passed through. `404` without one |
@@ -293,7 +298,7 @@ A request that opens a new balance (a topup or a funding sent without a known ba
 
 | Status | Codes |
 | - | - |
-| 400 | `invalid_request`, `invalid_amount`, `invalid_token`, `invalid_pubkey`, `untrusted_mint`, `wrong_unit`, `insufficient_amount`, `token_spent`, `encryption_required`, `method_unavailable`, `use_topup`, `mint_not_allowed`, `mint_check_failed`, `amount_too_large`, `token_mismatch`, `foreign_mint_error`, `issue_failed` |
+| 400 | `invalid_request`, `invalid_amount`, `invalid_token`, `invalid_pubkey`, `untrusted_mint`, `wrong_unit`, `insufficient_amount`, `token_spent`, `encryption_required`, `method_unavailable`, `use_topup`, `mint_not_allowed`, `mint_check_failed`, `amount_too_large`, `balance_limit`, `token_mismatch`, `foreign_mint_error`, `issue_failed` |
 | 401 | `invalid_key` |
 | 402 | `payment_required`, `insufficient_balance` |
 | 403 | `invite_required`, `invite_used`, `invite_invalid`, `account_frozen` |
@@ -318,7 +323,7 @@ A request that opens a new balance (a topup or a funding sent without a known ba
 | Endpoint | Send | Answer |
 | - | - | - |
 | `GET /admin/api/session` | | `{ok: true}`: checks the token |
-| `GET /admin/api/overview` | | `{at, markup, rate, units, holdings, windows, health, ...}`. `units` has per unit: revenue collected and exported, wallet holdings, owed payouts, customer balances, what can be swept, and counts of balances and frozen balances. `windows` (`today`, `d7`, `d30`) has requests, tokens, charged and supplier cost by model, tier and supplier, from daily aggregates. `health` has suppliers, mints, open fundings by state and method, quote-check budget and unfinished exports |
+| `GET /admin/api/overview` | | `{at, markup, rate, units, holdings, recovered, mints_closed, windows, health, ...}`. `units` has per unit: revenue collected and exported, wallet holdings, owed payouts, customer balances, what can be swept, recovered funds, and counts of balances and frozen balances. `recovered` is the eCash found at boot on a new database, per mint and unit (`proofs`, `amount`): owed to no balance, never spent by Bellows, and outside the holdings and what can be swept ([OPERATE.md](OPERATE.md#running-without-a-volume)). `mints_closed` lists mints whose counter scan has not finished. `windows` (`today`, `d7`, `d30`) has requests, tokens, charged and supplier cost by model, tier and supplier, from daily aggregates. `health` has suppliers, mints, open fundings by state and method, quote-check budget and unfinished exports |
 | `POST /admin/api/export/preview` | `{unit, amount?, mint?, pubkey?}` | `{unit, mint, amount, max, sweepable, locked_to}`: what an export would sweep |
 | `POST /admin/api/export` | The preview's fields plus `confirm_amount`, `confirm_mint`, `confirm_pubkey` copied from the preview | `200 {id, status: "done", unit, mint, amount, locked_to, token}`, or `202` with `status: "owed"` and `token: null` when the mint did not answer. `409 confirm_mismatch` if the confirmation differs |
 | `GET /admin/api/exports` | | `{data: [...]}`: export history (amount, lock, a hash of the token; never the token) |
@@ -359,7 +364,8 @@ The statement, decoded:
   "measurement": { "type": "<format URI>", "registers": ["<lowercase hex>"] },
   "hpke": { "key_config": "<base64 RFC 9458 key configuration>" },
   "relays": ["https://relay.example/relay/bellows.example"],
-  "operator": null
+  "operator": null,
+  "storage": "volume"
 }
 ```
 
@@ -367,11 +373,13 @@ The statement, decoded:
 - `hpke.key_config` is the RFC 9458 key configuration (section 3.1): key id, KEM `0x0020` (X25519), the 32-byte public key, and HKDF-SHA256 with AES-128-GCM. The key is made at boot, lives only in memory and is new on every restart.
 - `relays` are the Oblivious HTTP relay URLs for this Bellows, in the operator's order.
 - `operator` is the operator's signed announcement ([below](#operator-announcement)) or `null`.
+- `storage` is where balances are kept. `volume`: on the encrypted volume. `memory`: in memory inside the sealed machine, so every restart of the Bellows loses every balance. A statement without it comes from an older Bellows and means `volume`.
+- `balance_max` comes with `memory` only: the most one balance may hold, per unit, in whole units (cents for `usd`), for example `{"usd": 2000, "sat": 20000}`. Such a Bellows is invite-only and refuses any credit past it ([Balance](#balance)).
 - The attestation binds `SHA-256("bellows-identity/v1" || 0x00 || statement bytes)`. The statement travels as base64 so both sides hash the same bytes. Anyone in front of the sealed machine who changes the key, a relay or the announcement breaks the binding.
 - Attestation `format` is `https://tinfoil.sh/predicate/attestation/v3` on Tinfoil, or `urn:bellows:attestation:dev:v1` for the development stand-in, which proves nothing and which clients refuse unless they opt in.
 - Until the first attestation succeeds, the answer is `503 not_attested` with `Retry-After`.
 
-`verifyBellows(url, {approvedBuilds, verifier})` in the client library fetches this document, checks the attestation with the app's verifier, and finds the proved measurement in `builds.json`. It returns the attested key configuration (`keyConfig`), the approved build, the proved measurement, the relays and the operator announcement, or throws `BellowsVerifyError` with a stable `code`. If it throws, send nothing. [ATTESTATION.md](ATTESTATION.md) has each check. It reads the document directly from the Bellows, so the operator sees the client's address on that request. To keep it hidden, pass a `fetch` in the options that sends through Tor (`verifyBellows(url, {approvedBuilds, verifier, fetch})`).
+`verifyBellows(url, {approvedBuilds, verifier})` in the client library fetches this document, checks the attestation with the app's verifier, and finds the proved measurement in `builds.json`. It returns the attested key configuration (`keyConfig`), the approved build, the proved measurement, the relays, the operator announcement, `storage` and `balanceMax` (the statement's `balance_max`, or `null`), or throws `BellowsVerifyError` with a stable `code`. If it throws, send nothing. [ATTESTATION.md](ATTESTATION.md) has each check. It reads the document directly from the Bellows, so the operator sees the client's address on that request. To keep it hidden, pass a `fetch` in the options that sends through Tor (`verifyBellows(url, {approvedBuilds, verifier, fetch})`).
 
 ### `builds.json`
 

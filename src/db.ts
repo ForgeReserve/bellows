@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS proofs (
   keyset_id TEXT NOT NULL,
   amount INTEGER NOT NULL,
   proof TEXT NOT NULL,
-  state TEXT NOT NULL,              -- unspent | reserved | spent
+  state TEXT NOT NULL,              -- unspent | reserved | spent | recovered (held aside, recovered_funds)
   op_id TEXT,
   created_at INTEGER NOT NULL
 );
@@ -98,6 +98,18 @@ CREATE TABLE IF NOT EXISTS counters (
   keyset_id TEXT NOT NULL,
   next INTEGER NOT NULL,
   PRIMARY KEY (mint, keyset_id)
+);
+
+-- eCash a counter scan found at the mint under this wallet's seed, unspent, and that no row here accounts
+-- for: what stood behind balances an earlier database held (memory storage, a lost volume), and possibly
+-- payouts people have not redeemed yet. Its proofs are kept in state 'recovered', never spent by Bellows
+-- and owed to no balance; the operator decides what to do with it. One row per scan of a mint and unit.
+CREATE TABLE IF NOT EXISTS recovered_funds (
+  mint TEXT NOT NULL,
+  unit TEXT NOT NULL,
+  proofs INTEGER NOT NULL,
+  amount INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS invites (

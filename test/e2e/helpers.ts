@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { serve, type ServerType } from '@hono/node-server';
 import { getEncodedToken, type Proof, Wallet } from '@cashu/cashu-ts';
 import { createApp, type Deps, startupRecovery } from '../../src/app.ts';
+import type { WalletOptions } from '../../src/cashu/wallet.ts';
 import { loadConfig } from '../../src/config.ts';
 import { buildDeps } from '../../src/deps.ts';
 import type { FundingFaults } from '../../src/funding.ts';
@@ -157,6 +158,11 @@ export async function startGateway(
      * BELLOWS_INVITE_ONLY unset, so the engine's own default applies.
      */
     inviteOnly?: boolean;
+    /**
+     * Counter scans and retries (src/cashu/counter-scan.ts). Default here: a short scan (100-counter batches,
+     * gap 200), since every gateway in this suite starts on a new database. {} gives the production defaults.
+     */
+    counterScan?: WalletOptions['counterScan'];
   } = {},
 ): Promise<Gateway> {
   const dbPath = opts.dbPath ?? join(mkdtempSync(join(tmpdir(), 'bellows-e2e-')), 'bellows.db');
@@ -180,7 +186,7 @@ export async function startGateway(
   };
   const catalog = testCatalog(opts.enclavePort);
   const config = loadConfig(writeSecretsFile(dbPath, env, catalog) as NodeJS.ProcessEnv, catalog);
-  const deps = buildDeps(config, { rateSources: [fixedRateSource('fixed', BTC_USD)], faults: opts.faults, fundingFaults: opts.fundingFaults });
+  const deps = buildDeps(config, { rateSources: [fixedRateSource('fixed', BTC_USD)], faults: opts.faults, fundingFaults: opts.fundingFaults, counterScan: opts.counterScan ?? { batchSize: 100, gap: 200 } });
   if (opts.recover !== false) await startupRecovery(deps);
   const app = createApp(deps);
   const host = opts.host ?? '127.0.0.1';
@@ -197,6 +203,7 @@ export async function startGateway(
       new Promise<void>((r) => {
         (server as any).closeAllConnections?.();
         server.close(() => {
+          deps.wallet.stop();
           deps.db.close();
           r();
         });

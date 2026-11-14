@@ -1,5 +1,6 @@
-import { GatewayWallet } from './cashu/wallet.ts';
+import { GatewayWallet, type WalletOptions } from './cashu/wallet.ts';
 import { type Config, normalizeMintUrl } from './config.ts';
+import { BalanceCap } from './accounts.ts';
 import { openDb, refuseOrphanedForgeDb } from './db.ts';
 import { Invites, Ledger } from './ledger.ts';
 import { BUILTIN_SOURCES, RateOracle, type RateSource } from './rates.ts';
@@ -8,7 +9,7 @@ import { type Attester, createIdentity, type Identity } from './identity.ts';
 import { log } from './log.ts';
 import { createDiscovery, createRelayQuery, type MintProbe, type RelayQuery, sqliteStore } from './mint-discovery.ts';
 import { buildSuppliers } from './suppliers/index.ts';
-import { resolveWalletSeed, type WalletSeedSource } from './wallet-seed.ts';
+import { hasWalletState, resolveWalletSeed, type WalletSeedSource } from './wallet-seed.ts';
 import type { Deps } from './app.ts';
 
 export function buildDeps(
@@ -21,6 +22,8 @@ export function buildDeps(
     discovery?: { query?: RelayQuery; probe?: (url: string) => Promise<MintProbe>; now?: () => number };
     /** Tests: an attester in place of the one the configuration names. */
     attester?: Attester;
+    /** Tests: shorter counter scans and retries (src/cashu/counter-scan.ts). */
+    counterScan?: WalletOptions['counterScan'];
   } = {},
 ): Deps {
   const env = config.env;
@@ -28,6 +31,9 @@ export function buildDeps(
   // Development, new database: write the secrets file holding its wallet secret before the database exists.
   config.pendingSecretsFile?.write();
   const db = openDb(env.BELLOWS_DB_PATH);
+  // No wallet state: a new database (memory storage after any restart, or a lost volume). The NUT-13
+  // counters start at 0 under the same seed, so startupRecovery scans the mints before anything is served.
+  const freshWallet = !hasWalletState(db);
   const { seed, source: seedSource } = resolveWalletSeed(db, config.secrets);
   // A new HPKE key pair on every boot; attested lazily (and eagerly by index.ts) for /.well-known/bellows.
   const identity = createIdentity(config, opts.attester);
@@ -50,7 +56,9 @@ export function buildDeps(
     // The operator's funding mint is configuration, not customer input, like the trusted mints.
     vetMint: async (m) => (m === normalizeMintUrl(fundMint) ? undefined : checkForeignMintUrl(m, env.BELLOWS_FOREIGN_ALLOW_INSECURE)),
     faults: opts.faults,
+    counterScan: opts.counterScan,
   });
+  wallet.needsCounterScan = freshWallet;
   const rates = new RateOracle(sources, {
     minSources: Math.min(env.BELLOWS_RATE_MIN_SOURCES, sources.length),
     ttlMs: env.BELLOWS_RATE_TTL_SECONDS * 1000,
@@ -82,6 +90,7 @@ export function buildDeps(
     faults: opts.fundingFaults,
     discovery,
     probe: opts.discovery?.probe,
+    cap: new BalanceCap(db, config.balanceMax),
   });
   const deps: Deps = {
     config,
@@ -107,6 +116,7 @@ function logStartup(config: Config, walletSeed: WalletSeedSource, identity: Iden
     secrets_file_created: config.pendingSecretsFile ? true : undefined,
     db_path: config.env.BELLOWS_DB_PATH,
     sealed_mount: config.sealedMount,
+    storage: config.storage,
     wallet_seed: walletSeed,
     admin_api: config.adminTokenHash ? 'on' : 'off',
     version: config.version,
