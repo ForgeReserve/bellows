@@ -167,7 +167,9 @@ data: {"request_id":"req_...","unit":"usd","charged_msub":1300,"balance_msub":98
 
 Its members: `request_id`, `unit`, `charged_msub`, and `balance_msub` (balance payments) or `change`, `change_units` and `change_url` (NUT-24). If the upstream fails mid-stream, a `data: {"error": {...}}` line comes first and the event carries `"partial": true`; the part that was delivered is charged. A stream answer includes a usage chunk only if the request asked for it with `stream_options.include_usage`. The OpenAI JavaScript SDK ignores events after `[DONE]`. Other clients that parse every event should skip `event: forge` or read it.
 
-**Upstream failures** charge nothing and return all NUT-24 change. The answer is `502` (or the upstream's own 4xx) with code `upstream_error`.
+**Upstream failures** charge nothing and return all NUT-24 change, including an answer whose body breaks after its headers arrived. The answer is `502` (or the upstream's own 4xx) with code `upstream_error`. A balance reservation is released at once.
+
+A paid NUT-24 request that fails inside the Bellows before it settles (an internal error) leaves its whole payment as change at `GET /v1/change/{request_id}`, in the same process, or for a retry with the same token to take over, once.
 
 #### Encrypted chat (EHBP)
 
@@ -190,7 +192,7 @@ To encrypt, a browser client loads the enclave's key and attestation through the
 The change of a NUT-24 request, for a client that lost the answer. The request id is the capability: it was returned only to the payer. No other credentials.
 
 - `200 {"request_id", "data": [{id, amount, unit, mint, status, token, locked_to}], "token"}`. `token` is the first token.
-- `409 not_settled` with `Retry-After` while the request still runs, or while the mint has not settled the payment of a request that failed.
+- `409 not_settled` with `Retry-After` while the request still runs, or while the mint has not settled the payment of a request that failed. A request whose handler ended without settling is not running: its whole payment is returned here.
 - `503 mint_unavailable` with `Retry-After` when the change is owed but the mint did not answer.
 - `404 not_found` when there is no change for that id.
 

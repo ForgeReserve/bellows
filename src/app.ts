@@ -85,8 +85,8 @@ export const OPENS_BALANCE = new Set(['/v1/wallet/topup', '/v1/wallet/fund/light
 
 type Payment = { kind: 'balance'; account: Account; reservationId: string } | { kind: 'nut24'; mint: string; unit: Unit; paid: number };
 
-/** The balance reservation a chat request holds, if any (see the chat route). */
-type ChatOwnership = { reservationId?: string };
+/** What a chat request holds until it settles: its balance reservation or its NUT-24 request row (see the chat route). */
+type ChatOwnership = { reservationId?: string; nut24RequestId?: string };
 
 interface SettleResult {
   chargedMsub: number;
@@ -515,14 +515,27 @@ export function createApp(d: Deps) {
   // ------------------------------------------------------------------ chat
 
   // A request owns its balance reservation until it settles (src/ledger.ts), so the stale sweep never
-  // releases it however long it streams. An error that escapes before settlement gives the reservation up,
-  // and the sweep releases it in this process.
+  // releases it however long it streams, and its NUT-24 row stays 'running' while a handler serves it.
+  // A request that ends without settling (an error escaped it) gives both up in this process: the sweep
+  // releases the reservation, and a payment it received is marked 'paid' (unserved), so GET /v1/change
+  // returns it in full, or a retry with the same token takes it over, once.
+  const abandon = (own: ChatOwnership) => {
+    if (own.reservationId) ledger.disown(own.reservationId);
+    const id = own.nut24RequestId;
+    if (!id) return;
+    try {
+      const n = tx(db, () => Number(db.prepare("UPDATE requests SET status = 'paid' WHERE id = ? AND status = 'running'").run(id).changes));
+      if (n > 0) log.warn('nut24_request_abandoned', { request_id: id });
+    } catch (e) {
+      log.error('nut24_abandon_failed', { request_id: id, err: errText(e) });
+    }
+  };
   app.post('/v1/chat/completions', async (c) => {
     const own: ChatOwnership = {};
     try {
       return await chatCompletion(c, own);
     } catch (e) {
-      if (own.reservationId) ledger.disown(own.reservationId);
+      abandon(own);
       throw e;
     }
   });
@@ -641,9 +654,11 @@ export function createApp(d: Deps) {
       db.prepare(
         "INSERT INTO requests (id, payment, unit, model, supplier, encrypted, status, reserved_msub, lock_pubkey, created_at) VALUES (?, 'nut24', ?, ?, ?, ?, 'new', ?, ?, ?)",
       ).run(requestId, unit, model.id, model.supplier, encrypted ? 1 : 0, reserveMsub, lockPubkey, now());
+      own.nut24RequestId = requestId;
       try {
-        // A request is 'running' from the transaction that pays it, so 'paid' only ever means a payment that
-        // recovery finished for a request no handler serves any more: one a retry may take over, once.
+        // A request is 'running' from the transaction that pays it, so 'paid' only ever means a payment no
+        // handler serves any more (recovery finished it, or its handler ended unsettled): one a retry may take
+        // over, or GET /v1/change return in full, once.
         const r = await wallet.receive(cashu, {
           purpose: 'nut24',
           expectUnit: unit,
@@ -809,15 +824,27 @@ export function createApp(d: Deps) {
         start(ctrl) {
           (async () => {
             try {
-              for await (const ch of up.body) {
-                frames.push(ch as Uint8Array);
-                if (!cancelled) ctrl.enqueue(new Uint8Array(ch as Buffer));
+              try {
+                for await (const ch of up.body) {
+                  frames.push(ch as Uint8Array);
+                  if (!cancelled) ctrl.enqueue(new Uint8Array(ch as Buffer));
+                }
+                await finish(true);
+              } catch {
+                await finish(false);
               }
-              await finish(true);
-            } catch {
-              await finish(false);
+            } catch (e) {
+              // Settlement itself failed, so nothing was charged or owed: hand the request back.
+              abandon(own);
+              log.error('settle_failed', { request_id: requestId, err: errText(e) });
             }
-            if (!cancelled) ctrl.close();
+            if (!cancelled) {
+              try {
+                ctrl.close();
+              } catch {
+                /* already closed */
+              }
+            }
           })();
         },
         cancel() {
@@ -855,7 +882,15 @@ export function createApp(d: Deps) {
     }
 
     if (!stream) {
-      const text = await res.text();
+      let text: string;
+      try {
+        text = await res.text();
+      } catch (e) {
+        // Headers arrived, then the body failed: nothing was served, so nothing is charged, a balance
+        // reservation is released now and a NUT-24 payment comes back in full as change.
+        const r = await settle(undefined, 'none', 'upstream_error');
+        return apiError(c, 502, 'upstream_error', `upstream response failed: ${errText(e)}. You were not charged.`, resultHeaders(r));
+      }
       let usage: Usage | undefined;
       let source = 'upstream';
       try {
@@ -905,18 +940,25 @@ export function createApp(d: Deps) {
         };
         (async () => {
           try {
-            for (;;) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              send(meter.push(value));
+            try {
+              for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                send(meter.push(value));
+              }
+              send(meter.flush());
+              const r = await settle(usageNow(), meter.usage ? 'upstream' : flat ? 'flat' : 'estimate', 'ok');
+              send(settlementEvent(r));
+            } catch (e) {
+              const r = await settle(usageNow(), meter.usage ? 'upstream' : 'estimate', 'partial');
+              send(`data: ${JSON.stringify({ error: { message: cancelled ? 'client disconnected' : `upstream stream failed: ${errText(e)}`, type: 'upstream_error' } })}\n\n`);
+              send(settlementEvent(r, { partial: true }));
             }
-            send(meter.flush());
-            const r = await settle(usageNow(), meter.usage ? 'upstream' : flat ? 'flat' : 'estimate', 'ok');
-            send(settlementEvent(r));
           } catch (e) {
-            const r = await settle(usageNow(), meter.usage ? 'upstream' : 'estimate', 'partial');
-            send(`data: ${JSON.stringify({ error: { message: cancelled ? 'client disconnected' : `upstream stream failed: ${errText(e)}`, type: 'upstream_error' } })}\n\n`);
-            send(settlementEvent(r, { partial: true }));
+            // Settlement itself failed, so nothing was charged or owed: hand the request back.
+            abandon(own);
+            log.error('settle_failed', { request_id: requestId, err: errText(e) });
+            send(`data: ${JSON.stringify({ error: { message: 'settlement failed', type: 'server_error' } })}\n\n`);
           }
           if (!cancelled) {
             try {
@@ -1012,8 +1054,8 @@ function returnNut24PaymentRaw(d: Deps, r: UnservedNut24): void {
 }
 
 /**
- * A retry of the same token takes over the payment that recovery finished for an earlier request (status
- * 'paid': its own handler failed and is gone). The earlier request is counted as failed and deleted, the
+ * A retry of the same token takes over the payment of an earlier request that no handler serves (status
+ * 'paid': recovery finished it, or its handler failed and is gone). The earlier request is counted as failed and deleted, the
  * retry becomes the paid, running request. Runs inside the wallet's transaction; false leaves both as they are.
  */
 function adoptNut24PaymentRaw(db: DB, fromId: string, toId: string, amount: number): boolean {
@@ -1031,11 +1073,13 @@ function adoptNut24PaymentRaw(db: DB, fromId: string, toId: string, amount: numb
 /**
  * Settles, in this process, the payment of a NUT-24 request that failed before it was served:
  *  - its receive is still unknown at the mint: recovery runs now (replay, restore or retry);
- *  - recovery finished it ('paid'): the whole payment is owed back as change;
+ *  - recovery finished it, or its handler ended without settling ('paid'): the whole payment is owed back
+ *    as change;
  *  - recovery found the token spent elsewhere: the request is counted as failed and forgotten.
  *  - its token never reached the mint (receive row still new, not in flight): the receive is forgotten,
  *    the request is counted as failed and forgotten, and the client keeps its token.
- * Returns 'running' while a handler still holds the request, 'pending' while the mint has not settled the
+ * Returns 'running' while a handler still holds the request (a handler that ends unsettled marks it 'paid',
+ * see the chat route), 'pending' while the mint has not settled the
  * receive, 'done' otherwise (the change, if any, is then owed under the request id).
  */
 async function settleUnservedNut24(d: Deps, id: string): Promise<'running' | 'pending' | 'done'> {

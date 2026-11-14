@@ -1,11 +1,13 @@
 /**
  * The stale-reservation sweep and balance-paid requests. A stream that is still running keeps its
  * reservation however old it is, and pays for what it used. A reservation that is released while its
- * request still runs (by another process on the same database) is still charged at settlement, capped at
- * what the balance covers, with any shortfall counted in the daily aggregates and logged without a
- * balance id. A request that fails before settling gives its reservation up to the sweep, in-process.
+ * request still runs (only a second process on the same file can, which is unsupported; the late charge is
+ * the backstop) is still charged at settlement, capped at what the balance covers, with any shortfall
+ * counted in the daily aggregates and logged without a balance id. An upstream body that breaks settles
+ * with no charge and releases the reservation at once; a request that fails before settling otherwise
+ * gives its reservation up to the sweep, in-process.
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/app.ts';
 import { loadConfig } from '../../src/config.ts';
 import { tx } from '../../src/db.ts';
@@ -152,10 +154,17 @@ describe('the stale-reservation sweep and balance-paid requests', () => {
     expect(lines.join('\n')).not.toContain(s.account.id);
   });
 
-  it('a request that fails before settling leaves its reservation to the sweep, with no restart', async () => {
+  const post = (s: Setup, extra: object = {}) =>
+    s.app.request('http://gw.test/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${s.key}` },
+      body: JSON.stringify({ model: 'mock-echo', messages: [{ role: 'user', content: 'hi' }], max_tokens: 15, ...extra }),
+    });
+
+  it('an upstream body that breaks after the headers charges nothing and releases the reservation at once', async () => {
     const s = setup();
     const mock = s.deps.suppliers.get('mock')!;
-    // The upstream answers 200 and the body read then fails, so an error escapes the handler unsettled.
+    // The upstream answers 200 and the body read then fails.
     mock.chat = async () =>
       new Response(
         new ReadableStream({
@@ -165,15 +174,53 @@ describe('the stale-reservation sweep and balance-paid requests', () => {
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       );
-    const res = await s.app.request('http://gw.test/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${s.key}` },
-      body: JSON.stringify({ model: 'mock-echo', messages: [{ role: 'user', content: 'hi' }], max_tokens: 15 }),
-    });
-    expect(res.ok).toBe(false);
+    const res = await post(s);
+    expect(res.status).toBe(502);
+    expect((await res.json()).error.code).toBe('upstream_error');
+    expect(res.headers.get('x-forge-charged-msub')).toBe('0');
+    expect(res.headers.get('x-forge-balance-msub')).toBe(String(START));
+    // Released by settlement, not left for the sweep.
+    expect(s.deps.ledger.reservedMsub(s.account.id)).toBe(0);
+    expect(s.deps.db.prepare('SELECT COUNT(*) AS n FROM reservations').get()).toEqual({ n: 0 });
+    expect(s.deps.ledger.releaseStale(0)).toBe(0);
+    expect(s.deps.ledger.get(s.account.id)!.balance_msub).toBe(START);
+    expect(usageRow(s, 'mock-echo')).toEqual({ requests: 1, ok: 0, charged_msub: 0, shortfall_msub: 0 });
+  });
+
+  it('a request that throws before settling leaves its reservation to the sweep, with no restart', async () => {
+    const s = setup();
+    const mock = s.deps.suppliers.get('mock')!;
+    // A stream answer with no body: reading it throws in the handler, before anything settles.
+    mock.chat = async () => new Response(null, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+    const res = await post(s, { stream: true });
+    expect(res.status).toBe(500);
     expect(s.deps.ledger.reservedMsub(s.account.id)).toBeGreaterThan(0);
     expect(s.deps.ledger.releaseStale(0)).toBe(1);
     expect(s.deps.ledger.reservedMsub(s.account.id)).toBe(0);
     expect(s.deps.ledger.get(s.account.id)!.balance_msub).toBe(START);
+  });
+
+  it('a stream whose settlement write fails ends with an error and leaves its reservation to the sweep', async () => {
+    const s = setup();
+    vi.spyOn(s.deps.ledger, 'settleRaw').mockImplementationOnce(() => {
+      throw new Error('disk I/O error');
+    });
+    try {
+      const res = await post(s, { model: 'mock-slow', stream: true });
+      expect(res.status).toBe(200);
+      // The stream closes (it never hangs) with an error frame and no settlement event.
+      const raw = await res.text();
+      expect(raw).toContain('settlement failed');
+      expect(raw).not.toContain('event: forge');
+      // Before the fix the reservation stayed owned, so the sweep could never release it in this process.
+      expect(s.deps.ledger.reservedMsub(s.account.id)).toBeGreaterThan(0);
+      expect(s.deps.ledger.releaseStale(0)).toBe(1);
+      expect(s.deps.ledger.reservedMsub(s.account.id)).toBe(0);
+      expect(s.deps.ledger.get(s.account.id)!.balance_msub).toBe(START);
+      await new Promise((r) => setTimeout(r, 20));
+      expect(rejections).toEqual([]);
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 });

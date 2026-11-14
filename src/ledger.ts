@@ -48,7 +48,8 @@ export class Ledger {
    * Reservations made by this process and not yet settled: the balance and amount each holds, and whether a
    * request is still serving it. Kept in memory on purpose: after a restart no request is live, so every
    * reservation left active is abandoned and the sweep may release it. The amount lets a reservation that
-   * was released under a running request (by another process on the same database) still be charged.
+   * was released under a running request still be charged: a backstop for a broken one-process invariant
+   * (an overlapping restart on the same file, say), not a supported topology (docs/PAYMENTS.md, Known limits).
    */
   private readonly holds = new Map<string, { accountId: string; amountMsub: number; live: boolean }>();
   constructor(db: DB) {
@@ -140,8 +141,9 @@ export class Ledger {
   /**
    * settle() inside the caller's transaction. No per-request ledger row is written: the balance is the record.
    *
-   * A reservation this process made that was released before it settled (by another process sharing the
-   * database: this process's own sweep never releases a live one) is still charged min(actual, reserved),
+   * A reservation this process made that was released before it settled (this process's own sweep never
+   * releases a live one, so only a second process on the same file can, which is unsupported: this is the
+   * backstop for that broken invariant) is still charged min(actual, reserved),
    * capped at what the balance now covers (balance less its other active reservations). What the balance
    * could not cover is returned as `shortfall` and logged, without the balance id.
    *
@@ -188,8 +190,8 @@ export class Ledger {
 
   /**
    * On startup and periodically: releases (deletes), without charge, active reservations older than
-   * olderThanMs that no request in this process is serving: those left by a crash or restart, made by
-   * another process, or disowned by a request that ended without settling. A reservation a running request
+   * olderThanMs that no request in this process is serving: those left by a crash or restart, or disowned
+   * by a request that ended without settling. A reservation a running request
    * still holds is never released, however old.
    */
   releaseStale(olderThanMs: number): number {
