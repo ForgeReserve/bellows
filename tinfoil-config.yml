@@ -26,7 +26,7 @@
 
 cvm-version: "0.14.17"
 cpus: 2
-memory: 8192
+memory: 2048
 
 # Your keyserver (github.com/tinfoilsh/keyserver). It releases the secrets below only to an enclave that
 # proves it runs this repository at an approved tag, served at your domain. Example policy:
