@@ -82,7 +82,7 @@ A relay forwards to an allowlisted Bellows at `POST /relay/<host of the Bellows>
 
 ### `GET /v1/models`
 
-The models this Bellows sells, in the OpenAI list shape, with prices and payment details.
+The models this Bellows sells, in the OpenAI list shape, with prices and payment details. Only models it serves are listed; any other model id gets `404 model_not_found` from `POST /v1/chat/completions`.
 
 ```json
 {
@@ -119,7 +119,7 @@ The models this Bellows sells, in the OpenAI list shape, with prices and payment
 
 - `tier` (and its copy `privacy`) is `enclave` for a model that runs in its supplier's sealed hardware, `standard` otherwise.
 - `encrypted_passthrough` is true when the model takes EHBP-encrypted bodies ([Encrypted chat](#encrypted-chat-ehbp)). Such a model also lists `upstream_model`, the name to send in `X-Tinfoil-Model`.
-- `pricing.usd_per_mtok` is the price per million input and output tokens in US dollars, markup included. `sat_per_mtok` is the same at the current BTC/USD rate, or `null` when sats are not offered or no rate is known. `mode` is `metered` (charged by tokens) or `flat` (charged by a fixed schedule of request sizes).
+- `pricing.usd_per_mtok` is the price per million input and output tokens in US dollars, markup included. `sat_per_mtok` is the same at the current BTC/USD rate, or `null` when sats are not offered or no rate is known. `mode` is `metered` (charged by tokens) or `flat` (charged by a fixed schedule of request sizes). `verified` is true when the operator checked the price against the supplier's rate card. A Bellows serves a model with `verified: false` only when its operator has turned that on explicitly; treat such a price as an estimate.
 - `mints` lists the mints whose eCash this Bellows takes for topups and per-request payment. `btc_usd` is the rate in use, or `null`.
 
 ### `POST /v1/chat/completions`

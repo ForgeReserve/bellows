@@ -35,6 +35,7 @@ The rules `pnpm deploy:check` enforces, and why:
 - A GitHub account for a **public** deploy repository. Tinfoil measures the config in a public repository so that anyone can check it.
 - A server for your keyserver with a domain and a certificate from a public certificate authority (Let's Encrypt works; self-signed is refused). It must be reachable from the enclave at every boot.
 - The mints you accept, and API keys for the suppliers you use.
+- Your suppliers' rate cards. Bellows serves a model only when its price in `config/models.json` is marked `price_verified: true`, so check each price you sell and mark it; a model left unverified is not listed or routable. `BELLOWS_SERVE_UNVERIFIED_PRICES=true` serves them anyway and logs that at error level at every start; it sits in the measured config, so anyone reading your deploy repository sees it.
 - A machine you keep offline, for making and backing up the keys.
 
 ## 1. Make your deploy repository
@@ -173,6 +174,7 @@ curl https://<your domain>/.well-known/bellows
 
 - `/.well-known/bellows` must return an attestation, not `503 not_attested`. Verify it the way a client does, with `verifyBellows` from `client/` and your `builds.json` ([ATTESTATION.md](ATTESTATION.md)). It must find your build.
 - The instance logs show `startup` with `"mode":"sealed"` and `"sealed_mount":"/data"`, then `attested` with `"attester":"tinfoil"`.
+- `GET /v1/models` lists the models you mean to sell. A warning `unverified_prices_withheld` names models left out because their price is not verified; an error `unverified_prices_served` means `BELLOWS_SERVE_UNVERIFIED_PRICES` is on.
 - The admin API answers with your admin token at `https://<your domain>/admin/api/overview`, and 401 without it. It is on the public origin ([README.md](../README.md#admin-api)).
 
 NOT VERIFIED: a real Tinfoil attestation of a Bellows, and its verification with an app's `authenticate`.

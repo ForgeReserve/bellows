@@ -133,6 +133,7 @@ Environment variables, validated with zod at startup (`src/config.ts`):
 | `BELLOWS_INVITE_ONLY` | `false` | Optional gate: require an invite code to open a balance or pay per request |
 | `BELLOWS_SERVICE_NAME` | `Bellows` | Name in NUT-18 payment requests (`<name>: <model>`) |
 | `BELLOWS_MARKUP` | `1.25` | Multiplier on supplier cost |
+| `BELLOWS_SERVE_UNVERIFIED_PRICES` | `false` | Serve models whose catalog price has `price_verified: false`. Off, they are neither listed nor routable, whatever supplier keys are present. On, startup logs them at error level. See [Model catalog](#model-catalog) |
 | `BELLOWS_MODELS_FILE` | `config/models.json` | Supplier and model catalog |
 | `BELLOWS_DB_PATH` | `data/bellows.db` | SQLite ledger and wallet state. In sealed mode it must be on a mount in `BELLOWS_SEALED_MOUNTS` |
 | `BELLOWS_MODE` | `development` | `development` or `sealed`. See [Secrets and sealed state](#secrets-and-sealed-state) |
@@ -196,7 +197,11 @@ A customer can still use a mint that is not on the list (`BELLOWS_FOREIGN_UNLIST
 
 ### Model catalog
 
-`config/models.json` lists suppliers and models. Each model has a public `id`, its `supplier`, the `upstream` model name, the supplier's cost in USD per million input and output tokens, `max_output_tokens`, and `uncensored` (clients may hide those behind an explicit opt-in). Token Factory prices in the shipped catalog are placeholders marked `price_verified: false`; set them from your rate card. Tinfoil prices were read from `https://inference.tinfoil.sh/v1/models` on 2026-11-09.
+`config/models.json` lists suppliers and models. Each model has a public `id`, its `supplier`, the `upstream` model name, the supplier's cost in USD per million input and output tokens, `max_output_tokens`, and `uncensored` (clients may hide those behind an explicit opt-in). `price_verified: true` says the cost was checked against the supplier's rate card; it defaults to `false`.
+
+A model whose price is not verified is not served: it is left out of `GET /v1/models` and a request for it gets `404 model_not_found`, even when its supplier's key is in the secrets source. A placeholder price would otherwise overcharge customers or leave you paying the difference. Startup logs `unverified_prices_withheld` with the models it left out, and refuses to start if no verified model is left. To serve them anyway, set `BELLOWS_SERVE_UNVERIFIED_PRICES=true`: startup then logs `unverified_prices_served` at error level, and `/v1/models` shows those models with `pricing.verified: false`. The admin settings (`GET /admin/api/settings`) show them as `unverified_prices`.
+
+Tinfoil prices were read from `https://inference.tinfoil.sh/v1/models` on 2026-11-09. Token Factory prices in the shipped catalog are placeholders marked `price_verified: false`, so those models are not served until you set them from your rate card: on 2026-11-13 Token Factory published no prices that could be checked (its gateway's public model list is empty, and its `/v1/model/info` returned no cost fields on 2026-11-09).
 
 A supplier sets `pricing: "metered"` (charge on reported usage) or `pricing: "flat"` (charge a schedule by request body size plus declared max output). A metered supplier may also carry a `flat` schedule, used only when no usage signal arrives.
 
@@ -240,7 +245,7 @@ The OpenAI JavaScript SDK ignores events after `[DONE]` (checked in its `core/st
 
 ### `GET /v1/models`
 
-OpenAI model list plus `tier` (`enclave` or `standard`), `uncensored`, `max_output_tokens`, `context_length`, and `pricing` (`usd_per_mtok`, `sat_per_mtok` at the current rate, `mode`, `verified`). The response also lists accepted `mints`, `units` and `invite_only`.
+The models this Bellows serves (see [Model catalog](#model-catalog)): the OpenAI model list plus `tier` (`enclave` or `standard`), `uncensored`, `max_output_tokens`, `context_length`, and `pricing` (`usd_per_mtok`, `sat_per_mtok` at the current rate, `mode`, `verified`). The response also lists accepted `mints`, `units` and `invite_only`.
 
 ### Wallet
 

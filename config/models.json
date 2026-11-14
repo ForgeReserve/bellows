@@ -1,5 +1,5 @@
 {
-  "_comment": "Prices are the supplier's cost in USD per million tokens; BELLOWS_MARKUP is applied on top. Token Factory prices are PLACEHOLDERS (price_verified=false): set them from your Token Factory rate card before launch (their /v1/model/info returned no cost fields on 2026-11-09; context lengths below are from that endpoint's max_input_tokens). Tinfoil prices were read from https://inference.tinfoil.sh/v1/models on 2026-11-09.",
+  "_comment": "Prices are the supplier's cost in USD per million tokens; BELLOWS_MARKUP is applied on top. A model with price_verified=false is not served unless BELLOWS_SERVE_UNVERIFIED_PRICES=true. Token Factory prices are PLACEHOLDERS (price_verified=false), so those models are not served until you set them from your Token Factory rate card (their /v1/model/info returned no cost fields on 2026-11-09, and no public price list was found on 2026-11-13; context lengths below are from that endpoint's max_input_tokens). Tinfoil prices were read from https://inference.tinfoil.sh/v1/models on 2026-11-09.",
   "suppliers": {
     "tokenfactory": {
       "type": "openai",
