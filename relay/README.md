@@ -16,7 +16,7 @@ A relay is worth running only for a Bellows someone else operates. A relay and a
 | `POST /relay/<host>` | Forwards to the allowlisted gateway URL whose host is `<host>` |
 | `GET /healthz` | `200 ok` |
 
-Errors the relay makes itself carry a `Bellows-Relay-Error` header with a short code: `not_found`, `unknown_target`, `method_not_allowed`, `unsupported_media_type`, `too_large`, `empty`, `gateway_unreachable`, `gateway_redirected`. A refusal from the gateway is passed on as its status, without that header.
+Errors the relay makes itself carry a `Bellows-Relay-Error` header with a short code: `not_found`, `unknown_target`, `method_not_allowed`, `unsupported_media_type`, `too_large`, `empty`, `gateway_unreachable`, `gateway_redirected`. A refusal from the gateway is passed on as its status, without that header. A busy gateway's `503` keeps its `Retry-After` when that is a whole number of seconds; no other gateway header comes back.
 
 A client uses the full relay URL for a Bellows, for example `https://relay.example/relay/bellows.example`. The Bellows operator lists it in `BELLOWS_RELAYS`, so it appears in the attested `/.well-known/bellows`.
 

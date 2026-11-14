@@ -75,7 +75,7 @@ describe('admin overview: Token Factory key', () => {
     const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     const catalog = {
       suppliers: { tokenfactory: { type: 'openai', tier: 'standard', baseUrl: `${base}/v1`, apiKeySecret: 'TF_TEST_KEY', pricing: 'metered' } },
-      models: [{ id: 'tf-model', supplier: 'tokenfactory', upstream: 'tf-model', input_usd_per_mtok: 1, output_usd_per_mtok: 4 }],
+      models: [{ id: 'tf-model', supplier: 'tokenfactory', upstream: 'tf-model', input_usd_per_mtok: 1, output_usd_per_mtok: 4, price_verified: true }],
     };
     const g = await startGatewayWithCatalog(catalog, { TF_TEST_KEY: 'sk-secret', BELLOWS_ADMIN_TOKEN_HASH: createHash('sha256').update(TOKEN).digest('hex') });
     try {

@@ -1,9 +1,9 @@
 import { GatewayWallet } from './cashu/wallet.ts';
-import type { Config } from './config.ts';
+import { type Config, normalizeMintUrl } from './config.ts';
 import { openDb, refuseOrphanedForgeDb } from './db.ts';
 import { Invites, Ledger } from './ledger.ts';
 import { BUILTIN_SOURCES, RateOracle, type RateSource } from './rates.ts';
-import { type FundingFaults, FundingService } from './funding.ts';
+import { checkForeignMintUrl, type FundingFaults, FundingService } from './funding.ts';
 import { type Attester, createIdentity, type Identity } from './identity.ts';
 import { log } from './log.ts';
 import { createDiscovery, createRelayQuery, type MintProbe, type RelayQuery, sqliteStore } from './mint-discovery.ts';
@@ -40,11 +40,15 @@ export function buildDeps(
       return s;
     });
   const ledger = new Ledger(db);
+  const fundMint = env.BELLOWS_FUND_MINT ?? config.trustedMints[0]!;
   const wallet = new GatewayWallet(db, {
     trustedMints: config.trustedMints,
     units: env.BELLOWS_UNITS,
     maxTokenBytes: env.BELLOWS_MAX_TOKEN_BYTES,
     seed,
+    // eCash from other mints: the mint actually contacted passes the same URL safety check as the quoted one.
+    // The operator's funding mint is configuration, not customer input, like the trusted mints.
+    vetMint: async (m) => (m === normalizeMintUrl(fundMint) ? undefined : checkForeignMintUrl(m, env.BELLOWS_FOREIGN_ALLOW_INSECURE)),
     faults: opts.faults,
   });
   const rates = new RateOracle(sources, {
@@ -74,7 +78,7 @@ export function buildDeps(
     wallet,
     env,
     rates,
-    mint: env.BELLOWS_FUND_MINT ?? config.trustedMints[0]!,
+    mint: fundMint,
     faults: opts.fundingFaults,
     discovery,
     probe: opts.discovery?.probe,

@@ -18,7 +18,7 @@ import {
 import { toHex } from '../../client/bytes.ts';
 import { devAttester, devMeasurement } from '../../src/attest/dev.ts';
 import { createApp, type Deps } from '../../src/app.ts';
-import { BELLOWS_VERSION, EnvSchema, loadConfig } from '../../src/config.ts';
+import { BELLOWS_VERSION, EnvSchema, loadConfig, ohttpAdmitPerSecond } from '../../src/config.ts';
 import { buildDeps } from '../../src/deps.ts';
 import { generateHpkeKeyPair, Identity } from '../../src/identity.ts';
 import { setLogSilent, setLogSink } from '../../src/log.ts';
@@ -29,7 +29,7 @@ setLogSilent(true);
 
 const catalog = {
   suppliers: { mock: { type: 'mock', tier: 'standard' } },
-  models: [{ id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2 }],
+  models: [{ id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2, price_verified: true }],
 };
 
 function bellows(env: Record<string, string> = {}) {
@@ -390,6 +390,147 @@ describe('refusals', () => {
     expect(gw.replayCacheSize).toBe(1);
   });
 
+  it('a request refused for its method or path never takes a replay-cache slot', async () => {
+    const identity = devIdentity();
+    let ran = 0;
+    const gw = new OhttpGateway({ identity, dispatch: () => (ran++, new Response('ok')), maxSkewMs: 60_000, replayCacheMax: 2, maxMessageBytes: 1 << 20 });
+    const refused: Array<[Request, number]> = [
+      [dated('/v1/wallet', { method: 'PUT', body: '{}' }), 405],
+      [dated('/v1/wallet', { method: 'DELETE' }), 405],
+      [dated('/admin/api/overview'), 404],
+      [dated('/ohttp', { method: 'POST', body: 'x' }), 404],
+      [dated('/'), 404],
+    ];
+    for (const [req, status] of refused) {
+      const { bytes, context, type } = await encapsulate(identity.keyConfig, req);
+      const res = await context.decapsulateResponse(await gw.handle(post(bytes, type)));
+      expect(res.status, `${req.method} ${new URL(req.url).pathname}`).toBe(status);
+    }
+    expect(gw.replayCacheSize).toBe(0);
+    expect(ran).toBe(0);
+  });
+
+  it('a full cache cannot be filled by refused requests: admitted ones still go through', async () => {
+    const identity = devIdentity();
+    const gw = new OhttpGateway({ identity, dispatch: () => new Response('ok'), maxSkewMs: 60_000, replayCacheMax: 2, maxMessageBytes: 1 << 20 });
+    for (let i = 0; i < 20; i++) {
+      const { bytes, context } = await encapsulate(identity.keyConfig, dated(i % 2 ? '/admin/api/overview' : '/v1/wallet', i % 2 ? {} : { method: 'PATCH', body: '{}' }));
+      const outer = await gw.handle(post(bytes));
+      expect(outer.status, `refused request ${i}`).toBe(200);
+      expect([404, 405]).toContain((await context.decapsulateResponse(outer)).status);
+    }
+    // Undated and stale requests are refused before the cache too.
+    for (const req of [new Request('http://gw.test/healthz'), dated('/healthz', {}, Date.now() - 120_000)]) {
+      const { bytes, context } = await encapsulate(identity.keyConfig, req);
+      expect((await context.decapsulateResponse(await gw.handle(post(bytes)))).status).toBe(400);
+    }
+    expect(gw.replayCacheSize).toBe(0);
+    for (let i = 0; i < 2; i++) {
+      const { bytes, context } = await encapsulate(identity.keyConfig, dated('/healthz'));
+      expect((await context.decapsulateResponse(await gw.handle(post(bytes)))).status).toBe(200);
+    }
+    expect(gw.replayCacheSize).toBe(2);
+  });
+
+  it('a replayed refused request is refused again and runs nothing; a replayed admitted one is still a replay', async () => {
+    const identity = devIdentity();
+    let ran = 0;
+    const gw = new OhttpGateway({ identity, dispatch: () => (ran++, new Response('ok')), maxSkewMs: 60_000, replayCacheMax: 100, maxMessageBytes: 1 << 20 });
+    const bad = await encapsulate(identity.keyConfig, dated('/admin/api/overview'));
+    for (let i = 0; i < 2; i++) expect((await bad.context.decapsulateResponse(await gw.handle(post(bad.bytes)))).status).toBe(404);
+    const good = await encapsulate(identity.keyConfig, dated('/v1/models'));
+    expect((await gw.handle(post(good.bytes))).status).toBe(200);
+    expect((await gw.handle(post(good.bytes))).status).toBe(400);
+    expect(ran).toBe(1);
+    expect(gw.replayCacheSize).toBe(1);
+  });
+
+  it('admits at most admitPerSecond new requests: past it 503 with Retry-After, and refused or replayed requests use none', async () => {
+    const identity = devIdentity();
+    let now = Date.now();
+    let ran = 0;
+    const lines: string[] = [];
+    setLogSink((l) => lines.push(l));
+    try {
+      const gw = new OhttpGateway({ identity, dispatch: () => (ran++, new Response('ok')), maxSkewMs: 60_000, replayCacheMax: 1000, admitPerSecond: 2, maxMessageBytes: 1 << 20, now: () => now });
+      const make = (path = '/healthz', init: RequestInit = {}) => encapsulate(identity.keyConfig, dated(path, init, now));
+      // Refused for path, method or date, they take nothing from the bound.
+      for (let i = 0; i < 5; i++) {
+        const { bytes, context } = await make(i % 2 ? '/admin/api/overview' : '/v1/wallet', i % 2 ? {} : { method: 'PUT', body: '{}' });
+        expect((await gw.handle(post(bytes))).status).toBe(200);
+        expect([404, 405]).toContain((await context.decapsulateResponse(await gw.handle(post(bytes)))).status);
+      }
+      const first = await make();
+      expect((await gw.handle(post(first.bytes))).status).toBe(200);
+      // A replay is refused as a replay and uses none either.
+      for (let i = 0; i < 3; i++) expect((await gw.handle(post(first.bytes))).status).toBe(400);
+      expect((await gw.handle(post((await make()).bytes))).status).toBe(200);
+      const over = await gw.handle(post((await make()).bytes));
+      expect(over.status).toBe(503);
+      expect(over.headers.get('retry-after')).toBe('1');
+      expect(await over.text()).toBe('');
+      expect(lines.some((l) => l.includes('"ohttp_refused"') && l.includes('"busy"'))).toBe(true);
+      // Turned away by the bound, it took no cache slot, so it can be sent again once there is room.
+      expect(gw.replayCacheSize).toBe(2);
+      now += 1000;
+      expect((await gw.handle(post((await make()).bytes))).status).toBe(200);
+      expect(ran).toBe(3);
+    } finally {
+      setLogSink(undefined);
+    }
+  });
+
+  it('a clock that steps back does not shut new requests out of the bound', async () => {
+    const identity = devIdentity();
+    let now = Date.now();
+    const gw = new OhttpGateway({ identity, dispatch: () => new Response('ok'), maxSkewMs: 60_000, replayCacheMax: 1000, admitPerSecond: 2, maxMessageBytes: 1 << 20, now: () => now });
+    const send = async () => gw.handle(post((await encapsulate(identity.keyConfig, dated('/healthz', {}, now))).bytes));
+    expect((await send()).status).toBe(200);
+    now -= 600_000;
+    expect((await send()).status).toBe(200);
+  });
+
+  it('at the default bound a flood longer than a key lifetime never fills the cache', async () => {
+    const identity = devIdentity();
+    const skew = 5;
+    const max = 50;
+    let now = Date.now();
+    const reasons: string[] = [];
+    setLogSink((l) => reasons.push(JSON.parse(l).reason));
+    try {
+      const admitPerSecond = ohttpAdmitPerSecond({ BELLOWS_OHTTP_MAX_SKEW_SECONDS: skew, BELLOWS_OHTTP_REPLAY_CACHE_MAX: max, BELLOWS_OHTTP_ADMIT_PER_SECOND: undefined });
+      const gw = new OhttpGateway({ identity, dispatch: () => new Response('ok'), maxSkewMs: skew * 1000, replayCacheMax: max, admitPerSecond, maxMessageBytes: 1 << 20, now: () => now });
+      let admitted = 0;
+      // Every quarter second for 30 s (almost three key lifetimes), send until turned away, each dated at the
+      // far edge of the window so its key is kept as long as possible.
+      for (let t = 0; t < 120; t++, now += 250) {
+        for (;;) {
+          const res = await gw.handle(post((await encapsulate(identity.keyConfig, dated('/healthz', {}, now + skew * 1000 - 500))).bytes));
+          if (res.status !== 200) {
+            expect(res.status).toBe(503);
+            break;
+          }
+          admitted++;
+        }
+        expect(gw.replayCacheSize).toBeLessThanOrEqual(max);
+      }
+      expect(admitted).toBeGreaterThan(100);
+      expect(reasons).not.toContain('replay_cache_full');
+      expect(reasons).toContain('busy');
+    } finally {
+      setLogSink(undefined);
+    }
+  });
+
+  it('the app bounds admission by BELLOWS_OHTTP_ADMIT_PER_SECOND', async () => {
+    const { app, deps } = bellows({ BELLOWS_OHTTP_ADMIT_PER_SECOND: '1' });
+    const send = async () => app.fetch(post((await encapsulate(deps.identity.keyConfig, dated('/healthz'))).bytes));
+    expect((await send()).status).toBe(200);
+    const over = await send();
+    expect(over.status).toBe(503);
+    expect(Number(over.headers.get('retry-after'))).toBeGreaterThanOrEqual(1);
+  });
+
   it('ReplayGuard forgets a key only after its time', () => {
     const g = new ReplayGuard(10);
     expect(g.remember('a', 100, 0)).toBe(true);
@@ -465,6 +606,11 @@ describe('client errors', () => {
     const relayErr = () => Promise.resolve(new Response('unknown_target\n', { status: 404, headers: { [RELAY_ERROR_HEADER]: 'unknown_target' } }));
     await expect(bellowsFetch(operator(), '/healthz', {}, { fetch: relayErr })).rejects.toMatchObject({ code: 'relay_error', status: 404 });
     await expect(bellowsFetch(operator(), '/healthz', {}, { fetch: () => Promise.resolve(new Response(null, { status: 400 })) })).rejects.toMatchObject({ code: 'gateway_refused', status: 400 });
+    const busy = () => Promise.resolve(new Response(null, { status: 503, headers: { 'retry-after': '3' } }));
+    await expect(bellowsFetch(operator(), '/healthz', {}, { fetch: busy })).rejects.toMatchObject({ code: 'gateway_refused', status: 503, retryAfter: 3 });
+    const refused = await bellowsFetch(operator(), '/healthz', {}, { fetch: () => Promise.resolve(new Response(null, { status: 400, headers: { 'retry-after': '3' } })) }).catch((e: unknown) => e);
+    expect(refused).toMatchObject({ code: 'gateway_refused', status: 400 });
+    expect((refused as { retryAfter?: number }).retryAfter).toBeUndefined();
     await expect(bellowsFetch(operator(), '/healthz', {}, { fetch: () => Promise.reject(new TypeError('fetch failed')) })).rejects.toMatchObject({ code: 'network' });
     const garbage = () => Promise.resolve(new Response(new Uint8Array(80), { status: 200, headers: { 'content-type': MediaType.CHUNKED_RESPONSE } }));
     const p = bellowsFetch(operator(), '/healthz', {}, { fetch: garbage });

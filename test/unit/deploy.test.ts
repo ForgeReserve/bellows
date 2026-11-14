@@ -162,6 +162,8 @@ describe('tinfoil-config.yml', () => {
       ['bare name', (c) => container(c, 'bellows').env.push('BELLOWS_MARKUP'), /BELLOWS_MARKUP has no value here; every setting must be a measured literal/],
       ['number', (c) => container(c, 'bellows').env.push({ BELLOWS_POW_BITS: 16 }), /BELLOWS_POW_BITS: quote the value/],
       ['twice', (c) => container(c, 'bellows').env.push({ BELLOWS_MARKUP: '2' }), /BELLOWS_MARKUP is set twice/],
+      ['setting as secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_SERVE_UNVERIFIED_PRICES'), /BELLOWS_SERVE_UNVERIFIED_PRICES is a setting/],
+      ['any setting as secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_MARKUP'), /BELLOWS_MARKUP is a setting/],
       ['domain', (c) => container(c, 'bellows').env.push({ DOMAIN: 'bellows.operator.test' }), /DOMAIN: reserved/],
       ['secrets file', (c) => container(c, 'bellows').env.push({ BELLOWS_SECRETS_FILE: '/data/secrets.json' }), /BELLOWS_SECRETS_FILE: must not be set/],
       ['file source', (c) => (container(c, 'bellows').env.find((e: Obj) => 'BELLOWS_SECRETS' in e).BELLOWS_SECRETS = 'file'), /BELLOWS_SECRETS: must be "platform"/],

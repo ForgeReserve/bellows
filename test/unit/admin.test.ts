@@ -21,8 +21,8 @@ const ORIGIN = `http://${HOST}`;
 const catalog = {
   suppliers: { mock: { type: 'mock', tier: 'standard' }, paid: { type: 'openai', tier: 'standard', baseUrl: 'http://127.0.0.1:1/v1', apiKeySecret: 'NOT_SET_KEY' } },
   models: [
-    { id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2 },
-    { id: 'paid-model', supplier: 'paid', upstream: 'x', input_usd_per_mtok: 1, output_usd_per_mtok: 2 },
+    { id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2, price_verified: true },
+    { id: 'paid-model', supplier: 'paid', upstream: 'x', input_usd_per_mtok: 1, output_usd_per_mtok: 2, price_verified: true },
   ],
 };
 

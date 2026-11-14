@@ -61,7 +61,7 @@ const res = await bellowsFetch(operator, '/v1/wallet', { headers: { authorizatio
 
 `verifyBellows` reads `/.well-known/bellows` directly from the Bellows, so the operator sees the client's address on that one request. To keep it hidden, pass a `fetch` in the `verifyBellows` options that sends through Tor.
 
-`bellowsFetch(operator, path, init)` takes the same path and `init` a plain `fetch` would, and returns the Bellows' answer as an ordinary `Response`. An app that already calls `fetch(path, init)` switches by calling `bellowsFetch(operator, path, init)` instead; nothing else in the call changes. A non-2xx answer from the Bellows (402, 429 and the rest) is returned like any other answer. `bellowsFetch` throws `BellowsFetchError` only when the request cannot be sent or the answer cannot be opened, with `code` one of `bad_path`, `bad_request`, `bad_key_config`, `network`, `relay_error` (the relay refused, and set `Bellows-Relay-Error`), `gateway_refused` (the Bellows refused the encapsulated request) or `bad_response`.
+`bellowsFetch(operator, path, init)` takes the same path and `init` a plain `fetch` would, and returns the Bellows' answer as an ordinary `Response`. An app that already calls `fetch(path, init)` switches by calling `bellowsFetch(operator, path, init)` instead; nothing else in the call changes. A non-2xx answer from the Bellows (402, 429 and the rest) is returned like any other answer. `bellowsFetch` throws `BellowsFetchError` only when the request cannot be sent or the answer cannot be opened, with `code` one of `bad_path`, `bad_request`, `bad_key_config`, `network`, `relay_error` (the relay refused, and set `Bellows-Relay-Error`), `gateway_refused` (the Bellows refused the encapsulated request; on a busy `503` with `Retry-After`, `retryAfter` holds its seconds) or `bad_response`.
 
 On the wire:
 
@@ -82,7 +82,7 @@ A relay forwards to an allowlisted Bellows at `POST /relay/<host of the Bellows>
 
 ### `GET /v1/models`
 
-The models this Bellows sells, in the OpenAI list shape, with prices and payment details.
+The models this Bellows sells, in the OpenAI list shape, with prices and payment details. Only models it serves are listed; any other model id gets `404 model_not_found` from `POST /v1/chat/completions`.
 
 ```json
 {
@@ -119,7 +119,7 @@ The models this Bellows sells, in the OpenAI list shape, with prices and payment
 
 - `tier` (and its copy `privacy`) is `enclave` for a model that runs in its supplier's sealed hardware, `standard` otherwise.
 - `encrypted_passthrough` is true when the model takes EHBP-encrypted bodies ([Encrypted chat](#encrypted-chat-ehbp)). Such a model also lists `upstream_model`, the name to send in `X-Tinfoil-Model`.
-- `pricing.usd_per_mtok` is the price per million input and output tokens in US dollars, markup included. `sat_per_mtok` is the same at the current BTC/USD rate, or `null` when sats are not offered or no rate is known. `mode` is `metered` (charged by tokens) or `flat` (charged by a fixed schedule of request sizes).
+- `pricing.usd_per_mtok` is the price per million input and output tokens in US dollars, markup included. `sat_per_mtok` is the same at the current BTC/USD rate, or `null` when sats are not offered or no rate is known. `mode` is `metered` (charged by tokens) or `flat` (charged by a fixed schedule of request sizes). `verified` is true when the operator checked the price against the supplier's rate card. A Bellows serves a model with `verified: false` only when its operator has turned that on explicitly; treat such a price as an estimate.
 - `mints` lists the mints whose eCash this Bellows takes for topups and per-request payment. `btc_usd` is the rate in use, or `null`.
 
 ### `POST /v1/chat/completions`
@@ -167,7 +167,9 @@ data: {"request_id":"req_...","unit":"usd","charged_msub":1300,"balance_msub":98
 
 Its members: `request_id`, `unit`, `charged_msub`, and `balance_msub` (balance payments) or `change`, `change_units` and `change_url` (NUT-24). If the upstream fails mid-stream, a `data: {"error": {...}}` line comes first and the event carries `"partial": true`; the part that was delivered is charged. A stream answer includes a usage chunk only if the request asked for it with `stream_options.include_usage`. The OpenAI JavaScript SDK ignores events after `[DONE]`. Other clients that parse every event should skip `event: forge` or read it.
 
-**Upstream failures** charge nothing and return all NUT-24 change. The answer is `502` (or the upstream's own 4xx) with code `upstream_error`.
+**Upstream failures** charge nothing and return all NUT-24 change, including an answer whose body breaks after its headers arrived. The answer is `502` (or the upstream's own 4xx) with code `upstream_error`. A balance reservation is released at once.
+
+A paid NUT-24 request that fails inside the Bellows before it settles (an internal error) leaves its whole payment as change at `GET /v1/change/{request_id}`, in the same process, or for a retry with the same token to take over, once.
 
 #### Encrypted chat (EHBP)
 
@@ -190,8 +192,11 @@ To encrypt, a browser client loads the enclave's key and attestation through the
 The change of a NUT-24 request, for a client that lost the answer. The request id is the capability: it was returned only to the payer. No other credentials.
 
 - `200 {"request_id", "data": [{id, amount, unit, mint, status, token, locked_to}], "token"}`. `token` is the first token.
-- `409 not_settled` with `Retry-After` while the request still runs.
+- `409 not_settled` with `Retry-After` while the request still runs, or while the mint has not settled the payment of a request that failed. A request whose handler ended without settling is not running: its whole payment is returned here.
+- `503 mint_unavailable` with `Retry-After` when the change is owed but the mint did not answer.
 - `404 not_found` when there is no change for that id.
+
+For a request that failed before it was served while its payment's outcome was unknown (`mint_unavailable` or an internal error after the token was sent), this fetch settles the payment: once the mint confirms it took the token, the whole payment is returned as change. Retrying the request with the same token instead uses the payment for the retry, once; see [PAYMENTS.md](PAYMENTS.md).
 
 ### Balance
 

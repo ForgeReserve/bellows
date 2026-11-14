@@ -89,7 +89,7 @@ export function parsePort(raw: string | undefined): number | undefined {
 
 const CORS = {
   'access-control-allow-origin': '*',
-  'access-control-expose-headers': RELAY_ERROR_HEADER,
+  'access-control-expose-headers': `${RELAY_ERROR_HEADER}, Retry-After`,
 };
 
 function relayError(status: number, code: string): Response {
@@ -188,6 +188,9 @@ export function createRelay(opts: RelayOptions): RelayHandler {
       const headers: Record<string, string> = { 'cache-control': 'no-store', ...CORS };
       const answerType = upstream.headers.get('content-type')?.toLowerCase() ?? '';
       if (RESPONSE_TYPES.has(answerType)) headers['content-type'] = answerType;
+      // A busy gateway's Retry-After says how loaded the gateway is, nothing about the client.
+      const retryAfter = upstream.headers.get('retry-after') ?? '';
+      if (upstream.status === 503 && /^\d{1,6}$/.test(retryAfter)) headers['retry-after'] = retryAfter;
       const passBody = upstream.status === 200 && RESPONSE_TYPES.has(answerType);
       if (!passBody) await upstream.body?.cancel().catch(() => {});
       return new Response(passBody ? upstream.body : null, { status: upstream.status, headers });

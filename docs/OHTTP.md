@@ -35,7 +35,14 @@ RFC 9458 leaves replay protection to the gateway (section 6.5). Bellows refuses 
 - Every encapsulated request carries the time it was made, in `Bellows-Date` (the client library sets it; browsers do not let a page set `Date`) or in `Date`. A request without one gets an encapsulated `400` with code `date_required`.
 - A date more than `BELLOWS_OHTTP_MAX_SKEW_SECONDS` (default 300) from the gateway's clock gets an encapsulated `400` with code `stale_request` and the gateway's time in `Bellows-Date`. The request does not run, so a client can resend it dated by that clock. The client library does this once.
 - The encapsulated key of each request (new for every request) is remembered until the request's date leaves the window. The same encapsulated key again is a replay: plain `400`, and the request does not run. This holds for a topup too: replaying a captured topup credits nothing.
-- At most `BELLOWS_OHTTP_REPLAY_CACHE_MAX` keys are remembered (default 200,000, a few tens of megabytes). When that many are live, new requests get `503` until older ones expire. Memory is the only state: a restart forgets the keys, and a restart also makes a new HPKE key, so a request captured before a restart cannot be opened after it.
+- Only a request that will run is remembered. The date, the method and the path are checked first, and a request refused for any of them (`date_required`, `stale_request`, `405`, `404`) is answered without taking a place in the replay cache, so requests that run nothing cannot fill it. Replaying a request refused for its method, path or a missing date gets the same refusal and runs nothing. A request refused as stale because it is dated ahead of this clock is refused only until its date enters the window; after that it can run once.
+- At most `BELLOWS_OHTTP_REPLAY_CACHE_MAX` keys are remembered (default 200,000, a few tens of megabytes). When that many are live, new requests get `503` until older ones expire. The admission bound below keeps that from happening. Memory is the only state: a restart forgets the keys, and a restart also makes a new HPKE key, so a request captured before a restart cannot be opened after it.
+
+### Admission
+
+Encapsulated requests carry no identity, so the gateway cannot limit one client apart from another. It bounds new requests for everyone together instead: at most `BELLOWS_OHTTP_ADMIT_PER_SECOND` a second, with a burst of one second's worth. Past it a request gets a plain `503` with `Retry-After` (whole seconds), takes no place in the replay cache, and can be sent again unchanged once the bound has room. The Bellows relay passes `Retry-After` on with a `503` and exposes it to browsers; a third-party relay may drop it, so a client should not count on seeing it. Only a request that would be remembered counts: refused, stale and replayed requests use none of it.
+
+A key is kept for at most twice the skew plus one second (601 s by default). Left unset, the bound is the most the replay cache holds over that time (`BELLOWS_OHTTP_REPLAY_CACHE_MAX / (2 * BELLOWS_OHTTP_MAX_SKEW_SECONDS + 2)`, about 332 a second by default), so the cache cannot fill. A flood then competes with honest clients for each second's admissions, rather than shutting every new request out until old keys expire. A sender of more than the bound can still crowd others out while it keeps sending: the bound limits what a flood costs the gateway, not who gets through. A set value that could let the cache fill is refused at startup. Inside the app, each request still meets the same payment, rate limits and proof of work as a direct one. See [OPERATE.md](OPERATE.md#oblivious-http-under-load).
 
 ### Refusals
 
@@ -47,7 +54,7 @@ RFC 9458 asks the gateway to answer a request it cannot open with a plain error.
 | `400` | Not decryptable, tampered, cut short, wrong key, malformed, or a replay |
 | `413` | The request is over `BELLOWS_OHTTP_MAX_MESSAGE_BYTES` |
 | `500` | The answer could not be sealed (a plain answer over `BELLOWS_OHTTP_MAX_MESSAGE_BYTES`). The request ran. The log line `ohttp_answer_failed` carries the reason only |
-| `503` | The replay cache is full |
+| `503` | Past the admission bound (`Retry-After` says when to send again), or the replay cache is full |
 
 Each refusal writes one log line, `ohttp_refused`, with the reason only.
 
@@ -93,7 +100,7 @@ const res = await bellowsFetch(operator, '/v1/chat/completions', {
 - `options.relay` overrides `operator.relay`; `null` sends straight to the Bellows.
 - `options.chunked` (default `true`) picks chunked OHTTP. `false` sends plain RFC 9458 messages, which some third-party relays require.
 - `options.maxMessageBytes` is the largest Binary HTTP message the client sends or opens. The default is 8 MiB in plain mode (`DEFAULT_MAX_MESSAGE_BYTES`, the gateway's default) and 1 GiB in chunked mode (`DEFAULT_MAX_CHUNKED_ANSWER_BYTES`). In plain mode it must be at least the gateway's `BELLOWS_OHTTP_MAX_MESSAGE_BYTES`.
-- It throws `BellowsFetchError` when the request cannot be sent or the answer cannot be opened. `code` is one of `bad_path`, `bad_request`, `bad_key_config`, `network`, `relay_error` (the relay refused, with its reason), `gateway_refused` (the gateway refused: see [Refusals](#refusals)) and `bad_response`. An answer from Bellows with an error status (`402`, `429` and so on) is returned like any other answer.
+- It throws `BellowsFetchError` when the request cannot be sent or the answer cannot be opened. `code` is one of `bad_path`, `bad_request`, `bad_key_config`, `network`, `relay_error` (the relay refused, with its reason), `gateway_refused` (the gateway refused: see [Refusals](#refusals)) and `bad_response`. On a busy `503` that carried `Retry-After`, `retryAfter` holds its seconds. An answer from Bellows with an error status (`402`, `429` and so on) is returned like any other answer.
 
 The client uses Web APIs only (fetch, WebCrypto, streams) and runs in browsers and in Node. Its only dependencies are `ohttp-ts` and `hpke`, which use no Node-only module either; a test checks both.
 
@@ -108,11 +115,12 @@ The client uses Web APIs only (fetch, WebCrypto, streams) and runs in browsers a
 | `BELLOWS_RELAYS` | none | Relay URLs that forward to this Bellows (each the full URL a client posts to), published in `/.well-known/bellows` |
 | `BELLOWS_OHTTP_MAX_SKEW_SECONDS` | `300` | How far a request's date may be from the gateway's clock |
 | `BELLOWS_OHTTP_REPLAY_CACHE_MAX` | `200000` | Most encapsulated keys remembered at once |
+| `BELLOWS_OHTTP_ADMIT_PER_SECOND` | the most the cache holds (about 332) | New encapsulated requests admitted per second, for all clients together. See [Admission](#admission) |
 | `BELLOWS_OHTTP_MAX_MESSAGE_BYTES` | `8388608` | Largest Binary HTTP request, and largest plain (not chunked) answer, padding included. Chunked answers are bounded at 1 GiB. See [Size limits](#size-limits) |
 
 ## Tests
 
-- `test/unit/ohttp.test.ts`: the key, round trips in both modes, streaming piece by piece, the size limits (a plain answer over 1 MiB, a long chunked answer past a small request limit, `413` on an oversized request, `500` on an answer that cannot be sealed), tampered, replayed, stale, undated and misdirected requests, the replay cache, and that the app receives none of the outer request.
+- `test/unit/ohttp.test.ts`: the key, round trips in both modes, streaming piece by piece, the size limits (a plain answer over 1 MiB, a long chunked answer past a small request limit, `413` on an oversized request, `500` on an answer that cannot be sealed), tampered, replayed, stale, undated and misdirected requests, the replay cache (which a request refused for its date, method or path never enters, so refused requests cannot fill it), the admission bound (a flood longer than a key lifetime never fills the cache at the default), and that the app receives none of the outer request.
 - `test/unit/relay.test.ts`: the relay's allowlist, what it forwards and returns, its refusals, that it writes nothing, the Worker entry point, and the Node server with the gateway seeing the relay's address only.
 - `test/e2e/ohttp.e2e.test.ts`: client, relay and Bellows against the local test mints. It funds a balance, chats plain and streamed, pays one request with eCash, and refunds, all through the relay. It checks that the relay's bytes hold none of the content, that the Bellows never receives the client's address or headers, and that a replayed topup and a tampered request are refused.
 
@@ -120,3 +128,4 @@ The client uses Web APIs only (fetch, WebCrypto, streams) and runs in browsers a
 
 - The relay as a Cloudflare Worker has been run only in Node, through its `fetch` export, not on Cloudflare. In particular, which headers Cloudflare adds to a Worker's outgoing requests has not been checked. Bellows reads no client address or forwarding header in any case.
 - Interoperability with third-party OHTTP relays and clients has been tested only against ohttp-ts itself, which its authors test against the RFC 9458 and chunked OHTTP draft vectors.
+- The admission bound has been tested in process with a simulated clock, not under real load from many addresses. Decrypting a request costs the gateway CPU before any bound applies, and the bound does not cap that.

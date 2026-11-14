@@ -211,6 +211,7 @@ CREATE TABLE IF NOT EXISTS usage_daily (
   input_tokens INTEGER NOT NULL DEFAULT 0,
   output_tokens INTEGER NOT NULL DEFAULT 0,
   charged_msub INTEGER NOT NULL DEFAULT 0,
+  shortfall_msub INTEGER NOT NULL DEFAULT 0, -- owed by requests settled after their reservation was released, not covered by the balance
   price_nusd INTEGER NOT NULL DEFAULT 0,
   cost_nusd INTEGER NOT NULL DEFAULT 0,
   supplier_reported INTEGER NOT NULL DEFAULT 0,
@@ -231,6 +232,7 @@ const ADDED_COLUMNS: Array<[table: string, column: string, decl: string]> = [
   ['requests', 'lock_pubkey', 'TEXT'],
   ['accounts', 'frozen_at', 'INTEGER'],
   ['fundings', 'f_unlisted', 'INTEGER NOT NULL DEFAULT 0'],
+  ['usage_daily', 'shortfall_msub', 'INTEGER NOT NULL DEFAULT 0'],
 ];
 
 export type DB = DatabaseSync;

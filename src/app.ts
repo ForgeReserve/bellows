@@ -7,7 +7,7 @@ import { openAccount, releaseIfEmpty } from './accounts.ts';
 import { createAdminRouter } from './admin-api.ts';
 import { parseOptionalLockPubkey } from './cashu/lock.ts';
 import { type GatewayWallet, PaymentError } from './cashu/wallet.ts';
-import type { Config, ModelConfig, Unit } from './config.ts';
+import { type Config, type ModelConfig, ohttpAdmitPerSecond, type Unit } from './config.ts';
 import { type DB, now, tx } from './db.ts';
 import { FOREIGN_MINTS_PATH, type FundingService } from './funding.ts';
 import type { MintDiscovery } from './mint-discovery.ts';
@@ -85,8 +85,13 @@ export const OPENS_BALANCE = new Set(['/v1/wallet/topup', '/v1/wallet/fund/light
 
 type Payment = { kind: 'balance'; account: Account; reservationId: string } | { kind: 'nut24'; mint: string; unit: Unit; paid: number };
 
+/** What a chat request holds until it settles: its balance reservation or its NUT-24 request row (see the chat route). */
+type ChatOwnership = { reservationId?: string; nut24RequestId?: string };
+
 interface SettleResult {
   chargedMsub: number;
+  /** A late charge the balance could not cover in full (src/ledger.ts settleRaw). */
+  shortfallMsub?: number;
   balanceMsub?: number;
   changeUnits?: number;
   changeToken?: string;
@@ -437,16 +442,29 @@ export function createApp(d: Deps) {
     // Other-mint funding change shares purpose 'change' but is delivered with the funding, behind its key.
     // Request ids start with req_; a settled request leaves no row of its own, only the change owed to it.
     const isRequest = id.startsWith('req_');
-    const rows = isRequest ? wallet.listOutgoing({ requestId: id }).filter((r) => r.purpose === 'change') : [];
-    if (!rows.length) {
-      const req = isRequest ? (db.prepare('SELECT status FROM requests WHERE id = ?').get(id) as { status: string } | undefined) : undefined;
-      if (req && req.status !== 'failed') return apiError(c, 409, 'not_settled', 'request still running', { 'Retry-After': '2' });
-      return apiError(c, 404, 'not_found', 'no change for this request');
+    const changeRows = () => (isRequest ? wallet.listOutgoing({ requestId: id }).filter((r) => r.purpose === 'change') : []);
+    let rows = changeRows();
+    if (!rows.length && isRequest) {
+      // A request that failed while its payment's outcome was unknown: settle that payment now.
+      const s = await settleUnservedNut24(d, id);
+      if (s === 'running') return apiError(c, 409, 'not_settled', 'request still running', { 'Retry-After': '2' });
+      if (s === 'pending') return apiError(c, 409, 'not_settled', 'the payment is not confirmed by the mint yet; retry shortly', { 'Retry-After': '5' });
+      rows = changeRows();
     }
+    if (!rows.length) return apiError(c, 404, 'not_found', 'no change for this request');
     const out = [];
     for (const r of rows) {
       let token = r.token;
-      if (r.status !== 'done') token = await wallet.issue(r.id);
+      if (r.status !== 'done') {
+        try {
+          token = await wallet.issue(r.id);
+        } catch (e) {
+          if (e instanceof PaymentError) throw e;
+          // Mint unreachable: the change stays owed and the next fetch issues it.
+          log.warn('change_deferred', { request_id: id, err: errText(e) });
+          return apiError(c, 503, 'mint_unavailable', 'the change is owed but the mint did not answer; retry shortly', { 'Retry-After': '5' });
+        }
+      }
       out.push({ ...outgoingView(r), token, status: 'done' });
     }
     return c.json({ request_id: id, data: out, token: out[0]?.token });
@@ -475,6 +493,7 @@ export function createApp(d: Deps) {
     dispatch: (r) => app.fetch(r),
     maxSkewMs: env.BELLOWS_OHTTP_MAX_SKEW_SECONDS * 1000,
     replayCacheMax: env.BELLOWS_OHTTP_REPLAY_CACHE_MAX,
+    admitPerSecond: ohttpAdmitPerSecond(env),
     maxMessageBytes: env.BELLOWS_OHTTP_MAX_MESSAGE_BYTES,
   });
   app.get(OHTTP_KEYS_PATH, () => ohttp.keys());
@@ -495,7 +514,32 @@ export function createApp(d: Deps) {
 
   // ------------------------------------------------------------------ chat
 
+  // A request owns its balance reservation until it settles (src/ledger.ts), so the stale sweep never
+  // releases it however long it streams, and its NUT-24 row stays 'running' while a handler serves it.
+  // A request that ends without settling (an error escaped it) gives both up in this process: the sweep
+  // releases the reservation, and a payment it received is marked 'paid' (unserved), so GET /v1/change
+  // returns it in full, or a retry with the same token takes it over, once.
+  const abandon = (own: ChatOwnership) => {
+    if (own.reservationId) ledger.disown(own.reservationId);
+    const id = own.nut24RequestId;
+    if (!id) return;
+    try {
+      const n = tx(db, () => Number(db.prepare("UPDATE requests SET status = 'paid' WHERE id = ? AND status = 'running'").run(id).changes));
+      if (n > 0) log.warn('nut24_request_abandoned', { request_id: id });
+    } catch (e) {
+      log.error('nut24_abandon_failed', { request_id: id, err: errText(e) });
+    }
+  };
   app.post('/v1/chat/completions', async (c) => {
+    const own: ChatOwnership = {};
+    try {
+      return await chatCompletion(c, own);
+    } catch (e) {
+      abandon(own);
+      throw e;
+    }
+  });
+  const chatCompletion = async (c: Context, own: ChatOwnership) => {
     const t0 = Date.now();
     const requestId = 'req_' + randomUUID().replaceAll('-', '');
     c.header('X-Forge-Request-Id', requestId);
@@ -592,6 +636,7 @@ export function createApp(d: Deps) {
     let pay: Payment;
     if (account) {
       const reservationId = ledger.reserve(account.id, reserveMsub);
+      own.reservationId = reservationId;
       pay = { kind: 'balance', account, reservationId };
     } else if (!cashu) {
       if (!inviteOk()) return apiError(c, 403, 'invite_required', 'send X-Forge-Invite with a valid invite code, or use a balance key');
@@ -609,13 +654,18 @@ export function createApp(d: Deps) {
       db.prepare(
         "INSERT INTO requests (id, payment, unit, model, supplier, encrypted, status, reserved_msub, lock_pubkey, created_at) VALUES (?, 'nut24', ?, ?, ?, ?, 'new', ?, ?, ?)",
       ).run(requestId, unit, model.id, model.supplier, encrypted ? 1 : 0, reserveMsub, lockPubkey, now());
+      own.nut24RequestId = requestId;
       try {
+        // A request is 'running' from the transaction that pays it, so 'paid' only ever means a payment no
+        // handler serves any more (recovery finished it, or its handler ended unsettled): one a retry may take
+        // over, or GET /v1/change return in full, once.
         const r = await wallet.receive(cashu, {
           purpose: 'nut24',
           expectUnit: unit,
           minAmount: requiredUnits,
           requestId,
-          onFinalize: (amount) => db.prepare("UPDATE requests SET status = 'paid', paid_units = ? WHERE id = ?").run(amount, requestId),
+          onFinalize: (amount) => db.prepare("UPDATE requests SET status = 'running', paid_units = ? WHERE id = ?").run(amount, requestId),
+          adopt: (prior) => adoptNut24PaymentRaw(db, prior.requestId, requestId, prior.amount),
         });
         pay = { kind: 'nut24', mint: r.mint, unit, paid: r.amount };
       } catch (e) {
@@ -625,7 +675,6 @@ export function createApp(d: Deps) {
       }
     }
     // A balance payment needs no row of its own: the reservation holds the amount until settlement.
-    if (pay.kind === 'nut24') db.prepare("UPDATE requests SET status = 'running' WHERE id = ?").run(requestId);
 
     // 5. Settlement, exactly once per request.
     let settled: Promise<SettleResult> | undefined;
@@ -660,6 +709,7 @@ export function createApp(d: Deps) {
             const s = ledger.settleRaw(pay.reservationId, actualMsub, pay.account.id);
             res.chargedMsub = s.charged;
             res.balanceMsub = s.balance;
+            res.shortfallMsub = s.shortfall;
           } else {
             const chargedUnits = Math.min(pay.paid, msubToUnitsCeil(actualMsub));
             res.chargedMsub = chargedUnits * MSUB_PER_UNIT;
@@ -679,6 +729,7 @@ export function createApp(d: Deps) {
             inputTokens: usage?.inputTokens ?? null,
             outputTokens: usage?.outputTokens ?? null,
             chargedMsub: res.chargedMsub,
+            shortfallMsub: res.shortfallMsub ?? 0,
             priceNusd: nano,
             costNusd: costNusd,
             supplierReported: costSource === 'supplier',
@@ -762,8 +813,9 @@ export function createApp(d: Deps) {
         try {
           for await (const ch of up.body) chunks.push(ch as Buffer);
         } catch (e) {
-          await finish(false);
-          throw new UpstreamError(`enclave stream failed: ${errText(e)}`);
+          // As on the plaintext path: the client gets no answer, so nothing is charged and all change comes back.
+          const r = await settle(undefined, 'none', 'upstream_error');
+          return apiError(c, 502, 'upstream_error', `enclave response failed: ${errText(e)}. You were not charged.`, resultHeaders(r));
         }
         const r = await finish(true);
         return new Response(Buffer.concat(chunks), { status: up.status, headers: { ...passHeaders, ...resultHeaders(r), 'X-Forge-Request-Id': requestId, 'X-Forge-Privacy': privacy } });
@@ -773,15 +825,27 @@ export function createApp(d: Deps) {
         start(ctrl) {
           (async () => {
             try {
-              for await (const ch of up.body) {
-                frames.push(ch as Uint8Array);
-                if (!cancelled) ctrl.enqueue(new Uint8Array(ch as Buffer));
+              try {
+                for await (const ch of up.body) {
+                  frames.push(ch as Uint8Array);
+                  if (!cancelled) ctrl.enqueue(new Uint8Array(ch as Buffer));
+                }
+                await finish(true);
+              } catch {
+                await finish(false);
               }
-              await finish(true);
-            } catch {
-              await finish(false);
+            } catch (e) {
+              // Settlement itself failed, so nothing was charged or owed: hand the request back.
+              abandon(own);
+              log.error('settle_failed', { request_id: requestId, err: errText(e) });
             }
-            if (!cancelled) ctrl.close();
+            if (!cancelled) {
+              try {
+                ctrl.close();
+              } catch {
+                /* already closed */
+              }
+            }
           })();
         },
         cancel() {
@@ -819,7 +883,15 @@ export function createApp(d: Deps) {
     }
 
     if (!stream) {
-      const text = await res.text();
+      let text: string;
+      try {
+        text = await res.text();
+      } catch (e) {
+        // Headers arrived, then the body failed: nothing was served, so nothing is charged, a balance
+        // reservation is released now and a NUT-24 payment comes back in full as change.
+        const r = await settle(undefined, 'none', 'upstream_error');
+        return apiError(c, 502, 'upstream_error', `upstream response failed: ${errText(e)}. You were not charged.`, resultHeaders(r));
+      }
       let usage: Usage | undefined;
       let source = 'upstream';
       try {
@@ -869,18 +941,25 @@ export function createApp(d: Deps) {
         };
         (async () => {
           try {
-            for (;;) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              send(meter.push(value));
+            try {
+              for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                send(meter.push(value));
+              }
+              send(meter.flush());
+              const r = await settle(usageNow(), meter.usage ? 'upstream' : flat ? 'flat' : 'estimate', 'ok');
+              send(settlementEvent(r));
+            } catch (e) {
+              const r = await settle(usageNow(), meter.usage ? 'upstream' : 'estimate', 'partial');
+              send(`data: ${JSON.stringify({ error: { message: cancelled ? 'client disconnected' : `upstream stream failed: ${errText(e)}`, type: 'upstream_error' } })}\n\n`);
+              send(settlementEvent(r, { partial: true }));
             }
-            send(meter.flush());
-            const r = await settle(usageNow(), meter.usage ? 'upstream' : flat ? 'flat' : 'estimate', 'ok');
-            send(settlementEvent(r));
           } catch (e) {
-            const r = await settle(usageNow(), meter.usage ? 'upstream' : 'estimate', 'partial');
-            send(`data: ${JSON.stringify({ error: { message: cancelled ? 'client disconnected' : `upstream stream failed: ${errText(e)}`, type: 'upstream_error' } })}\n\n`);
-            send(settlementEvent(r, { partial: true }));
+            // Settlement itself failed, so nothing was charged or owed: hand the request back.
+            abandon(own);
+            log.error('settle_failed', { request_id: requestId, err: errText(e) });
+            send(`data: ${JSON.stringify({ error: { message: 'settlement failed', type: 'server_error' } })}\n\n`);
           }
           if (!cancelled) {
             try {
@@ -908,7 +987,7 @@ export function createApp(d: Deps) {
         ...(pay.kind === 'nut24' ? { 'X-Forge-Change-Url': `/v1/change/${requestId}` } : {}),
       },
     });
-  });
+  };
 
   // ------------------------------------------------------------------ operator admin (404 unless an admin token is in the secrets source)
   app.route('/', createAdminRouter(d));
@@ -961,6 +1040,82 @@ function dropFailedNut24Raw(db: DB, requestId: string, r: { unit: string; model:
   return Number(del.changes) > 0;
 }
 
+/** A NUT-24 request row whose payment arrived but which no handler will serve. */
+type UnservedNut24 = { id: string; unit: Unit; model: string; supplier: string; encrypted: number; paid_units: number | null; lock_pubkey: string | null };
+
+/**
+ * Owes a NUT-24 request's whole payment back as change (from the mint it was paid at), counts the request as
+ * failed and deletes its row. Caller provides the transaction.
+ */
+function returnNut24PaymentRaw(d: Deps, r: UnservedNut24): void {
+  const inc = d.db.prepare("SELECT mint FROM incoming WHERE request_id = ? AND status = 'done'").get(r.id) as { mint: string } | undefined;
+  if (inc && r.paid_units && r.paid_units > 0) d.wallet.oweRaw({ mint: inc.mint, unit: r.unit, amount: r.paid_units, purpose: 'change', requestId: r.id, lockPubkey: r.lock_pubkey });
+  recordUsageRaw(d.db, failedUsage(r));
+  d.db.prepare('DELETE FROM requests WHERE id = ?').run(r.id);
+}
+
+/**
+ * A retry of the same token takes over the payment of an earlier request that no handler serves (status
+ * 'paid': recovery finished it, or its handler failed and is gone). The earlier request is counted as failed and deleted, the
+ * retry becomes the paid, running request. Runs inside the wallet's transaction; false leaves both as they are.
+ */
+function adoptNut24PaymentRaw(db: DB, fromId: string, toId: string, amount: number): boolean {
+  const r = db.prepare("SELECT unit, model, supplier, encrypted FROM requests WHERE id = ? AND payment = 'nut24' AND status = 'paid'").get(fromId) as
+    | { unit: string; model: string; supplier: string; encrypted: number }
+    | undefined;
+  if (!r) return false;
+  recordUsageRaw(db, failedUsage(r));
+  db.prepare('DELETE FROM requests WHERE id = ?').run(fromId);
+  db.prepare("UPDATE requests SET status = 'running', paid_units = ? WHERE id = ?").run(amount, toId);
+  log.info('nut24_payment_adopted', { request_id: toId, amount });
+  return true;
+}
+
+/**
+ * Settles, in this process, the payment of a NUT-24 request that failed before it was served:
+ *  - its receive is still unknown at the mint: recovery runs now (replay, restore or retry);
+ *  - recovery finished it, or its handler ended without settling ('paid'): the whole payment is owed back
+ *    as change;
+ *  - recovery found the token spent elsewhere: the request is counted as failed and forgotten.
+ *  - its token never reached the mint (receive row still new, not in flight): the receive is forgotten,
+ *    the request is counted as failed and forgotten, and the client keeps its token.
+ * Returns 'running' while a handler still holds the request (a handler that ends unsettled marks it 'paid',
+ * see the chat route), 'pending' while the mint has not settled the
+ * receive, 'done' otherwise (the change, if any, is then owed under the request id).
+ */
+async function settleUnservedNut24(d: Deps, id: string): Promise<'running' | 'pending' | 'done'> {
+  const get = () =>
+    d.db.prepare("SELECT id, unit, model, supplier, encrypted, paid_units, lock_pubkey, status FROM requests WHERE id = ? AND payment = 'nut24'").get(id) as
+      | (UnservedNut24 & { status: string })
+      | undefined;
+  let r = get();
+  if (!r) return 'done';
+  if (r.status === 'failed' && paymentPending(d.db, id)) {
+    try {
+      await d.wallet.recoverIncomingFor(id);
+    } catch (e) {
+      log.warn('nut24_recovery_deferred', { request_id: id, err: errText(e) });
+      return 'pending';
+    }
+    r = get();
+    if (!r) return 'done';
+  }
+  if (r.status !== 'failed' && r.status !== 'paid') return 'running';
+  const req = r;
+  return tx(d.db, () => {
+    const cur = get();
+    if (!cur) return 'done';
+    if (cur.status === 'paid') {
+      returnNut24PaymentRaw(d, cur);
+      log.info('nut24_payment_returned', { request_id: id, amount: cur.paid_units });
+      return 'done';
+    }
+    if (cur.status !== 'failed') return 'running';
+    // Still unknown (another caller is recovering it right now) or refused at the mint.
+    return dropFailedNut24Raw(d.db, id, { ...req, encrypted: !!req.encrypted }) ? 'done' : 'pending';
+  });
+}
+
 function round(n: number): number {
   return Math.round(n * 10000) / 10000;
 }
@@ -974,15 +1129,8 @@ export async function startupRecovery(d: Deps, olderThanMs = 0): Promise<void> {
   const cutoff = Date.now() - olderThanMs;
   const stuck = d.db
     .prepare("SELECT id, unit, model, supplier, encrypted, paid_units, lock_pubkey FROM requests WHERE payment = 'nut24' AND status IN ('paid', 'running') AND created_at <= ?")
-    .all(cutoff) as Array<{ id: string; unit: Unit; model: string; supplier: string; encrypted: number; paid_units: number | null; lock_pubkey: string | null }>;
-  for (const r of stuck) {
-    const inc = d.db.prepare("SELECT mint FROM incoming WHERE request_id = ? AND status = 'done'").get(r.id) as { mint: string } | undefined;
-    tx(d.db, () => {
-      if (inc && r.paid_units && r.paid_units > 0) d.wallet.oweRaw({ mint: inc.mint, unit: r.unit, amount: r.paid_units, purpose: 'change', requestId: r.id, lockPubkey: r.lock_pubkey });
-      recordUsageRaw(d.db, failedUsage(r));
-      d.db.prepare('DELETE FROM requests WHERE id = ?').run(r.id);
-    });
-  }
+    .all(cutoff) as UnservedNut24[];
+  for (const r of stuck) tx(d.db, () => returnNut24PaymentRaw(d, r));
   // Requests whose payment never arrived (or was refused) and is no longer pending at the mint.
   const unpaid = d.db
     .prepare("SELECT id, unit, model, supplier, encrypted FROM requests WHERE status IN ('new', 'failed') AND created_at <= ?")
