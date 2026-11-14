@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/bellows-mark-dark.svg">
+    <img src="docs/brand/bellows-mark-light.svg" alt="Bellows logo: a gold ring and a green ring around a closed lock" width="140">
+  </picture>
+</p>
+
 # Bellows
 
 Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request and forwards the request to AI models. Point any OpenAI client at it, pay with eCash, and it forwards the request to a pluggable upstream supplier. Licensed MIT.
