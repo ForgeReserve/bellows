@@ -35,6 +35,8 @@ export interface SettledUsage {
   inputTokens: number | null;
   outputTokens: number | null;
   chargedMsub: number;
+  /** Owed but not charged: a late charge the balance could not cover in full (src/ledger.ts). */
+  shortfallMsub?: number;
   priceNusd: number;
   costNusd: number | null;
   /** The cost is the supplier's own figure (feeds the price fit). */
@@ -49,13 +51,13 @@ export function recordUsageRaw(db: DB, u: SettledUsage): void {
   const fit = u.ok && u.supplierReported && u.costNusd != null && u.inputTokens != null && u.outputTokens != null;
   db.prepare(
     `INSERT INTO usage_daily (day, unit, model, supplier, requests, ok, failed, encrypted, nut24, estimated, input_tokens, output_tokens,
-       charged_msub, price_nusd, cost_nusd, supplier_reported, fit_ii, fit_io, fit_oo, fit_ic, fit_oc)
-     VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       charged_msub, shortfall_msub, price_nusd, cost_nusd, supplier_reported, fit_ii, fit_io, fit_oo, fit_ic, fit_oc)
+     VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (day, unit, model, supplier) DO UPDATE SET
        requests = requests + 1, ok = ok + excluded.ok, failed = failed + excluded.failed, encrypted = encrypted + excluded.encrypted,
        nut24 = nut24 + excluded.nut24, estimated = estimated + excluded.estimated,
        input_tokens = input_tokens + excluded.input_tokens, output_tokens = output_tokens + excluded.output_tokens,
-       charged_msub = charged_msub + excluded.charged_msub, price_nusd = price_nusd + excluded.price_nusd, cost_nusd = cost_nusd + excluded.cost_nusd,
+       charged_msub = charged_msub + excluded.charged_msub, shortfall_msub = shortfall_msub + excluded.shortfall_msub, price_nusd = price_nusd + excluded.price_nusd, cost_nusd = cost_nusd + excluded.cost_nusd,
        supplier_reported = supplier_reported + excluded.supplier_reported,
        fit_ii = fit_ii + excluded.fit_ii, fit_io = fit_io + excluded.fit_io, fit_oo = fit_oo + excluded.fit_oo,
        fit_ic = fit_ic + excluded.fit_ic, fit_oc = fit_oc + excluded.fit_oc`,
@@ -72,6 +74,7 @@ export function recordUsageRaw(db: DB, u: SettledUsage): void {
     u.ok ? i : 0,
     u.ok ? o : 0,
     u.ok ? u.chargedMsub : 0,
+    u.ok ? (u.shortfallMsub ?? 0) : 0,
     u.ok ? Math.round(u.priceNusd) : 0,
     u.ok ? c : 0,
     fit ? 1 : 0,
@@ -97,6 +100,7 @@ export interface UsageRow {
   input_tokens: number;
   output_tokens: number;
   charged_msub: number;
+  shortfall_msub: number;
   price_nusd: number;
   cost_nusd: number;
   supplier_reported: number;

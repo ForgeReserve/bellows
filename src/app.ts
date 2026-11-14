@@ -85,8 +85,13 @@ export const OPENS_BALANCE = new Set(['/v1/wallet/topup', '/v1/wallet/fund/light
 
 type Payment = { kind: 'balance'; account: Account; reservationId: string } | { kind: 'nut24'; mint: string; unit: Unit; paid: number };
 
+/** The balance reservation a chat request holds, if any (see the chat route). */
+type ChatOwnership = { reservationId?: string };
+
 interface SettleResult {
   chargedMsub: number;
+  /** A late charge the balance could not cover in full (src/ledger.ts settleRaw). */
+  shortfallMsub?: number;
   balanceMsub?: number;
   changeUnits?: number;
   changeToken?: string;
@@ -495,7 +500,19 @@ export function createApp(d: Deps) {
 
   // ------------------------------------------------------------------ chat
 
+  // A request owns its balance reservation until it settles (src/ledger.ts), so the stale sweep never
+  // releases it however long it streams. An error that escapes before settlement gives the reservation up,
+  // and the sweep releases it in this process.
   app.post('/v1/chat/completions', async (c) => {
+    const own: ChatOwnership = {};
+    try {
+      return await chatCompletion(c, own);
+    } catch (e) {
+      if (own.reservationId) ledger.disown(own.reservationId);
+      throw e;
+    }
+  });
+  const chatCompletion = async (c: Context, own: ChatOwnership) => {
     const t0 = Date.now();
     const requestId = 'req_' + randomUUID().replaceAll('-', '');
     c.header('X-Forge-Request-Id', requestId);
@@ -592,6 +609,7 @@ export function createApp(d: Deps) {
     let pay: Payment;
     if (account) {
       const reservationId = ledger.reserve(account.id, reserveMsub);
+      own.reservationId = reservationId;
       pay = { kind: 'balance', account, reservationId };
     } else if (!cashu) {
       if (!inviteOk()) return apiError(c, 403, 'invite_required', 'send X-Forge-Invite with a valid invite code, or use a balance key');
@@ -660,6 +678,7 @@ export function createApp(d: Deps) {
             const s = ledger.settleRaw(pay.reservationId, actualMsub, pay.account.id);
             res.chargedMsub = s.charged;
             res.balanceMsub = s.balance;
+            res.shortfallMsub = s.shortfall;
           } else {
             const chargedUnits = Math.min(pay.paid, msubToUnitsCeil(actualMsub));
             res.chargedMsub = chargedUnits * MSUB_PER_UNIT;
@@ -679,6 +698,7 @@ export function createApp(d: Deps) {
             inputTokens: usage?.inputTokens ?? null,
             outputTokens: usage?.outputTokens ?? null,
             chargedMsub: res.chargedMsub,
+            shortfallMsub: res.shortfallMsub ?? 0,
             priceNusd: nano,
             costNusd: costNusd,
             supplierReported: costSource === 'supplier',
@@ -908,7 +928,7 @@ export function createApp(d: Deps) {
         ...(pay.kind === 'nut24' ? { 'X-Forge-Change-Url': `/v1/change/${requestId}` } : {}),
       },
     });
-  });
+  };
 
   // ------------------------------------------------------------------ operator admin (404 unless an admin token is in the secrets source)
   app.route('/', createAdminRouter(d));
