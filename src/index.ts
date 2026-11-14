@@ -1,13 +1,12 @@
 import { serve } from '@hono/node-server';
-import { setGlobalRequestOptions } from '@cashu/cashu-ts';
 import { createApp, startupRecovery } from './app.ts';
 import { loadConfig } from './config.ts';
+import { applyCashuRequestPolicy } from './cashu/wallet.ts';
 import { buildDeps } from './deps.ts';
 import { errText, log, setLogLevel } from './log.ts';
 
-// Mint calls give up after 60 s (cashu-ts default: 5 min). A timeout is an unknown outcome; every
-// mint operation is persisted first and finished by replay or restore, so a slow mint cannot hold a request open.
-setGlobalRequestOptions({ requestTimeout: 60_000 });
+// Cashu transport policy (60 s timeout, no redirects): see CASHU_REQUEST_OPTIONS in src/cashu/wallet.ts.
+applyCashuRequestPolicy();
 const config = loadConfig();
 setLogLevel(config.env.BELLOWS_LOG_LEVEL);
 const deps = buildDeps(config);
