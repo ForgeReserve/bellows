@@ -390,6 +390,61 @@ describe('refusals', () => {
     expect(gw.replayCacheSize).toBe(1);
   });
 
+  it('a request refused for its method or path never takes a replay-cache slot', async () => {
+    const identity = devIdentity();
+    let ran = 0;
+    const gw = new OhttpGateway({ identity, dispatch: () => (ran++, new Response('ok')), maxSkewMs: 60_000, replayCacheMax: 2, maxMessageBytes: 1 << 20 });
+    const refused: Array<[Request, number]> = [
+      [dated('/v1/wallet', { method: 'PUT', body: '{}' }), 405],
+      [dated('/v1/wallet', { method: 'DELETE' }), 405],
+      [dated('/admin/api/overview'), 404],
+      [dated('/ohttp', { method: 'POST', body: 'x' }), 404],
+      [dated('/'), 404],
+    ];
+    for (const [req, status] of refused) {
+      const { bytes, context, type } = await encapsulate(identity.keyConfig, req);
+      const res = await context.decapsulateResponse(await gw.handle(post(bytes, type)));
+      expect(res.status, `${req.method} ${new URL(req.url).pathname}`).toBe(status);
+    }
+    expect(gw.replayCacheSize).toBe(0);
+    expect(ran).toBe(0);
+  });
+
+  it('a full cache cannot be filled by refused requests: admitted ones still go through', async () => {
+    const identity = devIdentity();
+    const gw = new OhttpGateway({ identity, dispatch: () => new Response('ok'), maxSkewMs: 60_000, replayCacheMax: 2, maxMessageBytes: 1 << 20 });
+    for (let i = 0; i < 20; i++) {
+      const { bytes, context } = await encapsulate(identity.keyConfig, dated(i % 2 ? '/admin/api/overview' : '/v1/wallet', i % 2 ? {} : { method: 'PATCH', body: '{}' }));
+      const outer = await gw.handle(post(bytes));
+      expect(outer.status, `refused request ${i}`).toBe(200);
+      expect([404, 405]).toContain((await context.decapsulateResponse(outer)).status);
+    }
+    // Undated and stale requests are refused before the cache too.
+    for (const req of [new Request('http://gw.test/healthz'), dated('/healthz', {}, Date.now() - 120_000)]) {
+      const { bytes, context } = await encapsulate(identity.keyConfig, req);
+      expect((await context.decapsulateResponse(await gw.handle(post(bytes)))).status).toBe(400);
+    }
+    expect(gw.replayCacheSize).toBe(0);
+    for (let i = 0; i < 2; i++) {
+      const { bytes, context } = await encapsulate(identity.keyConfig, dated('/healthz'));
+      expect((await context.decapsulateResponse(await gw.handle(post(bytes)))).status).toBe(200);
+    }
+    expect(gw.replayCacheSize).toBe(2);
+  });
+
+  it('a replayed refused request is refused again and runs nothing; a replayed admitted one is still a replay', async () => {
+    const identity = devIdentity();
+    let ran = 0;
+    const gw = new OhttpGateway({ identity, dispatch: () => (ran++, new Response('ok')), maxSkewMs: 60_000, replayCacheMax: 100, maxMessageBytes: 1 << 20 });
+    const bad = await encapsulate(identity.keyConfig, dated('/admin/api/overview'));
+    for (let i = 0; i < 2; i++) expect((await bad.context.decapsulateResponse(await gw.handle(post(bad.bytes)))).status).toBe(404);
+    const good = await encapsulate(identity.keyConfig, dated('/v1/models'));
+    expect((await gw.handle(post(good.bytes))).status).toBe(200);
+    expect((await gw.handle(post(good.bytes))).status).toBe(400);
+    expect(ran).toBe(1);
+    expect(gw.replayCacheSize).toBe(1);
+  });
+
   it('ReplayGuard forgets a key only after its time', () => {
     const g = new ReplayGuard(10);
     expect(g.remember('a', 100, 0)).toBe(true);

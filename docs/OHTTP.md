@@ -35,6 +35,7 @@ RFC 9458 leaves replay protection to the gateway (section 6.5). Bellows refuses 
 - Every encapsulated request carries the time it was made, in `Bellows-Date` (the client library sets it; browsers do not let a page set `Date`) or in `Date`. A request without one gets an encapsulated `400` with code `date_required`.
 - A date more than `BELLOWS_OHTTP_MAX_SKEW_SECONDS` (default 300) from the gateway's clock gets an encapsulated `400` with code `stale_request` and the gateway's time in `Bellows-Date`. The request does not run, so a client can resend it dated by that clock. The client library does this once.
 - The encapsulated key of each request (new for every request) is remembered until the request's date leaves the window. The same encapsulated key again is a replay: plain `400`, and the request does not run. This holds for a topup too: replaying a captured topup credits nothing.
+- Only a request that will run is remembered. The date, the method and the path are checked first, and a request refused for any of them (`date_required`, `stale_request`, `405`, `404`) is answered without taking a place in the replay cache, so requests that run nothing cannot fill it. Replaying a refused request gets the same refusal, and still runs nothing.
 - At most `BELLOWS_OHTTP_REPLAY_CACHE_MAX` keys are remembered (default 200,000, a few tens of megabytes). When that many are live, new requests get `503` until older ones expire. Memory is the only state: a restart forgets the keys, and a restart also makes a new HPKE key, so a request captured before a restart cannot be opened after it.
 
 ### Refusals
@@ -112,7 +113,7 @@ The client uses Web APIs only (fetch, WebCrypto, streams) and runs in browsers a
 
 ## Tests
 
-- `test/unit/ohttp.test.ts`: the key, round trips in both modes, streaming piece by piece, the size limits (a plain answer over 1 MiB, a long chunked answer past a small request limit, `413` on an oversized request, `500` on an answer that cannot be sealed), tampered, replayed, stale, undated and misdirected requests, the replay cache, and that the app receives none of the outer request.
+- `test/unit/ohttp.test.ts`: the key, round trips in both modes, streaming piece by piece, the size limits (a plain answer over 1 MiB, a long chunked answer past a small request limit, `413` on an oversized request, `500` on an answer that cannot be sealed), tampered, replayed, stale, undated and misdirected requests, the replay cache (which a request refused for its date, method or path never enters, so refused requests cannot fill it), and that the app receives none of the outer request.
 - `test/unit/relay.test.ts`: the relay's allowlist, what it forwards and returns, its refusals, that it writes nothing, the Worker entry point, and the Node server with the gateway seeing the relay's address only.
 - `test/e2e/ohttp.e2e.test.ts`: client, relay and Bellows against the local test mints. It funds a balance, chats plain and streamed, pays one request with eCash, and refunds, all through the relay. It checks that the relay's bytes hold none of the content, that the Bellows never receives the client's address or headers, and that a replayed topup and a tampered request are refused.
 

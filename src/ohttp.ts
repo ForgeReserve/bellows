@@ -8,7 +8,8 @@
  * within BELLOWS_OHTTP_MAX_SKEW_SECONDS of this clock, and the encapsulated key (`enc`, new for every
  * request) of each accepted request is remembered until that date leaves the window. A request seen before
  * is refused before it runs; one dated outside the window is answered (encapsulated) with stale_request and
- * this gateway's date, so an honest client with a wrong clock can retry.
+ * this gateway's date, so an honest client with a wrong clock can retry. The date, method and path are
+ * checked before a key is remembered, so a request that runs nothing never takes a place in the cache.
  *
  * Streaming: a chunked answer is sealed piece by piece as the app produces it, so a streamed chat answer
  * reaches the client as it is written. The crypto (HPKE, chunk sealing and its nonces) is ohttp-ts; this
@@ -191,14 +192,16 @@ export class OhttpGateway {
       const s = Math.round(this.#maxSkewMs / 1000);
       return this.#answer(encapsulate, innerError(400, STALE_REQUEST, `the request is dated more than ${s} s from this gateway's clock; resend it dated by ${OHTTP_DATE_HEADER} in this answer`, now), STALE_REQUEST);
     }
+    // A request that would be refused runs nothing, so it is answered without taking a replay-cache slot:
+    // only a request that will reach the app is remembered. Replaying a refused one gets the same refusal.
+    const url = new URL(inner.url);
+    if (!METHODS.has(inner.method)) return this.#answer(encapsulate, innerError(405, 'method_not_allowed', 'only GET and POST are available through Oblivious HTTP', now), 'method');
+    if (!ohttpPathAllowed(url.pathname)) return this.#answer(encapsulate, innerError(404, 'not_found', `${url.pathname} is not available through Oblivious HTTP`, now), 'path');
+
     if (this.#replays.seen(replayKey, now)) return this.#refuse({ status: 400, reason: 'replay' });
     // Kept until the request's date has left the window, plus the second an HTTP date rounds away.
     if (!this.#replays.remember(replayKey, date + this.#maxSkewMs + 1000, now)) return this.#refuse({ status: 503, reason: 'replay_cache_full' });
     if (++this.#inserts % 1024 === 0) this.#replays.prune(now);
-
-    const url = new URL(inner.url);
-    if (!METHODS.has(inner.method)) return this.#answer(encapsulate, innerError(405, 'method_not_allowed', 'only GET and POST are available through Oblivious HTTP', now), 'method');
-    if (!ohttpPathAllowed(url.pathname)) return this.#answer(encapsulate, innerError(404, 'not_found', `${url.pathname} is not available through Oblivious HTTP`, now), 'path');
 
     const headers = new Headers(inner.headers);
     for (const h of HOP_HEADERS) headers.delete(h);
