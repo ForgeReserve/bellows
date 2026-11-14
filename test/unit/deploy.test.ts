@@ -8,7 +8,7 @@
  * config. 'an operator's deploy repository passes the unit suite' checks exactly that.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -684,6 +684,31 @@ describe('images', () => {
     const text = read('deploy/tor/entrypoint.sh');
     expect(text).toContain('HiddenServiceDir $onion_dir/service');
     expect(text).toContain('SocksPort 0');
+  });
+});
+
+describe('CI workflow', () => {
+  const ci = read('.github/workflows/ci.yml');
+
+  it('every workflow pins its actions by commit and grants no permission by default', () => {
+    const files = readdirSync(join(ROOT, '.github/workflows')).filter((f) => /\.ya?ml$/.test(f));
+    expect(files).toContain('ci.yml');
+    for (const f of files) {
+      const text = read(`.github/workflows/${f}`);
+      expect((parseYaml(text) as Obj).permissions, f).toEqual({});
+      for (const m of text.matchAll(/^\s*(?:-\s+)?uses:\s*(\S+)/gm)) expect(m[1], `${f}: ${m[1]}`).toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/);
+    }
+  });
+
+  it('runs the release checks on pull requests, read-only and without credentials', () => {
+    const wf = parseYaml(ci) as Obj;
+    expect(Object.keys(wf.on as Obj)).toEqual(expect.arrayContaining(['pull_request', 'push']));
+    for (const job of Object.values(wf.jobs as Obj) as Obj[]) expect(job.permissions).toEqual({ contents: 'read' });
+    expect(ci).not.toMatch(/\$\{\{\s*secrets\./);
+    expect(ci.match(/persist-credentials: (\w+)/g)).toEqual(['persist-credentials: false', 'persist-credentials: false']);
+    for (const step of ['pnpm install --frozen-lockfile', 'pnpm typecheck', 'pnpm test', 'pnpm builds:check', 'pnpm deploy:check', 'pnpm test:e2e']) {
+      expect(ci, step).toContain(step);
+    }
   });
 });
 
