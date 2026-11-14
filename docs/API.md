@@ -190,8 +190,11 @@ To encrypt, a browser client loads the enclave's key and attestation through the
 The change of a NUT-24 request, for a client that lost the answer. The request id is the capability: it was returned only to the payer. No other credentials.
 
 - `200 {"request_id", "data": [{id, amount, unit, mint, status, token, locked_to}], "token"}`. `token` is the first token.
-- `409 not_settled` with `Retry-After` while the request still runs.
+- `409 not_settled` with `Retry-After` while the request still runs, or while the mint has not settled the payment of a request that failed.
+- `503 mint_unavailable` with `Retry-After` when the change is owed but the mint did not answer.
 - `404 not_found` when there is no change for that id.
+
+For a request that failed before it was served while its payment's outcome was unknown (`mint_unavailable` or an internal error after the token was sent), this fetch settles the payment: once the mint confirms it took the token, the whole payment is returned as change. Retrying the request with the same token instead uses the payment for the retry, once; see [PAYMENTS.md](PAYMENTS.md).
 
 ### Balance
 

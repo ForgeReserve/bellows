@@ -123,13 +123,20 @@ Two mechanisms make every mint operation recoverable:
 | 1 | `incoming` row, `status=new`, keyed by a hash of the token's secrets (UNIQUE) | Nothing reached the mint. The row is deleted at startup; the client's token is still valid |
 | 2 | counters reserved, swap preview stored, `status=prepared` | Startup recovery replays or restores; see below |
 | 3 | swap sent to the mint | Same as 2 |
-| 4 | one transaction: proofs stored, `status=done`, balance credited (or request marked paid) | Done exactly once |
+| 4 | one transaction: proofs stored, `status=done`, balance credited (or the NUT-24 request marked paid and running) | Done exactly once |
 
 Recovery of a `prepared` row: (a) replay the stored swap; (b) else restore the counter range and, if signatures come back, finalize with them; (c) else, if the input proofs are still unspent, perform the swap; (d) else the token was spent elsewhere and the row is rejected. Finalizing runs in one transaction that checks the row is not already `done`, so a topup is credited once even if recovery and a client retry race.
 
 A second submission of the same token never reaches the mint twice: it finds the row. For a topup to the same key it returns `replay: true` with the current balance; anything else is `token_spent`. When a topup's outcome is unknown (mint timeout), the gateway keeps the new balance and returns its key with HTTP 503 `topup_pending`; retrying with that key and the same token completes it.
 
 A NUT-24 request interrupted after payment (process died during the upstream call) is marked aborted at startup, and its full payment is owed back as change at `GET /v1/change/{request_id}`.
+
+A NUT-24 request whose receive had an unknown outcome (the mint timed out, or the write after the swap failed) answers with an error and its request id, and the payment is settled in the same process, with no restart:
+
+- **Retry with the same token.** The retry recovers the receive (replay, restore or swap, as above). If the mint took the token, the retry takes the payment over from the failed request, once, and is served as any paid request: it is charged what it uses and the rest comes back as change on the retry's own request id. The failed request is counted as failed and keeps nothing. A third attempt with the token is `token_spent`.
+- **Or fetch `GET /v1/change/{request_id}` of the failed request.** That runs the same recovery and owes the whole payment back as change. Until the mint answers, it is `409 not_settled` with `Retry-After`; if the mint refused the token, `404`.
+
+Whichever comes first wins: the payment serves one request or comes back as change, never both. A request is marked running in the same transaction that pays it, so a payment recovery finishes later (request marked paid) is one no handler serves any more.
 
 ### Paying out (change, refund, export)
 
@@ -166,7 +173,7 @@ A request that never ends (an upstream that stops sending without closing the st
 
 `test/unit/stale-reservation.test.ts` runs the sweep against a balance-paid stream that is still running: the reservation stays held and the stream pays for what it used. It also releases the reservation from a second ledger on the same database mid-stream and checks the stream is still charged in full, then with the balance spent meanwhile, checks the late charge is capped, the shortfall lands in `usage_daily` and the log carries no balance id. A request whose upstream body read fails leaves its reservation to the sweep without a restart. `test/unit/ledger.test.ts` covers the same rules on the ledger alone.
 
-`test/e2e/recovery.e2e.test.ts` injects a fault after the mint swap and before the database write, restarts the gateway on the same database, and checks the balance is credited exactly once (through replay and through restore), that a retry is idempotent, that an interrupted refund is recovered by restore and the token redeems at the mint, and that an interrupted NUT-24 request owes full change.
+`test/e2e/recovery.e2e.test.ts` injects a fault after the mint swap and before the database write, restarts the gateway on the same database, and checks the balance is credited exactly once (through replay and through restore), that a retry is idempotent, that an interrupted refund is recovered by restore and the token redeems at the mint, and that an interrupted NUT-24 request owes full change. Without a restart, it fails a NUT-24 request after the mint swap and checks that a retry with the same token is served once with correct change (and once more when the retry's upstream fails, with all of it as change), that a third attempt is `token_spent`, and that fetching the failed request's change instead returns the whole payment once. `test/unit/nut24-recovery.test.ts` covers the change fetch while the mint does not answer: `409` with `Retry-After`, the payment still recoverable, and change owed once.
 
 `test/e2e/p2pk.e2e.test.ts` checks locked NUT-24 change, refunds and other-mint change and refunds: the token's proofs all carry the key, a swap at the mint without a witness is refused, a plain wallet and the gateway's own wallet cannot redeem it, and the key holder receives exactly the amount. It crashes a locked refund after the swap and recovers it by replay, by restore of the stored blinded messages, and with both disabled (row stays owed, no second payout) followed by a restart that settles it once.
 
