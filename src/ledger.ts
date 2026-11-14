@@ -44,6 +44,14 @@ export class Ledger {
    * "blind by default" rules out.
    */
   private readonly settled = new Map<string, { charged: number; accountId: string }>();
+  /**
+   * Reservations made by this process and not yet settled: the balance and amount each holds, and whether a
+   * request is still serving it. Kept in memory on purpose: after a restart no request is live, so every
+   * reservation left active is abandoned and the sweep may release it. The amount lets a reservation that
+   * was released under a running request still be charged: a backstop for a broken one-process invariant
+   * (an overlapping restart on the same file, say), not a supported topology (docs/PAYMENTS.md, Known limits).
+   */
+  private readonly holds = new Map<string, { accountId: string; amountMsub: number; live: boolean }>();
   constructor(db: DB) {
     this.db = db;
   }
@@ -92,7 +100,7 @@ export class Ledger {
 
   /** Atomically holds msub against the balance. Throws insufficient_balance. */
   reserve(accountId: string, msub: number): string {
-    return tx(this.db, () => {
+    const id = tx(this.db, () => {
       const a = this.get(accountId);
       if (!a) throw new LedgerError('invalid_key', 'unknown account', 401);
       if (this.isFrozen(accountId)) throw new LedgerError('account_frozen', 'this balance is frozen by the operator; refunds still work', 403);
@@ -104,38 +112,75 @@ export class Ledger {
       this.db.prepare("INSERT INTO reservations (id, account_id, amount_msub, status, created_at) VALUES (?, ?, ?, 'active', ?)").run(id, accountId, msub, now());
       return id;
     });
+    this.holds.set(id, { accountId, amountMsub: msub, live: true });
+    return id;
+  }
+
+  /** True while a request in this process is still serving this reservation (it has not settled or been disowned). */
+  isLive(reservationId: string): boolean {
+    return this.holds.get(reservationId)?.live === true;
+  }
+
+  /**
+   * The request that made this reservation ended without settling (an error escaped it): the reservation is
+   * abandoned, and the stale sweep releases it in this process.
+   */
+  disown(reservationId: string) {
+    const h = this.holds.get(reservationId);
+    if (h) h.live = false;
   }
 
   /**
    * Settles a reservation: charges min(actual, reserved), releases the rest and deletes the reservation.
    * Idempotent within this process: a second call on a settled reservation returns the first result.
    */
-  settle(reservationId: string, actualMsub: number, _ref?: string, accountId?: string): { charged: number; balance: number } {
-    const out = tx(this.db, () => this.settleRaw(reservationId, actualMsub, accountId));
-    return { charged: out.charged, balance: out.balance };
+  settle(reservationId: string, actualMsub: number, _ref?: string, accountId?: string): { charged: number; balance: number; shortfall: number } {
+    return tx(this.db, () => this.settleRaw(reservationId, actualMsub, accountId));
   }
 
   /**
    * settle() inside the caller's transaction. No per-request ledger row is written: the balance is the record.
-   * A reservation that releaseStale() already released settles as charged 0 and never throws: the request
-   * ran past the stale window, so it is free. `accountId` is the caller's fallback for a reservation this
-   * process no longer remembers (for example after the in-memory map dropped it).
+   *
+   * A reservation this process made that was released before it settled (this process's own sweep never
+   * releases a live one, so only a second process on the same file can, which is unsupported: this is the
+   * backstop for that broken invariant) is still charged min(actual, reserved),
+   * capped at what the balance now covers (balance less its other active reservations). What the balance
+   * could not cover is returned as `shortfall` and logged, without the balance id.
+   *
+   * A reservation this process never made settles as charged 0 and never throws. `accountId` is the
+   * caller's fallback for the balance it reports in that case.
    */
-  settleRaw(reservationId: string, actualMsub: number, accountId?: string): { charged: number; balance: number } {
+  settleRaw(reservationId: string, actualMsub: number, accountId?: string): { charged: number; balance: number; shortfall: number } {
     const r = this.db.prepare('SELECT account_id, amount_msub FROM reservations WHERE id = ?').get(reservationId) as
       | { account_id: string; amount_msub: number }
       | undefined;
     if (!r) {
       const done = this.settled.get(reservationId);
-      if (done) return { charged: done.charged, balance: this.get(done.accountId)?.balance_msub ?? 0 };
+      if (done) return { charged: done.charged, balance: this.get(done.accountId)?.balance_msub ?? 0, shortfall: 0 };
+      const hold = this.holds.get(reservationId);
+      if (hold) return this.settleReleasedRaw(reservationId, hold, actualMsub);
       log.warn('reservation_released', {});
-      return { charged: 0, balance: accountId ? (this.get(accountId)?.balance_msub ?? 0) : 0 };
+      return { charged: 0, balance: accountId ? (this.get(accountId)?.balance_msub ?? 0) : 0, shortfall: 0 };
     }
     const charged = Math.max(0, Math.min(Math.ceil(actualMsub), r.amount_msub));
     if (charged > 0) this.db.prepare('UPDATE accounts SET balance_msub = balance_msub - ? WHERE id = ?').run(charged, r.account_id);
     this.db.prepare('DELETE FROM reservations WHERE id = ?').run(reservationId);
+    this.holds.delete(reservationId);
     this.remember(reservationId, charged, r.account_id);
-    return { charged, balance: this.get(r.account_id)!.balance_msub };
+    return { charged, balance: this.get(r.account_id)!.balance_msub, shortfall: 0 };
+  }
+
+  /** A late charge for a reservation released before its request settled. */
+  private settleReleasedRaw(reservationId: string, hold: { accountId: string; amountMsub: number }, actualMsub: number) {
+    const owed = Math.max(0, Math.min(Math.ceil(actualMsub), hold.amountMsub));
+    const balance = this.get(hold.accountId)?.balance_msub ?? 0;
+    const charged = Math.min(owed, Math.max(0, balance - this.reservedMsub(hold.accountId)));
+    const shortfall = owed - charged;
+    if (charged > 0) this.db.prepare('UPDATE accounts SET balance_msub = balance_msub - ? WHERE id = ?').run(charged, hold.accountId);
+    this.holds.delete(reservationId);
+    this.remember(reservationId, charged, hold.accountId);
+    log.warn('settled_after_release', { owed_msub: owed, charged_msub: charged, shortfall_msub: shortfall });
+    return { charged, balance: balance - charged, shortfall };
   }
 
   private remember(reservationId: string, charged: number, accountId: string) {
@@ -144,22 +189,23 @@ export class Ledger {
   }
 
   /**
-   * On startup and periodically: reservations left active by a crash, or held past the stale window, are
-   * released (deleted) without charge. Each is remembered as settled with charged 0, so a request still
-   * running when its reservation is released settles for free instead of failing.
+   * On startup and periodically: releases (deletes), without charge, active reservations older than
+   * olderThanMs that no request in this process is serving: those left by a crash or restart, or disowned
+   * by a request that ended without settling. A reservation a running request
+   * still holds is never released, however old.
    */
   releaseStale(olderThanMs: number): number {
     return tx(this.db, () => {
-      const rows = this.db.prepare("SELECT id, account_id FROM reservations WHERE status = 'active' AND created_at <= ?").all(now() - olderThanMs) as Array<{
-        id: string;
-        account_id: string;
-      }>;
+      const rows = this.db.prepare("SELECT id FROM reservations WHERE status = 'active' AND created_at <= ?").all(now() - olderThanMs) as Array<{ id: string }>;
       const del = this.db.prepare('DELETE FROM reservations WHERE id = ?');
-      for (const row of rows) {
-        del.run(row.id);
-        this.remember(row.id, 0, row.account_id);
+      let n = 0;
+      for (const { id } of rows) {
+        if (this.isLive(id)) continue;
+        del.run(id);
+        this.holds.delete(id);
+        n++;
       }
-      return rows.length;
+      return n;
     });
   }
 

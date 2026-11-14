@@ -23,8 +23,8 @@ const catalog = {
     paid: { type: 'openai', tier: 'standard', baseUrl: 'http://127.0.0.1:1/v1', apiKeySecret: 'PAID_API_KEY' },
   },
   models: [
-    { id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2 },
-    { id: 'paid-model', supplier: 'paid', upstream: 'x', input_usd_per_mtok: 1, output_usd_per_mtok: 2 },
+    { id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2, price_verified: true },
+    { id: 'paid-model', supplier: 'paid', upstream: 'x', input_usd_per_mtok: 1, output_usd_per_mtok: 2, price_verified: true },
   ],
 };
 const base = { BELLOWS_TRUSTED_MINTS: 'http://127.0.0.1:1', BELLOWS_FOREIGN_DISCOVERY_RELAYS: '' };
@@ -217,7 +217,7 @@ describe('secrets in use', () => {
     const withKey = {
       ...catalog,
       suppliers: { ...catalog.suppliers, tf: { type: 'openai', tier: 'standard', baseUrl: 'http://127.0.0.1:1/v1', apiKeySecret: 'TOKENFACTORY_API_KEY' } },
-      models: [...catalog.models, { id: 'tf-model', supplier: 'tf', upstream: 'x', input_usd_per_mtok: 1, output_usd_per_mtok: 2 }],
+      models: [...catalog.models, { id: 'tf-model', supplier: 'tf', upstream: 'x', input_usd_per_mtok: 1, output_usd_per_mtok: 2, price_verified: true }],
     };
     const path = join(tmp(), 'secrets.json');
     writeSecrets(path, { ...shipped, BELLOWS_WALLET_SECRET: newWalletSecret(), TOKENFACTORY_API_KEY: 'sk-tf' });

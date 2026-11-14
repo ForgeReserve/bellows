@@ -1,23 +1,27 @@
 import { serve } from '@hono/node-server';
-import { setGlobalRequestOptions } from '@cashu/cashu-ts';
 import { createApp, startupRecovery } from './app.ts';
-import { loadConfig, warnStorage } from './config.ts';
+import { announceUnverifiedPrices, loadConfig, warnStorage } from './config.ts';
+import { applyCashuRequestPolicy } from './cashu/wallet.ts';
 import { buildDeps } from './deps.ts';
 import { errText, log, setLogLevel } from './log.ts';
 
-// Mint calls give up after 60 s (cashu-ts default: 5 min). A timeout is an unknown outcome; every
-// mint operation is persisted first and finished by replay or restore, so a slow mint cannot hold a request open.
-setGlobalRequestOptions({ requestTimeout: 60_000 });
+// Cashu transport policy (60 s timeout, no redirects): see CASHU_REQUEST_OPTIONS in src/cashu/wallet.ts.
+applyCashuRequestPolicy();
 const config = loadConfig();
 setLogLevel(config.env.BELLOWS_LOG_LEVEL);
 warnStorage(config);
+announceUnverifiedPrices(config);
 const deps = buildDeps(config);
 await startupRecovery(deps).catch((e) => log.error('startup_recovery_failed', { err: errText(e) }));
 if (config.env.BELLOWS_UNITS.includes('sat')) {
   deps.rates.get().catch(() => {});
 }
-// Periodic sweep for reservations orphaned by bugs (never for in-flight ones: those are younger).
-setInterval(() => deps.ledger.releaseStale(config.env.BELLOWS_STALE_RESERVATION_SECONDS * 1000), 60_000).unref();
+// Periodic sweep for abandoned reservations: older than the window and held by no request this process is
+// still serving. A long stream keeps its reservation however old it is (src/ledger.ts).
+setInterval(() => {
+  const released = deps.ledger.releaseStale(config.env.BELLOWS_STALE_RESERVATION_SECONDS * 1000);
+  if (released > 0) log.warn('stale_reservations_released', { released });
+}, 60_000).unref();
 // Funding poller: watches unpaid quotes, finishes interrupted mints and melts (crash recovery included).
 deps.funding.start();
 // Other-mint discovery: serves the stored set at once, refreshes from the Nostr relays in the background.

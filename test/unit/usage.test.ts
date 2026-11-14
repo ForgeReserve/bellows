@@ -39,6 +39,20 @@ describe('daily usage aggregates', () => {
     expect(rows.map((r) => r.day)).toContain('2026-11-13');
   });
 
+  it('sums the shortfall of late charges, and adds the column to a database from an earlier release', () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'bellows-shortfall-')), 'bellows.db');
+    let db = openDb(path);
+    db.exec('ALTER TABLE usage_daily DROP COLUMN shortfall_msub');
+    db.close();
+    db = openDb(path);
+    recordUsageRaw(db, base);
+    recordUsageRaw(db, { ...base, chargedMsub: 3, shortfallMsub: 47 });
+    recordUsageRaw(db, { ...base, ok: false, chargedMsub: 0, shortfallMsub: 9 });
+    const [row] = usageSince(db, '2026-11-01');
+    expect(row).toMatchObject({ requests: 3, ok: 2, charged_msub: 53, shortfall_msub: 47 });
+    db.close();
+  });
+
   it('works out windows in whole UTC days', () => {
     const now = Date.parse('2026-11-12T23:59:00Z');
     expect(windowStart(1, now)).toEqual({ day: '2026-11-12', since: Date.parse('2026-11-12T00:00:00Z') });

@@ -413,7 +413,7 @@ function bellows(origin: string, key: Uint8Array, o: { units?: string[]; mints?:
     ...(o.announce === false ? {} : { BELLOWS_OPERATOR_ANNOUNCEMENT_FILE: join(dir, 'announcement.json') }),
     ...o.env,
   };
-  const catalog = { suppliers: { mock: { type: 'mock', tier: 'standard' } }, models: [{ id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2 }] };
+  const catalog = { suppliers: { mock: { type: 'mock', tier: 'standard' } }, models: [{ id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2, price_verified: true }] };
   const deps = buildDeps(loadConfig(env as NodeJS.ProcessEnv, catalog), { rateSources: [fixedRateSource('fixed', 100_000)] });
   const app = createApp(deps);
   return { origin, announcement, deps, fetch: (req) => app.fetch(req) };
@@ -1048,7 +1048,7 @@ describe('moving a balance: unknown outcomes and retries', () => {
 });
 
 describe('the announcement a Bellows serves', () => {
-  const catalog = { suppliers: { mock: { type: 'mock', tier: 'standard' } }, models: [{ id: 'm', supplier: 'mock', upstream: 'm', input_usd_per_mtok: 1, output_usd_per_mtok: 1 }] };
+  const catalog = { suppliers: { mock: { type: 'mock', tier: 'standard' } }, models: [{ id: 'm', supplier: 'mock', upstream: 'm', input_usd_per_mtok: 1, output_usd_per_mtok: 1, price_verified: true }] };
   const dir = mkdtempSync(join(tmpdir(), 'bellows-ann-'));
   let n = 0;
   const load = (f: Partial<OperatorAnnouncementFields>, env: Record<string, string> = {}) => {

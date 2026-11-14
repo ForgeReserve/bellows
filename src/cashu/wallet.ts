@@ -13,6 +13,7 @@ import {
   type Proof,
   serializeProofs,
   serializeSwapPreview,
+  setGlobalRequestOptions,
   type SwapPreview,
   Wallet,
 } from '@cashu/cashu-ts';
@@ -26,6 +27,22 @@ import { errText, log } from '../log.ts';
 const SPENT = 11001;
 /** The mint has signed these outputs before: our NUT-13 counter is behind what the mint has seen. */
 const OUTPUTS_ALREADY_SIGNED = 11003;
+
+/**
+ * Transport policy for every cashu-ts request in this process. The SDK spreads these fields over each
+ * call's options, so `redirect` cannot be overridden per call; `requestTimeout` is the default and a
+ * per-call value wins. Setting them again replaces the whole set, so they live here only.
+ *  - redirect 'error': a mint may never send a Cashu request (discovery, keysets, keys, swap, melt,
+ *    checks, restore) on to another address. The safety check vets the mint URL; a redirect would take
+ *    the request to a host that was never vetted. The SDK already refuses redirects on POSTs.
+ *  - requestTimeout 60 s (SDK default: 5 min). A timeout is an unknown outcome; every mint operation is
+ *    persisted first and finished by replay or restore, so a slow mint cannot hold a request open.
+ */
+export const CASHU_REQUEST_OPTIONS = { redirect: 'error', requestTimeout: 60_000 } as const;
+
+export function applyCashuRequestPolicy(): void {
+  setGlobalRequestOptions({ ...CASHU_REQUEST_OPTIONS });
+}
 
 export class PaymentError extends Error {
   readonly code: string;
@@ -58,6 +75,13 @@ export interface ReceiveOptions {
   requestId?: string;
   /** Runs inside the same SQLite transaction that stores the received proofs. */
   onFinalize?: (amount: number) => void;
+  /**
+   * NUT-24 only. The token was already received for an earlier request whose own receive failed and which
+   * recovery then finished, so that request holds the payment unused. Runs inside a transaction; returns
+   * true when this request takes the payment over (the caller allows it once), and the receive then belongs
+   * to this request id.
+   */
+  adopt?: (prior: { requestId: string; amount: number }) => boolean;
 }
 
 export interface ReceiveResult {
@@ -65,7 +89,10 @@ export interface ReceiveResult {
   mint: string;
   unit: Unit;
   amount: number;
-  /** true when the same token was already redeemed for the same purpose/account (idempotent replay). */
+  /**
+   * true when the token was already redeemed: for the same purpose/account (idempotent replay), or for an
+   * earlier NUT-24 request whose payment this request took over (ReceiveOptions.adopt).
+   */
   replay: boolean;
 }
 
@@ -110,6 +137,11 @@ export interface WalletOptions {
   maxTokenBytes: number;
   /** NUT-13 seed: derived from the wallet secret (src/wallet-seed.ts), never generated here or stored. */
   seed: Uint8Array;
+  /**
+   * Safety check for a mint outside trustedMints (eCash from other mints), run before every load of its
+   * wallet, cached or not, so the mint actually contacted passes it each time. Throws to refuse.
+   */
+  vetMint?: (mint: string) => Promise<unknown>;
   /** Test-only fault injection: throw after the mint swap, before the DB write. */
   faults?: { afterReceiveSwap?: boolean; afterSendSwap?: boolean; noReplayOnRecovery?: boolean; noRestoreOnRecovery?: boolean };
   /** Counter scans (src/cashu/counter-scan.ts). Tests shorten them. */
@@ -207,6 +239,7 @@ export class GatewayWallet {
     this.db = db;
     this.opts = { ...opts, trustedMints: opts.trustedMints.map(normalizeMintUrl) };
     this.seed = opts.seed;
+    applyCashuRequestPolicy();
   }
 
   isTrusted(mint: string): boolean {
@@ -230,6 +263,7 @@ export class GatewayWallet {
 
   private async openWallet(mint: string, unit: Unit): Promise<Wallet> {
     const m = normalizeMintUrl(mint);
+    if (this.opts.vetMint && !this.isTrusted(m)) await this.opts.vetMint(m);
     const key = `${m}|${unit}`;
     let p = this.wallets.get(key);
     if (!p) {
@@ -270,6 +304,7 @@ export class GatewayWallet {
     try {
       w = await this.wallet(mint, unit);
     } catch (e) {
+      if (e instanceof PaymentError) throw e;
       throw new PaymentError('mint_unavailable', `could not reach mint: ${errText(e)}`, 503);
     }
     let proofs: Proof[];
@@ -319,14 +354,20 @@ export class GatewayWallet {
       let row = this.db.prepare('SELECT * FROM incoming WHERE token_hash = ?').get(t.hash) as IncomingRow | undefined;
       if (row) {
         if (row.status === 'prepared') {
-          await this.recoverIncoming(row);
+          try {
+            await this.recoverIncoming(row);
+          } catch (e) {
+            if (e instanceof PaymentError) throw e;
+            // Still unknown (mint unreachable): the row stays prepared for the next retry.
+            throw new PaymentError('mint_unavailable', `mint did not answer; retry with the same token: ${errText(e)}`, 503);
+          }
           row = this.db.prepare('SELECT * FROM incoming WHERE id = ?').get(row.id) as unknown as IncomingRow;
         }
         if (row.status === 'done') {
           const same =
             row.purpose === o.purpose &&
             ((row.purpose === 'topup' && row.account_id === (o.accountId ?? null)) || (row.purpose === 'foreign' && row.request_id === (o.requestId ?? null)));
-          if (same) return { incomingId: row.id, mint: row.mint, unit: row.unit, amount: row.amount, replay: true };
+          if (same || this.adoptIncoming(row, o)) return { incomingId: row.id, mint: row.mint, unit: row.unit, amount: row.amount, replay: true };
           throw new PaymentError('token_spent', 'token was already redeemed');
         }
         if (row.status === 'rejected') throw new PaymentError('token_spent', `token rejected by mint: ${row.error ?? 'spent'}`);
@@ -387,6 +428,26 @@ export class GatewayWallet {
     }
     // Unknown outcome (network). Leave it prepared; recover() settles it.
     return new PaymentError('mint_unavailable', `mint did not answer; retry with the same token: ${errText(e)}`, 503);
+  }
+
+  /**
+   * Hands a received NUT-24 payment from the request it was received for to the request retrying the same
+   * token, when the caller allows it (ReceiveOptions.adopt). One transaction: the caller's check and the
+   * move of the receive to the new request id, so the payment serves one request only.
+   */
+  private adoptIncoming(row: IncomingRow, o: ReceiveOptions): boolean {
+    const prior = row.request_id;
+    if (row.purpose !== 'nut24' || o.purpose !== 'nut24' || !o.adopt || !o.requestId || !prior || prior === o.requestId) return false;
+    if (o.minAmount !== undefined && row.amount < o.minAmount) {
+      throw new PaymentError('insufficient_amount', `token is worth ${row.amount} ${row.unit} after fees, need ${o.minAmount}`);
+    }
+    return tx(this.db, () => {
+      const cur = this.db.prepare('SELECT status, request_id FROM incoming WHERE id = ?').get(row.id) as { status: string; request_id: string | null };
+      if (cur.status !== 'done' || cur.request_id !== prior) return false;
+      if (!o.adopt!({ requestId: prior, amount: row.amount })) return false;
+      this.db.prepare('UPDATE incoming SET request_id = ?, updated_at = ? WHERE id = ?').run(o.requestId!, now(), row.id);
+      return true;
+    });
   }
 
   private markRejected(id: string, error: string) {
@@ -468,10 +529,20 @@ export class GatewayWallet {
     log.warn('incoming_rejected_on_recovery', { id: row.id });
   }
 
-  /** Settles an interrupted receive (status prepared) for a request id now, instead of at the next startup. */
+  /**
+   * Settles an unfinished receive for a request id now, instead of at the next startup. A prepared row is
+   * recovered (replay, restore or retry). A new row that is not in flight never reached the mint: only
+   * receive() moves new to prepared and it holds the token in flight while it runs, so the row is dead and
+   * is deleted (the rule startup recovery applies); the client still holds a valid token.
+   */
   async recoverIncomingFor(requestId: string): Promise<void> {
-    const row = this.db.prepare("SELECT * FROM incoming WHERE request_id = ? AND status = 'prepared'").get(requestId) as IncomingRow | undefined;
+    const row = this.db.prepare("SELECT * FROM incoming WHERE request_id = ? AND status IN ('new', 'prepared')").get(requestId) as IncomingRow | undefined;
     if (!row || this.inflight.has(row.token_hash)) return;
+    if (row.status === 'new') {
+      this.db.prepare("DELETE FROM incoming WHERE id = ? AND status = 'new'").run(row.id);
+      log.info('incoming_forgotten', { id: row.id, reason: 'never reached the mint' });
+      return;
+    }
     this.inflight.add(row.token_hash);
     try {
       await this.recoverIncoming(row);

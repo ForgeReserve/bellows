@@ -21,6 +21,7 @@ import { isMap, isScalar, isSeq, parseDocument } from 'yaml';
 import { checkBuilds, type ApprovedBuild, type BuildsFile, type Measurement } from '../../client/builds.ts';
 import { isLowerHex } from '../../client/bytes.ts';
 import { TINFOIL_RELEASE_MEASUREMENT_TYPE } from '../../client/tinfoil.ts';
+import { EnvSchema } from '../../src/config.ts';
 import { FIXED_SECRET_NAMES } from '../../src/secrets.ts';
 
 /** The one container that may attest, and that must. */
@@ -265,6 +266,11 @@ export function checkTinfoilConfig(text: string, opts: CheckOptions = {}): strin
       } else {
         for (const s of c.secrets as string[]) {
           if (env.literals.has(s)) out.push(`${at}: ${s} is both a secret and an env value`);
+          // Released secrets reach the process env, where loadConfig reads settings too, so a setting listed
+          // here would be unmeasured. The announcement is the one setting the keyserver releases (it names the build).
+          if (s in EnvSchema.shape && s !== 'BELLOWS_OPERATOR_ANNOUNCEMENT') {
+            out.push(`${at}.secrets: ${s} is a setting; set it as a measured env literal, never from the keyserver`);
+          }
           secretNames.add(s);
         }
       }

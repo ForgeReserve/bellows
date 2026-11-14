@@ -36,6 +36,7 @@ The rules `pnpm deploy:check` enforces, and why:
 - A GitHub account for a **public** deploy repository. Tinfoil measures the config in a public repository so that anyone can check it.
 - A server for your keyserver with a domain and a certificate from a public certificate authority (Let's Encrypt works; self-signed is refused). It must be reachable from the enclave at every boot.
 - The mints you accept, and API keys for the suppliers you use.
+- Your suppliers' rate cards. Bellows serves a model only when its price in `config/models.json` is marked `price_verified: true`, so check each price you sell and mark it; a model left unverified is not listed or routable. `BELLOWS_SERVE_UNVERIFIED_PRICES=true` serves them anyway and logs that at error level at every start; it sits in the measured config, so anyone reading your deploy repository sees it.
 - A machine you keep offline, for making and backing up the keys.
 
 ## 1. Make your deploy repository
@@ -174,6 +175,7 @@ curl https://<your domain>/.well-known/bellows
 
 - `/.well-known/bellows` must return an attestation, not `503 not_attested`. Verify it the way a client does, with `verifyBellows` from `client/` and your `builds.json` ([ATTESTATION.md](ATTESTATION.md)). It must find your build.
 - The instance logs show `startup` with `"mode":"sealed"` and `"sealed_mount":"/data"`, then `attested` with `"attester":"tinfoil"`.
+- `GET /v1/models` lists the models you mean to sell. A warning `unverified_prices_withheld` names models left out because their price is not verified; an error `unverified_prices_served` means `BELLOWS_SERVE_UNVERIFIED_PRICES` is on.
 - The admin API answers with your admin token at `https://<your domain>/admin/api/overview`, and 401 without it. It is on the public origin ([README.md](../README.md#admin-api)).
 
 NOT VERIFIED: a real Tinfoil attestation of a Bellows, and its verification with an app's `authenticate`.
@@ -190,6 +192,18 @@ NOT VERIFIED: a real Tinfoil attestation of a Bellows, and its verification with
 The tor container runs as an unprivileged user on a read-only root file system. It has open egress, because it must reach Tor relays, and it has no secrets, no attestation access and no access to Bellows' volume; `pnpm deploy:check` refuses a config that gives it any of these. Its keys, and so the onion address, live on their own encrypted volume. It forwards port 80 of the onion address to `bellows:8787` over a network with no egress.
 
 Checked locally: the image builds, and `--verify-config` accepts the configuration the entrypoint writes, in a read-only container with no capabilities. NOT VERIFIED: Tor reaching its relays from Tinfoil's open egress, the onion service answering, and the onion keys persisting across boots. The entrypoint resolves `bellows` once at start; if the Bellows container's address changes, restart the tor container.
+
+## Oblivious HTTP under load
+
+Anyone can send `POST /ohttp`, and an encapsulated request names no account, so the gateway bounds new encapsulated requests for all clients together ([OHTTP.md](OHTTP.md#admission)):
+
+- Only a request that will run takes a place in the replay cache. One refused for its method, path or date never does, so requests that run nothing cannot fill it.
+- `BELLOWS_OHTTP_ADMIT_PER_SECOND` new requests a second are admitted, with a burst of one second's worth. Past that, `/ohttp` answers `503` with `Retry-After` and logs `ohttp_refused` with reason `busy`.
+- Left unset, the bound is `BELLOWS_OHTTP_REPLAY_CACHE_MAX / (2 * BELLOWS_OHTTP_MAX_SKEW_SECONDS + 2)`: about 332 a second with the defaults (200,000 keys, 300 s skew). At that rate the replay cache cannot fill, so `replay_cache_full` should not appear in the logs. If it does, the gateway's clock has jumped.
+- To admit more, raise `BELLOWS_OHTTP_REPLAY_CACHE_MAX` (the default 200,000 keys take a few tens of megabytes) or lower `BELLOWS_OHTTP_MAX_SKEW_SECONDS`. Setting `BELLOWS_OHTTP_ADMIT_PER_SECOND` above what the cache holds is refused at startup, with the most it can be.
+- Lower it on a small instance. Every admitted request runs in the app, where payment, rate limits and proof of work apply to it as to a direct request.
+
+Many `busy` lines mean someone is sending more than the bound. They crowd out other OHTTP clients while they keep sending, but nothing stays shut once they stop. Direct requests to `/v1` are not counted.
 
 ## Updating
 

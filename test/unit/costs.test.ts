@@ -36,7 +36,7 @@ describe('supplier cost capture', () => {
 describe('supplierCosts', () => {
   const catalog = {
     suppliers: { tf: { type: 'mock', tier: 'standard' } },
-    models: [{ id: 'm1', supplier: 'tf', upstream: 'm1', input_usd_per_mtok: 1, output_usd_per_mtok: 1 }],
+    models: [{ id: 'm1', supplier: 'tf', upstream: 'm1', input_usd_per_mtok: 1, output_usd_per_mtok: 1, price_verified: true }],
   };
   it('fits per-million prices from reported costs and flags drift', () => {
     const config = loadConfig({ BELLOWS_TRUSTED_MINTS: 'http://127.0.0.1:1' }, catalog);

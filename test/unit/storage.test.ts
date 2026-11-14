@@ -22,7 +22,7 @@ setLogSilent(true);
 
 const catalog = {
   suppliers: { mock: { type: 'mock', tier: 'standard' } },
-  models: [{ id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2 }],
+  models: [{ id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2, price_verified: true }],
 };
 const base = { BELLOWS_DB_PATH: ':memory:', BELLOWS_TRUSTED_MINTS: 'http://127.0.0.1:1', BELLOWS_FOREIGN_DISCOVERY_RELAYS: '' };
 const load = (env: Record<string, string> = {}) => loadConfig({ ...base, ...env } as NodeJS.ProcessEnv, catalog);

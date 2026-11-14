@@ -306,9 +306,11 @@ export function createAdminRouter(d: Deps): Hono {
 
   const supplierStatus = () =>
     Object.entries(config.catalog.suppliers).map(([id, s]) => {
+      // Served models only: loadConfig drops those of a supplier whose key is not in the secrets source, and
+      // those whose price is unverified unless BELLOWS_SERVE_UNVERIFIED_PRICES is on. So the key is looked up
+      // itself (presence only, never the value).
       const models = config.catalog.models.filter((m) => m.supplier === id).length;
-      // loadConfig drops the models of a supplier whose key is not in the secrets source.
-      return { id, type: s.type, tier: s.tier, pricing: s.pricing, key_secret: s.apiKeySecret ?? null, key_present: s.apiKeySecret ? models > 0 : null, models };
+      return { id, type: s.type, tier: s.tier, pricing: s.pricing, key_secret: s.apiKeySecret ?? null, key_present: s.apiKeySecret ? config.secrets.get(s.apiKeySecret) !== undefined : null, models };
     });
 
   // ---------------------------------------------------------------- routes
@@ -647,6 +649,8 @@ export function createAdminRouter(d: Deps): Hono {
       // Where state and secrets live. Names a source kind and a mount, never a secret.
       state: { mode: config.mode, secrets: config.secrets.kind, sealed_mount: config.sealedMount ?? null },
       suppliers: supplierStatus(),
+      // Models withheld (or, with the operator setting on, served) although their price is not verified.
+      unverified_prices: config.unverifiedPrices,
       models: config.catalog.models.map((m) => ({
         id: m.id,
         name: m.name ?? m.id,
