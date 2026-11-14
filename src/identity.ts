@@ -1,8 +1,8 @@
 /**
  * Enclave identity (docs/DESIGN.md, S4). At boot Bellows makes an HPKE key pair in memory, writes a
- * statement (version, claimed measurement, key configuration, relays, operator announcement, storage),
- * asks the platform's attester for an attestation that binds the statement's hash, and serves the result
- * at /.well-known/bellows. The private key never leaves memory and is new on every boot.
+ * statement (version, claimed measurement, key configuration, relays, operator announcement, storage and,
+ * for memory storage, the balance cap), asks the platform's attester for an attestation that binds the
+ * statement's hash, and serves the result at /.well-known/bellows. The private key never leaves memory and is new on every boot.
  *
  * The attestation is made again every BELLOWS_ATTEST_REFRESH_MINUTES (platform collateral such as freshness
  * witnesses ages), over the same statement. While a refresh fails, the last good document is served.
@@ -52,6 +52,8 @@ export interface IdentityOptions {
   operator: unknown;
   /** Where balances are kept (BELLOWS_STORAGE). Default: volume. */
   storage?: Storage;
+  /** Memory storage: the most one balance may hold, per unit (BELLOWS_MEMORY_MAX_BALANCE_*). */
+  balanceMax?: Record<string, number> | null;
   /** Make the attestation again after this long. */
   refreshMs: number;
   /** After a failed attestation, wait this long before trying again (requests meanwhile get 503). */
@@ -97,6 +99,7 @@ export class Identity {
       relays: [...o.relays],
       operator: o.operator ?? null,
       storage: o.storage ?? 'volume',
+      ...(o.balanceMax ? { balance_max: { ...o.balanceMax } } : {}),
     };
     this.statementBytes = encodeStatement(this.statement);
   }
@@ -189,6 +192,7 @@ export function createIdentity(config: Config, attester: Attester = configuredAt
     relays: config.env.BELLOWS_RELAYS,
     operator: config.operatorAnnouncement,
     storage: config.storage,
+    balanceMax: config.balanceMax,
     refreshMs: config.env.BELLOWS_ATTEST_REFRESH_MINUTES * 60_000,
   });
 }

@@ -1,7 +1,8 @@
 # THIS DEPLOYMENT KEEPS BALANCES IN MEMORY. Tinfoil has not enabled encrypted volumes for us yet, so the
 # database lives on a tmpfs inside the sealed machine (BELLOWS_STORAGE: "memory"). Every restart loses every
 # balance. Keep only what you are about to spend here and withdraw what you do not use. The encrypted volume
-# returns in a later release. /.well-known/bellows says "storage": "memory" while this lasts.
+# returns in a later release. /.well-known/bellows says "storage": "memory" while this lasts, and the most one
+# balance may hold ("balance_max"): $20 or 20,000 sat. Balances open by invite only.
 #
 # Bellows on Tinfoil Containers. Tinfoil measures tinfoil-config.yml at the repository root at each
 # release tag and publishes the measurement, so every line here is part of what clients verify. Step by
@@ -21,7 +22,8 @@
 #  - Secrets come from your own keyserver (`keyserver-url`), never from Tinfoil's secret store and never
 #    from `env`.
 #  - With BELLOWS_STORAGE "memory": no volume, no volume key, and the database on a tmpfs of the bellows
-#    container that BELLOWS_SEALED_MOUNTS names.
+#    container that BELLOWS_SEALED_MOUNTS names. BELLOWS_INVITE_ONLY must be "true" and on-chain funding off;
+#    BELLOWS_MEMORY_MAX_BALANCE_USD (cents) and _SAT cap every balance.
 #  - Every setting is a measured literal. No container has admin access or open ports.
 
 cvm-version: "0.14.17"
@@ -70,6 +72,9 @@ containers:
       - BELLOWS_STORAGE: "memory"
       - BELLOWS_SEALED_MOUNTS: "/tmp"
       - BELLOWS_DB_PATH: "/tmp/bellows.db"
+      - BELLOWS_INVITE_ONLY: "true"
+      - BELLOWS_MEMORY_MAX_BALANCE_USD: "2000"
+      - BELLOWS_MEMORY_MAX_BALANCE_SAT: "20000"
       - BELLOWS_ATTESTER: "tinfoil"
       - BELLOWS_TRUSTED_MINTS: "https://forge.flashapp.me"
       - BELLOWS_MINT_ALIASES: "https://mint.forge-reserve.com=https://forge.flashapp.me"

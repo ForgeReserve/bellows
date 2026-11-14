@@ -60,6 +60,13 @@ export const EnvSchema = z.object({
    * volume when the database's mount is in memory.
    */
   BELLOWS_STORAGE: z.enum(STORAGE_KINDS).default('volume'),
+  /**
+   * BELLOWS_STORAGE=memory only: the most one balance may hold, in whole units (cents for usd), counting what
+   * is on its way to it. A restart loses every balance, so this is the most anyone can lose to one. A credit
+   * that would pass it is refused before any eCash is taken. Memory storage also needs BELLOWS_INVITE_ONLY.
+   */
+  BELLOWS_MEMORY_MAX_BALANCE_SAT: z.coerce.number().int().min(1).default(20_000),
+  BELLOWS_MEMORY_MAX_BALANCE_USD: z.coerce.number().int().min(1).default(2_000),
   PORT: z.coerce.number().int().min(1).max(65535).default(8787),
   HOST: z.string().default('0.0.0.0'),
   BELLOWS_DB_PATH: z.string().default('data/bellows.db'),
@@ -316,6 +323,11 @@ export interface Config {
   sealedMount?: string;
   /** Where the database lives (BELLOWS_STORAGE): volume, or memory, which every restart empties. */
   storage: Storage;
+  /**
+   * Memory storage: the most one balance may hold, per unit taken, in whole units (BELLOWS_MEMORY_MAX_BALANCE_*).
+   * null: no cap (volume storage).
+   */
+  balanceMax: Partial<Record<Unit, number>> | null;
   /** Development, new database: the secrets file buildDeps writes before it creates the database. */
   pendingSecretsFile?: PendingSecretsFile;
   /** This Bellows' release version (package.json). */
@@ -381,6 +393,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
     throw new Error('BELLOWS_DEFAULT_UNIT must be one of BELLOWS_UNITS');
   }
   ohttpAdmitPerSecond(env);
+  checkMemoryStorage(env);
   const raw = catalogOverride ?? JSON.parse(readFileSync(resolve(env.BELLOWS_MODELS_FILE), 'utf8'));
   const cat = CatalogSchema.safeParse(raw);
   if (!cat.success) throw new Error(`invalid model catalog: ${z.prettifyError(cat.error)}`);
@@ -442,6 +455,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
     adminTokenHash,
     sealedMount,
     storage: env.BELLOWS_STORAGE,
+    balanceMax: env.BELLOWS_STORAGE === 'memory' ? Object.fromEntries(env.BELLOWS_UNITS.map((u) => [u, memoryMaxBalance(env, u)])) : null,
     pendingSecretsFile: pending,
     version: BELLOWS_VERSION,
     attester,
@@ -451,11 +465,36 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
   };
 }
 
+function memoryMaxBalance(env: Env, unit: Unit): number {
+  return unit === 'sat' ? env.BELLOWS_MEMORY_MAX_BALANCE_SAT : env.BELLOWS_MEMORY_MAX_BALANCE_USD;
+}
+
+/**
+ * Memory storage loses every balance on every restart, so it runs only in the shape that bounds that loss:
+ * invite-only, and without on-chain funding, whose deposit address takes any amount the cap cannot bound
+ * (and whose key a restart loses). Refused rather than changed, so the measured config says what runs.
+ */
+function checkMemoryStorage(env: Env): void {
+  if (env.BELLOWS_STORAGE !== 'memory') return;
+  if (!env.BELLOWS_INVITE_ONLY) {
+    throw new Error(
+      'BELLOWS_STORAGE=memory needs BELLOWS_INVITE_ONLY=true: every restart loses every balance, so only people you invite may hold one (docs/OPERATE.md, Running without a volume)',
+    );
+  }
+  if (env.BELLOWS_ONCHAIN_ENABLED) {
+    throw new Error(
+      'BELLOWS_STORAGE=memory cannot run with BELLOWS_ONCHAIN_ENABLED=true: a deposit address takes any amount, so the balance cap cannot bound it, and a restart loses the key that mints it. Turn on-chain funding off',
+    );
+  }
+}
+
 /** At boot: one warning line when balances live in memory. Nothing for a volume. */
-export function warnStorage(config: Pick<Config, 'storage' | 'env'>): void {
+export function warnStorage(config: Pick<Config, 'storage' | 'env' | 'balanceMax'>): void {
   if (config.storage !== 'memory') return;
   log.warn('storage_memory', {
     db: config.env.BELLOWS_DB_PATH,
+    balance_max_usd: config.balanceMax?.usd,
+    balance_max_sat: config.balanceMax?.sat,
     note: 'BELLOWS_STORAGE=memory: no encrypted volume, balances live in memory and every restart loses all of them',
   });
 }

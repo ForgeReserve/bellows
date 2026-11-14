@@ -208,6 +208,7 @@ For a request that failed before it was served while its payment's outcome was u
 | `GET /v1/wallet/refunds` | Bearer key | `{data: [{id, amount, unit, mint, status, token, locked_to}]}`: every withdrawal of this balance, for re-delivery |
 
 - **Topup.** The token must be from one of the `mints` in `/v1/models`. Its unit sets the balance's unit; a token in another unit gets `400 wrong_unit`. `key` is returned only when the Bellows generated it, once: keep it. Sending the same token again is safe: the answer has `replay: true` and `credited: 0`. If the mint cannot be reached mid-swap, the answer is `503 topup_pending` with the `key` (when generated) and `account_id`: retry with that key and the same token.
+- **Balance cap.** A Bellows that keeps balances in memory (`storage: "memory"`) caps every balance at `balance_max` (in `/v1/wallet/fund/methods` and in the attested statement), counting open fundings and top-ups still settling. A top-up, Lightning quote or other-mint quote that would pass it gets `400 balance_limit` with `{unit, balance_max, room}`, where `room` is what still fits, in whole units. Nothing is taken: the token stays yours and no invoice is made. Send less, or spend first. A retry of a token the mint already took is never refused.
 - **Balance.** `available_msub` is the balance minus what running requests have reserved. `refundable` is the whole units that can be withdrawn now.
 - **Refund.** Answers `200` with the token, or `202` with `status: "owed"` and `token: null` when the mint did not answer; the refund is saved and `GET /v1/wallet/refunds` (or the next refund call) delivers it. A remainder below one unit stays on the balance. `refunds` lists every withdrawal, as `GET /v1/wallet/refunds` does. Errors: `400 invalid_amount` (outside `1..refundable`), `503 wallet_insufficient`.
 - **Unknown key.** A key the Bellows does not know gets `401 invalid_key` on `GET /v1/wallet`, refunds, funding status and chat. On a topup or a funding, a well-formed key it does not know opens a new balance under that key.
@@ -231,6 +232,8 @@ A balance can be funded without eCash from an accepted mint: by a Lightning invo
 
 ```json
 {
+  "storage": "volume",
+  "balance_max": null,
   "ecash": { "mints": ["https://mint.example"], "units": ["usd", "sat"] },
   "lightning": { "enabled": true, "units": ["sat", "usd"], "min": { "sat": 1, "usd": 1 }, "max": { "sat": 1000000, "usd": 100000 } },
   "onchain": { "enabled": false, "unit": "sat", "min_amount": 0, "confirmations": 3 },
@@ -245,6 +248,8 @@ A balance can be funded without eCash from an accepted mint: by a Lightning invo
   "invite_only": false
 }
 ```
+
+`storage` is where balances are kept (as in [`/.well-known/bellows`](#well-knownbellows)). With `memory`, `balance_max` is the most one balance may hold, per unit, in whole units (cents for `usd`), for example `{"usd": 2000, "sat": 20000}`, and Lightning's `max` is no higher than it; warn people before they fund past it. With `volume` it is `null`.
 
 `GET /v1/wallet/fund/mints`: `{enabled, policy, mints: [{url, name?, reviewers?, source}], updated_at}`, where `source` is `discovered` (from Cashu mint reviews on Nostr, NIP-87) or `operator`. Denied mints are never listed.
 
@@ -293,7 +298,7 @@ A request that opens a new balance (a topup or a funding sent without a known ba
 
 | Status | Codes |
 | - | - |
-| 400 | `invalid_request`, `invalid_amount`, `invalid_token`, `invalid_pubkey`, `untrusted_mint`, `wrong_unit`, `insufficient_amount`, `token_spent`, `encryption_required`, `method_unavailable`, `use_topup`, `mint_not_allowed`, `mint_check_failed`, `amount_too_large`, `token_mismatch`, `foreign_mint_error`, `issue_failed` |
+| 400 | `invalid_request`, `invalid_amount`, `invalid_token`, `invalid_pubkey`, `untrusted_mint`, `wrong_unit`, `insufficient_amount`, `token_spent`, `encryption_required`, `method_unavailable`, `use_topup`, `mint_not_allowed`, `mint_check_failed`, `amount_too_large`, `balance_limit`, `token_mismatch`, `foreign_mint_error`, `issue_failed` |
 | 401 | `invalid_key` |
 | 402 | `payment_required`, `insufficient_balance` |
 | 403 | `invite_required`, `invite_used`, `invite_invalid`, `account_frozen` |
@@ -369,11 +374,12 @@ The statement, decoded:
 - `relays` are the Oblivious HTTP relay URLs for this Bellows, in the operator's order.
 - `operator` is the operator's signed announcement ([below](#operator-announcement)) or `null`.
 - `storage` is where balances are kept. `volume`: on the encrypted volume. `memory`: in memory inside the sealed machine, so every restart of the Bellows loses every balance. A statement without it comes from an older Bellows and means `volume`.
+- `balance_max` comes with `memory` only: the most one balance may hold, per unit, in whole units (cents for `usd`), for example `{"usd": 2000, "sat": 20000}`. Such a Bellows is invite-only and refuses any credit past it ([Balance](#balance)).
 - The attestation binds `SHA-256("bellows-identity/v1" || 0x00 || statement bytes)`. The statement travels as base64 so both sides hash the same bytes. Anyone in front of the sealed machine who changes the key, a relay or the announcement breaks the binding.
 - Attestation `format` is `https://tinfoil.sh/predicate/attestation/v3` on Tinfoil, or `urn:bellows:attestation:dev:v1` for the development stand-in, which proves nothing and which clients refuse unless they opt in.
 - Until the first attestation succeeds, the answer is `503 not_attested` with `Retry-After`.
 
-`verifyBellows(url, {approvedBuilds, verifier})` in the client library fetches this document, checks the attestation with the app's verifier, and finds the proved measurement in `builds.json`. It returns the attested key configuration (`keyConfig`), the approved build, the proved measurement, the relays, the operator announcement and `storage`, or throws `BellowsVerifyError` with a stable `code`. If it throws, send nothing. [ATTESTATION.md](ATTESTATION.md) has each check. It reads the document directly from the Bellows, so the operator sees the client's address on that request. To keep it hidden, pass a `fetch` in the options that sends through Tor (`verifyBellows(url, {approvedBuilds, verifier, fetch})`).
+`verifyBellows(url, {approvedBuilds, verifier})` in the client library fetches this document, checks the attestation with the app's verifier, and finds the proved measurement in `builds.json`. It returns the attested key configuration (`keyConfig`), the approved build, the proved measurement, the relays, the operator announcement, `storage` and `balanceMax` (the statement's `balance_max`, or `null`), or throws `BellowsVerifyError` with a stable `code`. If it throws, send nothing. [ATTESTATION.md](ATTESTATION.md) has each check. It reads the document directly from the Bellows, so the operator sees the client's address on that request. To keep it hidden, pass a `fetch` in the options that sends through Tor (`verifyBellows(url, {approvedBuilds, verifier, fetch})`).
 
 ### `builds.json`
 

@@ -8,7 +8,8 @@
  *   }
  *
  * The statement holds everything a client acts on: the Bellows version, the build measurement it claims, its
- * HPKE key configuration, its relays, its operator announcement and where it keeps balances (storage). The statement travels as base64 so the
+ * HPKE key configuration, its relays, its operator announcement, where it keeps balances (storage) and, for
+ * memory storage, the most one balance may hold (balance_max). The statement travels as base64 so the
  * exact bytes are hashed, never a re-serialization. The attestation binds
  *
  *   binding = SHA-256( "bellows-identity/v1" || 0x00 || statement bytes )
@@ -44,6 +45,11 @@ export interface Statement {
   operator: unknown;
   /** Where balances are kept (BELLOWS_STORAGE). A statement without it comes from an older Bellows: volume. */
   storage?: Storage;
+  /**
+   * Memory storage only: the most one balance may hold, per unit ("sat", "usd"), in whole units (cents for
+   * usd). Absent: no cap is stated.
+   */
+  balance_max?: Record<string, number>;
 }
 
 /** An attestation document. `format` picks the verifier; the rest belongs to that format. */

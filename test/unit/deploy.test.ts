@@ -164,6 +164,8 @@ describe('tinfoil-config.yml', () => {
       ['twice', (c) => container(c, 'bellows').env.push({ BELLOWS_MARKUP: '2' }), /BELLOWS_MARKUP is set twice/],
       ['setting as secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_SERVE_UNVERIFIED_PRICES'), /BELLOWS_SERVE_UNVERIFIED_PRICES is a setting/],
       ['any setting as secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_MARKUP'), /BELLOWS_MARKUP is a setting/],
+      ['invite gate as secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_INVITE_ONLY'), /BELLOWS_INVITE_ONLY is a setting/],
+      ['memory cap as secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_MEMORY_MAX_BALANCE_SAT'), /BELLOWS_MEMORY_MAX_BALANCE_SAT is a setting/],
       ['domain', (c) => container(c, 'bellows').env.push({ DOMAIN: 'bellows.operator.test' }), /DOMAIN: reserved/],
       ['secrets file', (c) => container(c, 'bellows').env.push({ BELLOWS_SECRETS_FILE: '/data/secrets.json' }), /BELLOWS_SECRETS_FILE: must not be set/],
       ['file source', (c) => (container(c, 'bellows').env.find((e: Obj) => 'BELLOWS_SECRETS' in e).BELLOWS_SECRETS = 'file'), /BELLOWS_SECRETS: must be "platform"/],
@@ -213,6 +215,7 @@ describe('tinfoil-config.yml', () => {
       setEnv(c, 'BELLOWS_STORAGE', 'memory');
       setEnv(c, 'BELLOWS_SEALED_MOUNTS', '/tmp');
       setEnv(c, 'BELLOWS_DB_PATH', '/tmp/bellows.db');
+      setEnv(c, 'BELLOWS_INVITE_ONLY', 'true');
     };
     const MEMORY = mutate(EXAMPLE, toMemory);
     const memoryWith = (fn: (c: Obj) => void) => mutate(MEMORY, fn);
@@ -254,6 +257,15 @@ describe('tinfoil-config.yml', () => {
           /BELLOWS_DB_PATH: \/run\/bellows\.db is not under BELLOWS_SEALED_MOUNTS/,
         ],
         ['an unknown storage', (c) => setEnv(c, 'BELLOWS_STORAGE', 'disk'), /BELLOWS_STORAGE: must be "volume" or "memory"/],
+        // A restart loses every balance, so only invited people may hold one, and only up to the cap.
+        ['invite-only off', (c) => setEnv(c, 'BELLOWS_INVITE_ONLY', 'false'), /env\.BELLOWS_INVITE_ONLY: must be "true" with BELLOWS_STORAGE "memory"/],
+        [
+          'invite-only unset',
+          (c) => (container(c, 'bellows').env = (container(c, 'bellows').env as Obj[]).filter((e) => !('BELLOWS_INVITE_ONLY' in e))),
+          /env\.BELLOWS_INVITE_ONLY: must be "true" with BELLOWS_STORAGE "memory"/,
+        ],
+        ['on-chain funding', (c) => setEnv(c, 'BELLOWS_ONCHAIN_ENABLED', 'true'), /env\.BELLOWS_ONCHAIN_ENABLED: must not be on with BELLOWS_STORAGE "memory"/],
+        ['the cap as a secret', (c) => container(c, 'bellows').secrets.push('BELLOWS_MEMORY_MAX_BALANCE_USD'), /BELLOWS_MEMORY_MAX_BALANCE_USD is a setting/],
       ];
       for (const [name, fn, re] of cases) {
         const problems = checkTinfoilConfig(memoryWith(fn));

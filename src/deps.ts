@@ -1,5 +1,6 @@
 import { GatewayWallet, type WalletOptions } from './cashu/wallet.ts';
 import { type Config, normalizeMintUrl } from './config.ts';
+import { BalanceCap } from './accounts.ts';
 import { openDb, refuseOrphanedForgeDb } from './db.ts';
 import { Invites, Ledger } from './ledger.ts';
 import { BUILTIN_SOURCES, RateOracle, type RateSource } from './rates.ts';
@@ -89,6 +90,7 @@ export function buildDeps(
     faults: opts.fundingFaults,
     discovery,
     probe: opts.discovery?.probe,
+    cap: new BalanceCap(db, config.balanceMax),
   });
   const deps: Deps = {
     config,

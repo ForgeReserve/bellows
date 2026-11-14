@@ -12,7 +12,9 @@
  * Storage (BELLOWS_STORAGE in the bellows env): "volume", the default, keeps the database on an encrypted
  * volume and every rule above it holds. "memory" is the honest fallback for a deployment without volumes:
  * the database is on a tmpfs of the bellows container, no volume is declared, and none of its keys is asked
- * for. A config that mixes the two is refused.
+ * for. A config that mixes the two is refused. Since every restart then loses every balance, memory also needs
+ * BELLOWS_INVITE_ONLY on and on-chain funding off; the balance cap (BELLOWS_MEMORY_MAX_BALANCE_*) is a
+ * setting like any other, a measured env literal.
  *
  * The platform rules here follow Tinfoil's public documentation for `tinfoil-config.yml`. Tinfoil enforces
  * its own runtime policy at deploy time; these checks are Bellows' own, stricter rules on top.
@@ -44,6 +46,8 @@ const NOT_SECRETS = new Set(['BELLOWS_SECRETS', 'BELLOWS_SECRETS_FILE']);
 const VOLUME_KEY_RE = /_VOLUME_KEY$/;
 /** BELLOWS_STORAGE values: where the database lives (src/config.ts). */
 const STORAGES = ['volume', 'memory'] as const;
+/** The env values src/config.ts reads as on. */
+const ON = ['true', '1', 'yes'];
 /** A value that is still an example. A release refuses it. */
 const PLACEHOLDER_RE = /(^|[^a-z0-9-])example([^a-z0-9-]|$)/i;
 
@@ -371,7 +375,7 @@ function checkBellowsContainer(c: Obj, env: ContainerEnv, networks: Map<string, 
     .filter(Boolean);
   const db = lit('BELLOWS_DB_PATH');
   const tmpfs = tmpfsPaths(c.tmpfs);
-  if (storageValue === 'memory') out.push(...checkMemoryStorage(c, at, sealed, db, tmpfs, declaredVolumes));
+  if (storageValue === 'memory') out.push(...checkMemoryStorage(c, at, sealed, db, tmpfs, declaredVolumes, lit));
   else out.push(...checkVolumeStorage(c, at, sealed, db, tmpfs, volumes));
 
   if (!Array.isArray(c.secrets) || !c.secrets.includes('BELLOWS_WALLET_SECRET')) {
@@ -416,8 +420,23 @@ function checkVolumeStorage(c: Obj, at: string, sealed: string[], db: string | u
  * BELLOWS_STORAGE "memory": no volume at all. The database is on a tmpfs of this container, which the
  * sealed mounts cover, and the keyserver is asked for no volume key.
  */
-function checkMemoryStorage(c: Obj, at: string, sealed: string[], db: string | undefined, tmpfs: string[], declaredVolumes: unknown): string[] {
+function checkMemoryStorage(
+  c: Obj,
+  at: string,
+  sealed: string[],
+  db: string | undefined,
+  tmpfs: string[],
+  declaredVolumes: unknown,
+  lit: (name: string) => string | undefined,
+): string[] {
   const out: string[] = [];
+  // Every restart loses every balance: only invited people may hold one, and only up to the balance cap.
+  if (!ON.includes(lit('BELLOWS_INVITE_ONLY') ?? '')) {
+    out.push(`${at}.env.BELLOWS_INVITE_ONLY: must be "true" with BELLOWS_STORAGE "memory"; every restart loses every balance, so only people you invite may hold one`);
+  }
+  if (ON.includes(lit('BELLOWS_ONCHAIN_ENABLED') ?? '')) {
+    out.push(`${at}.env.BELLOWS_ONCHAIN_ENABLED: must not be on with BELLOWS_STORAGE "memory"; a deposit address takes any amount, so the balance cap cannot bound it`);
+  }
   const mixed = 'BELLOWS_STORAGE is "memory", which keeps the database off any volume; with a volume, set BELLOWS_STORAGE: "volume" and put the database on it';
   if (declaredVolumes !== undefined && !(Array.isArray(declaredVolumes) && declaredVolumes.length === 0)) out.push(`volumes: must not be set; ${mixed}`);
   if (c.persistent_volumes !== undefined && !(Array.isArray(c.persistent_volumes) && c.persistent_volumes.length === 0)) {

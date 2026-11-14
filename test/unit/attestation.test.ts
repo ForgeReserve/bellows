@@ -338,7 +338,7 @@ describe('identity document', () => {
   it('createIdentity takes storage from the configuration', async () => {
     const catalog = { suppliers: { mock: { type: 'mock', tier: 'standard' } }, models: [{ id: 'm', supplier: 'mock', upstream: 'm', input_usd_per_mtok: 1, output_usd_per_mtok: 1, price_verified: true }] };
     for (const storage of ['volume', 'memory'] as const) {
-      const config = loadConfig({ BELLOWS_TRUSTED_MINTS: 'http://127.0.0.1:1', BELLOWS_DB_PATH: ':memory:', BELLOWS_STORAGE: storage } as NodeJS.ProcessEnv, catalog);
+      const config = loadConfig({ BELLOWS_TRUSTED_MINTS: 'http://127.0.0.1:1', BELLOWS_DB_PATH: ':memory:', BELLOWS_STORAGE: storage, BELLOWS_INVITE_ONLY: 'true' } as NodeJS.ProcessEnv, catalog);
       const doc = await createIdentity(config).document();
       expect(JSON.parse(utf8Decode(fromBase64(doc.statement))).storage, storage).toBe(storage);
     }
@@ -444,6 +444,23 @@ describe('verifyBellows', () => {
     const memDoc = await devIdentity({ storage: 'memory' }).document();
     const flipped = { ...memDoc, statement: toBase64(utf8Encode(JSON.stringify({ ...JSON.parse(utf8Decode(fromBase64(memDoc.statement))), storage: 'volume' }))) };
     await expectRefusal(verifyBellows('https://bellows.example', opts({ fetch: serve(flipped) })), 'attestation_invalid');
+  });
+
+  it('reads the balance cap of memory storage from the attested statement, and refuses a malformed or changed one', async () => {
+    const capped = devIdentity({ storage: 'memory', balanceMax: { usd: 2000, sat: 20000 } });
+    const v = await verifyBellows('https://bellows.example', opts({ fetch: serve(await capped.document()) }));
+    expect(v).toMatchObject({ storage: 'memory', balanceMax: { usd: 2000, sat: 20000 } });
+    expect((await verifyBellows('https://bellows.example', opts({ fetch: serve(await devIdentity().document()) }))).balanceMax).toBeNull();
+    const st = JSON.parse(utf8Decode(capped.statementBytes));
+    for (const bad of [{ usd: 0 }, { usd: 1.5 }, { usd: '2000' }, [2000]]) {
+      const bytes = utf8Encode(JSON.stringify({ ...st, balance_max: bad }));
+      const doc = { format: IDENTITY_FORMAT, statement: toBase64(bytes), attestation: await devAttester({ measurement: devMeasurement() }).attest(await bindingFor(bytes)) };
+      await expectRefusal(verifyBellows('https://bellows.example', opts({ fetch: serve(doc) })), 'bad_document');
+    }
+    // Raised in transit: the binding breaks.
+    const doc = await capped.document();
+    const raised = { ...doc, statement: toBase64(utf8Encode(JSON.stringify({ ...st, balance_max: { usd: 1_000_000, sat: 20000 } }))) };
+    await expectRefusal(verifyBellows('https://bellows.example', opts({ fetch: serve(raised) })), 'attestation_invalid');
   });
 
   it('refuses the development stand-in unless development mode is opted into', async () => {

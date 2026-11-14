@@ -222,11 +222,18 @@ export function createApp(d: Deps) {
     const key = opened.generatedKey;
     const acct = account;
     try {
-      const r = await wallet.receive(token, {
-        purpose: 'topup',
-        accountId: acct.id,
-        onFinalize: (amount) => ledger.creditRaw(acct.id, amount * MSUB_PER_UNIT, 'topup', null),
-      });
+      // Memory storage: refused before the mint sees the token when the balance cannot take it all.
+      const release = d.funding.cap.claimTopup(acct.id, acct.unit, t.hash, t.amount);
+      let r;
+      try {
+        r = await wallet.receive(token, {
+          purpose: 'topup',
+          accountId: acct.id,
+          onFinalize: (amount) => ledger.creditRaw(acct.id, amount * MSUB_PER_UNIT, 'topup', null),
+        });
+      } finally {
+        release();
+      }
       const a = ledger.get(acct.id)!;
       log.info('topup', { unit: a.unit, amount: r.amount, replay: r.replay, new_balance: created });
       return c.json({

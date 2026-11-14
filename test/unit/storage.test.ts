@@ -26,14 +26,37 @@ const catalog = {
 };
 const base = { BELLOWS_DB_PATH: ':memory:', BELLOWS_TRUSTED_MINTS: 'http://127.0.0.1:1', BELLOWS_FOREIGN_DISCOVERY_RELAYS: '' };
 const load = (env: Record<string, string> = {}) => loadConfig({ ...base, ...env } as NodeJS.ProcessEnv, catalog);
+/** Memory storage as it must be configured: invite-only is required with it. */
+const MEMORY = { BELLOWS_STORAGE: 'memory', BELLOWS_INVITE_ONLY: 'true' };
 
 describe('the setting', () => {
   it('defaults to volume, takes memory, and refuses anything else', () => {
     expect(load().storage).toBe('volume');
     expect(load({ BELLOWS_STORAGE: 'volume' }).storage).toBe('volume');
-    expect(load({ BELLOWS_STORAGE: 'memory' }).storage).toBe('memory');
+    expect(load(MEMORY).storage).toBe('memory');
     expect(() => load({ BELLOWS_STORAGE: 'disk' })).toThrow(/BELLOWS_STORAGE/);
     expect(() => load({ BELLOWS_STORAGE: '' })).toThrow(/BELLOWS_STORAGE/);
+  });
+});
+
+describe('memory storage limits what a restart can lose', () => {
+  it('refuses to start without invite-only, and says how to fix it', () => {
+    expect(() => load({ BELLOWS_STORAGE: 'memory' })).toThrow(/BELLOWS_STORAGE=memory needs BELLOWS_INVITE_ONLY=true/);
+    expect(() => load({ ...MEMORY, BELLOWS_INVITE_ONLY: 'false' })).toThrow(/BELLOWS_INVITE_ONLY=true/);
+    expect(load({ BELLOWS_STORAGE: 'volume' }).env.BELLOWS_INVITE_ONLY).toBe(false);
+  });
+
+  it('refuses on-chain funding, whose deposits no cap can bound', () => {
+    expect(() => load({ ...MEMORY, BELLOWS_ONCHAIN_ENABLED: 'true' })).toThrow(/BELLOWS_STORAGE=memory cannot run with BELLOWS_ONCHAIN_ENABLED=true/);
+    expect(load({ BELLOWS_ONCHAIN_ENABLED: 'true' }).env.BELLOWS_ONCHAIN_ENABLED).toBe(true);
+  });
+
+  it('caps every balance at BELLOWS_MEMORY_MAX_BALANCE_USD and _SAT, for the units taken, in memory mode only', () => {
+    expect(load(MEMORY).balanceMax).toEqual({ usd: 2_000, sat: 20_000 });
+    expect(load({ ...MEMORY, BELLOWS_MEMORY_MAX_BALANCE_USD: '500', BELLOWS_MEMORY_MAX_BALANCE_SAT: '5000' }).balanceMax).toEqual({ usd: 500, sat: 5_000 });
+    expect(load({ ...MEMORY, BELLOWS_UNITS: 'sat', BELLOWS_DEFAULT_UNIT: 'sat' }).balanceMax).toEqual({ sat: 20_000 });
+    expect(load({ BELLOWS_MEMORY_MAX_BALANCE_USD: '500' }).balanceMax).toBeNull();
+    expect(() => load({ ...MEMORY, BELLOWS_MEMORY_MAX_BALANCE_USD: '0' })).toThrow(/BELLOWS_MEMORY_MAX_BALANCE_USD/);
   });
 });
 
@@ -47,6 +70,7 @@ describe('sealed mode checks the mount against the setting', () => {
     const mounts: MountTable = { mountPoints: () => ['/', dir], fsType: type === undefined ? undefined : (m) => (m === dir ? type : 'overlay') };
     const env: Record<string, string> = { BELLOWS_MODE: 'sealed', BELLOWS_SEALED_MOUNTS: dir, BELLOWS_DB_PATH: join(dir, 'bellows.db') };
     if (storage) env.BELLOWS_STORAGE = storage;
+    if (storage === 'memory') env.BELLOWS_INVITE_ONLY = 'true';
     return loadConfig({ ...base, ...env } as NodeJS.ProcessEnv, catalog, { secrets: memorySecrets({ [WALLET_SECRET]: newWalletSecret() }), mounts });
   }
 
@@ -124,7 +148,7 @@ describe('boot warning', () => {
     try {
       warnStorage(load({ BELLOWS_STORAGE: 'volume' }));
       expect(lines).toEqual([]);
-      warnStorage(load({ BELLOWS_STORAGE: 'memory' }));
+      warnStorage(load(MEMORY));
     } finally {
       setLogSink(undefined);
     }
@@ -140,13 +164,15 @@ describe('/.well-known/bellows', () => {
 
   for (const storage of ['volume', 'memory'] as const) {
     it(`says storage ${storage} in the attested statement, and the client reads it`, async () => {
-      const app = createApp(buildDeps(load({ BELLOWS_STORAGE: storage }), { rateSources: [fixedRateSource('fixed', 100_000)] }));
+      const app = createApp(buildDeps(load(storage === 'memory' ? MEMORY : { BELLOWS_STORAGE: storage }), { rateSources: [fixedRateSource('fixed', 100_000)] }));
       const res = await app.request('http://gw.test/.well-known/bellows');
       expect(res.status).toBe(200);
       const doc = (await res.json()) as IdentityDocument;
       expect(JSON.parse(utf8Decode(fromBase64(doc.statement))).storage).toBe(storage);
       const v = await verifyBellows('http://gw.test', { approvedBuilds: builds, verifier: devVerifier(), allowDevelopment: true, fetch: (u, i) => app.request(u, i) as Promise<Response> });
       expect(v.storage).toBe(storage);
+      // The balance cap travels with memory storage only, in whole units of each unit the gateway takes.
+      expect(v.balanceMax).toEqual(storage === 'memory' ? { usd: 2_000, sat: 20_000 } : null);
     });
   }
 });

@@ -40,6 +40,12 @@ export interface VerifiedBellows {
    * (an older Bellows) reads as volume.
    */
   storage: Storage;
+  /**
+   * Memory storage: the most one balance may hold, per unit, in whole units (cents for usd), as the attested
+   * statement says. Warn people before they fund past it; the Bellows refuses a credit that would pass it.
+   * null: the statement states no cap.
+   */
+  balanceMax: Record<string, number> | null;
   /** True only for the development stand-in (allowDevelopment). */
   development: boolean;
   /** SHA-256 binding of the statement, hex. Changes on every restart of the Bellows (new key). */
@@ -90,6 +96,9 @@ export async function verifyBellows(url: string, opts: VerifyOptions): Promise<V
   if (!isObject(st.hpke) || typeof st.hpke.key_config !== 'string') throw badDoc('statement.hpke.key_config is missing');
   if (!Array.isArray(st.relays) || !st.relays.every((r) => typeof r === 'string')) throw badDoc('statement.relays must be a list of URLs');
   if (st.storage !== undefined && !(STORAGE_KINDS as readonly unknown[]).includes(st.storage)) throw badDoc(`statement.storage must be ${STORAGE_KINDS.join(' or ')}`);
+  if (st.balance_max !== undefined && !(isObject(st.balance_max) && Object.values(st.balance_max).every((v) => Number.isSafeInteger(v) && (v as number) > 0))) {
+    throw badDoc('statement.balance_max must map units to positive whole numbers');
+  }
 
   const development = att.format === DEV_ATTESTATION_FORMAT;
   if (development && !opts.allowDevelopment) {
@@ -130,6 +139,7 @@ export async function verifyBellows(url: string, opts: VerifyOptions): Promise<V
     relays: [...(st.relays as string[])],
     operator: st.operator ?? null,
     storage: (st.storage as Storage | undefined) ?? 'volume',
+    balanceMax: st.balance_max === undefined ? null : { ...(st.balance_max as Record<string, number>) },
     development,
     binding: toHex(binding),
   };
