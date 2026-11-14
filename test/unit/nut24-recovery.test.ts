@@ -94,6 +94,16 @@ describe('change of a NUT-24 request that failed before it was served', () => {
     expect(s.deps.db.prepare("SELECT failed FROM usage_daily WHERE model = 'mock-echo'").get()).toEqual({ failed: 1 });
   });
 
+  it('forgets a failed request whose token never reached the mint, and answers 404', async () => {
+    const s = setup();
+    s.request('req_unsent', 'failed');
+    s.incoming('req_unsent', 'new', 9);
+    expect((await s.change('req_unsent')).status).toBe(404);
+    expect(s.rows()).toEqual({ requests: [], change: [] });
+    expect(s.deps.db.prepare('SELECT COUNT(*) AS n FROM incoming').get()).toEqual({ n: 0 });
+    expect(s.deps.db.prepare("SELECT failed FROM usage_daily WHERE model = 'mock-echo'").get()).toEqual({ failed: 1 });
+  });
+
   it('answers 404 for an unknown request id', async () => {
     const s = setup();
     expect((await s.change('req_nothing')).status).toBe(404);

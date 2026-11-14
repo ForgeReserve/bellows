@@ -1033,6 +1033,8 @@ function adoptNut24PaymentRaw(db: DB, fromId: string, toId: string, amount: numb
  *  - its receive is still unknown at the mint: recovery runs now (replay, restore or retry);
  *  - recovery finished it ('paid'): the whole payment is owed back as change;
  *  - recovery found the token spent elsewhere: the request is counted as failed and forgotten.
+ *  - its token never reached the mint (receive row still new, not in flight): the receive is forgotten,
+ *    the request is counted as failed and forgotten, and the client keeps its token.
  * Returns 'running' while a handler still holds the request, 'pending' while the mint has not settled the
  * receive, 'done' otherwise (the change, if any, is then owed under the request id).
  */

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { chatBody, createInvite, type Gateway, MINT_A, mintToken, mintsUp, redeem, startGateway } from './helpers.ts';
 
 const up = await mintsUp();
@@ -175,6 +175,31 @@ describe.skipIf(!up)('NUT-24 payment interrupted in the same process', () => {
       // The gateway kept exactly what it charged.
       expect(g.deps.wallet.holdings().find((h) => h.unit === 'usd')!.unspent).toBe(2);
     } finally {
+      await g.close();
+    }
+  });
+
+  it('a retry while the mint is still unreachable is 503 and leaves the payment recoverable for a later retry', async () => {
+    const { g, invite, token, firstId } = await interrupted();
+    try {
+      vi.spyOn(g.deps.wallet as any, 'recoverIncoming').mockRejectedValueOnce(new TypeError('fetch failed'));
+      const flaky = await post(g, invite, token);
+      expect(flaky.status).toBe(503);
+      expect((await flaky.json()).error.code).toBe('mint_unavailable');
+      // Nothing settled: the receive is still prepared, the first request still failed and recoverable,
+      // and the flaky retry left no request row of its own.
+      expect(g.deps.db.prepare('SELECT status FROM incoming').get()).toEqual({ status: 'prepared' });
+      expect(g.deps.db.prepare('SELECT status FROM requests WHERE id = ?').get(firstId)).toEqual({ status: 'failed' });
+      expect(requestRows(g)).toEqual({ n: 1 });
+
+      // Once the mint answers, a later retry is served once, with change.
+      const retry = await post(g, invite, token);
+      expect(retry.status).toBe(200);
+      const retryId = retry.headers.get('x-forge-request-id')!;
+      expect(await redeem(retry.headers.get('x-cashu-change')!)).toBe(PAID - 2);
+      expect(changeRows(g)).toEqual([{ request_id: retryId, amount: PAID - 2, status: 'done' }]);
+    } finally {
+      vi.restoreAllMocks();
       await g.close();
     }
   });

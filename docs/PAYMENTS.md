@@ -134,9 +134,9 @@ A NUT-24 request interrupted after payment (process died during the upstream cal
 A NUT-24 request whose receive had an unknown outcome (the mint timed out, or the write after the swap failed) answers with an error and its request id, and the payment is settled in the same process, with no restart:
 
 - **Retry with the same token.** The retry recovers the receive (replay, restore or swap, as above). If the mint took the token, the retry takes the payment over from the failed request, once, and is served as any paid request: it is charged what it uses and the rest comes back as change on the retry's own request id. The failed request is counted as failed and keeps nothing. A third attempt with the token is `token_spent`.
-- **Or fetch `GET /v1/change/{request_id}` of the failed request.** That runs the same recovery and owes the whole payment back as change. Until the mint answers, it is `409 not_settled` with `Retry-After`; if the mint refused the token, `404`.
+- **Or fetch `GET /v1/change/{request_id}` of the failed request.** That runs the same recovery and owes the whole payment back as change. Until the mint answers, it is `409 not_settled` with `Retry-After`; if the mint refused the token, or the token never reached the mint (it is still the client's to spend), `404`.
 
-Whichever comes first wins: the payment serves one request or comes back as change, never both. A request is marked running in the same transaction that pays it, so a payment recovery finishes later (request marked paid) is one no handler serves any more.
+Whichever comes first wins: the payment serves one request or comes back as change, never both. A request is marked running in the same transaction that pays it, so a payment that recovery finishes later (request marked paid) always belongs to a request no handler serves any more.
 
 ### Paying out (change, refund, export)
 

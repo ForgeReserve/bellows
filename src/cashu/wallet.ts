@@ -468,10 +468,20 @@ export class GatewayWallet {
     log.warn('incoming_rejected_on_recovery', { id: row.id });
   }
 
-  /** Settles an interrupted receive (status prepared) for a request id now, instead of at the next startup. */
+  /**
+   * Settles an unfinished receive for a request id now, instead of at the next startup. A prepared row is
+   * recovered (replay, restore or retry). A new row that is not in flight never reached the mint: only
+   * receive() moves new to prepared and it holds the token in flight while it runs, so the row is dead and
+   * is deleted (the rule startup recovery applies); the client still holds a valid token.
+   */
   async recoverIncomingFor(requestId: string): Promise<void> {
-    const row = this.db.prepare("SELECT * FROM incoming WHERE request_id = ? AND status = 'prepared'").get(requestId) as IncomingRow | undefined;
+    const row = this.db.prepare("SELECT * FROM incoming WHERE request_id = ? AND status IN ('new', 'prepared')").get(requestId) as IncomingRow | undefined;
     if (!row || this.inflight.has(row.token_hash)) return;
+    if (row.status === 'new') {
+      this.db.prepare("DELETE FROM incoming WHERE id = ? AND status = 'new'").run(row.id);
+      log.info('incoming_forgotten', { id: row.id, reason: 'never reached the mint' });
+      return;
+    }
     this.inflight.add(row.token_hash);
     try {
       await this.recoverIncoming(row);
