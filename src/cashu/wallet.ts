@@ -72,6 +72,13 @@ export interface ReceiveOptions {
   requestId?: string;
   /** Runs inside the same SQLite transaction that stores the received proofs. */
   onFinalize?: (amount: number) => void;
+  /**
+   * NUT-24 only. The token was already received for an earlier request whose own receive failed and which
+   * recovery then finished, so that request holds the payment unused. Runs inside a transaction; returns
+   * true when this request takes the payment over (the caller allows it once), and the receive then belongs
+   * to this request id.
+   */
+  adopt?: (prior: { requestId: string; amount: number }) => boolean;
 }
 
 export interface ReceiveResult {
@@ -79,7 +86,10 @@ export interface ReceiveResult {
   mint: string;
   unit: Unit;
   amount: number;
-  /** true when the same token was already redeemed for the same purpose/account (idempotent replay). */
+  /**
+   * true when the token was already redeemed: for the same purpose/account (idempotent replay), or for an
+   * earlier NUT-24 request whose payment this request took over (ReceiveOptions.adopt).
+   */
   replay: boolean;
 }
 
@@ -297,14 +307,20 @@ export class GatewayWallet {
       let row = this.db.prepare('SELECT * FROM incoming WHERE token_hash = ?').get(t.hash) as IncomingRow | undefined;
       if (row) {
         if (row.status === 'prepared') {
-          await this.recoverIncoming(row);
+          try {
+            await this.recoverIncoming(row);
+          } catch (e) {
+            if (e instanceof PaymentError) throw e;
+            // Still unknown (mint unreachable): the row stays prepared for the next retry.
+            throw new PaymentError('mint_unavailable', `mint did not answer; retry with the same token: ${errText(e)}`, 503);
+          }
           row = this.db.prepare('SELECT * FROM incoming WHERE id = ?').get(row.id) as unknown as IncomingRow;
         }
         if (row.status === 'done') {
           const same =
             row.purpose === o.purpose &&
             ((row.purpose === 'topup' && row.account_id === (o.accountId ?? null)) || (row.purpose === 'foreign' && row.request_id === (o.requestId ?? null)));
-          if (same) return { incomingId: row.id, mint: row.mint, unit: row.unit, amount: row.amount, replay: true };
+          if (same || this.adoptIncoming(row, o)) return { incomingId: row.id, mint: row.mint, unit: row.unit, amount: row.amount, replay: true };
           throw new PaymentError('token_spent', 'token was already redeemed');
         }
         if (row.status === 'rejected') throw new PaymentError('token_spent', `token rejected by mint: ${row.error ?? 'spent'}`);
@@ -351,6 +367,26 @@ export class GatewayWallet {
     } finally {
       this.inflight.delete(t.hash);
     }
+  }
+
+  /**
+   * Hands a received NUT-24 payment from the request it was received for to the request retrying the same
+   * token, when the caller allows it (ReceiveOptions.adopt). One transaction: the caller's check and the
+   * move of the receive to the new request id, so the payment serves one request only.
+   */
+  private adoptIncoming(row: IncomingRow, o: ReceiveOptions): boolean {
+    const prior = row.request_id;
+    if (row.purpose !== 'nut24' || o.purpose !== 'nut24' || !o.adopt || !o.requestId || !prior || prior === o.requestId) return false;
+    if (o.minAmount !== undefined && row.amount < o.minAmount) {
+      throw new PaymentError('insufficient_amount', `token is worth ${row.amount} ${row.unit} after fees, need ${o.minAmount}`);
+    }
+    return tx(this.db, () => {
+      const cur = this.db.prepare('SELECT status, request_id FROM incoming WHERE id = ?').get(row.id) as { status: string; request_id: string | null };
+      if (cur.status !== 'done' || cur.request_id !== prior) return false;
+      if (!o.adopt!({ requestId: prior, amount: row.amount })) return false;
+      this.db.prepare('UPDATE incoming SET request_id = ?, updated_at = ? WHERE id = ?').run(o.requestId!, now(), row.id);
+      return true;
+    });
   }
 
   private markRejected(id: string, error: string) {

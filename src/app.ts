@@ -442,16 +442,29 @@ export function createApp(d: Deps) {
     // Other-mint funding change shares purpose 'change' but is delivered with the funding, behind its key.
     // Request ids start with req_; a settled request leaves no row of its own, only the change owed to it.
     const isRequest = id.startsWith('req_');
-    const rows = isRequest ? wallet.listOutgoing({ requestId: id }).filter((r) => r.purpose === 'change') : [];
-    if (!rows.length) {
-      const req = isRequest ? (db.prepare('SELECT status FROM requests WHERE id = ?').get(id) as { status: string } | undefined) : undefined;
-      if (req && req.status !== 'failed') return apiError(c, 409, 'not_settled', 'request still running', { 'Retry-After': '2' });
-      return apiError(c, 404, 'not_found', 'no change for this request');
+    const changeRows = () => (isRequest ? wallet.listOutgoing({ requestId: id }).filter((r) => r.purpose === 'change') : []);
+    let rows = changeRows();
+    if (!rows.length && isRequest) {
+      // A request that failed while its payment's outcome was unknown: settle that payment now.
+      const s = await settleUnservedNut24(d, id);
+      if (s === 'running') return apiError(c, 409, 'not_settled', 'request still running', { 'Retry-After': '2' });
+      if (s === 'pending') return apiError(c, 409, 'not_settled', 'the payment is not confirmed by the mint yet; retry shortly', { 'Retry-After': '5' });
+      rows = changeRows();
     }
+    if (!rows.length) return apiError(c, 404, 'not_found', 'no change for this request');
     const out = [];
     for (const r of rows) {
       let token = r.token;
-      if (r.status !== 'done') token = await wallet.issue(r.id);
+      if (r.status !== 'done') {
+        try {
+          token = await wallet.issue(r.id);
+        } catch (e) {
+          if (e instanceof PaymentError) throw e;
+          // Mint unreachable: the change stays owed and the next fetch issues it.
+          log.warn('change_deferred', { request_id: id, err: errText(e) });
+          return apiError(c, 503, 'mint_unavailable', 'the change is owed but the mint did not answer; retry shortly', { 'Retry-After': '5' });
+        }
+      }
       out.push({ ...outgoingView(r), token, status: 'done' });
     }
     return c.json({ request_id: id, data: out, token: out[0]?.token });
@@ -629,12 +642,15 @@ export function createApp(d: Deps) {
         "INSERT INTO requests (id, payment, unit, model, supplier, encrypted, status, reserved_msub, lock_pubkey, created_at) VALUES (?, 'nut24', ?, ?, ?, ?, 'new', ?, ?, ?)",
       ).run(requestId, unit, model.id, model.supplier, encrypted ? 1 : 0, reserveMsub, lockPubkey, now());
       try {
+        // A request is 'running' from the transaction that pays it, so 'paid' only ever means a payment that
+        // recovery finished for a request no handler serves any more: one a retry may take over, once.
         const r = await wallet.receive(cashu, {
           purpose: 'nut24',
           expectUnit: unit,
           minAmount: requiredUnits,
           requestId,
-          onFinalize: (amount) => db.prepare("UPDATE requests SET status = 'paid', paid_units = ? WHERE id = ?").run(amount, requestId),
+          onFinalize: (amount) => db.prepare("UPDATE requests SET status = 'running', paid_units = ? WHERE id = ?").run(amount, requestId),
+          adopt: (prior) => adoptNut24PaymentRaw(db, prior.requestId, requestId, prior.amount),
         });
         pay = { kind: 'nut24', mint: r.mint, unit, paid: r.amount };
       } catch (e) {
@@ -644,7 +660,6 @@ export function createApp(d: Deps) {
       }
     }
     // A balance payment needs no row of its own: the reservation holds the amount until settlement.
-    if (pay.kind === 'nut24') db.prepare("UPDATE requests SET status = 'running' WHERE id = ?").run(requestId);
 
     // 5. Settlement, exactly once per request.
     let settled: Promise<SettleResult> | undefined;
@@ -982,6 +997,78 @@ function dropFailedNut24Raw(db: DB, requestId: string, r: { unit: string; model:
   return Number(del.changes) > 0;
 }
 
+/** A NUT-24 request row whose payment arrived but which no handler will serve. */
+type UnservedNut24 = { id: string; unit: Unit; model: string; supplier: string; encrypted: number; paid_units: number | null; lock_pubkey: string | null };
+
+/**
+ * Owes a NUT-24 request's whole payment back as change (from the mint it was paid at), counts the request as
+ * failed and deletes its row. Caller provides the transaction.
+ */
+function returnNut24PaymentRaw(d: Deps, r: UnservedNut24): void {
+  const inc = d.db.prepare("SELECT mint FROM incoming WHERE request_id = ? AND status = 'done'").get(r.id) as { mint: string } | undefined;
+  if (inc && r.paid_units && r.paid_units > 0) d.wallet.oweRaw({ mint: inc.mint, unit: r.unit, amount: r.paid_units, purpose: 'change', requestId: r.id, lockPubkey: r.lock_pubkey });
+  recordUsageRaw(d.db, failedUsage(r));
+  d.db.prepare('DELETE FROM requests WHERE id = ?').run(r.id);
+}
+
+/**
+ * A retry of the same token takes over the payment that recovery finished for an earlier request (status
+ * 'paid': its own handler failed and is gone). The earlier request is counted as failed and deleted, the
+ * retry becomes the paid, running request. Runs inside the wallet's transaction; false leaves both as they are.
+ */
+function adoptNut24PaymentRaw(db: DB, fromId: string, toId: string, amount: number): boolean {
+  const r = db.prepare("SELECT unit, model, supplier, encrypted FROM requests WHERE id = ? AND payment = 'nut24' AND status = 'paid'").get(fromId) as
+    | { unit: string; model: string; supplier: string; encrypted: number }
+    | undefined;
+  if (!r) return false;
+  recordUsageRaw(db, failedUsage(r));
+  db.prepare('DELETE FROM requests WHERE id = ?').run(fromId);
+  db.prepare("UPDATE requests SET status = 'running', paid_units = ? WHERE id = ?").run(amount, toId);
+  log.info('nut24_payment_adopted', { request_id: toId, amount });
+  return true;
+}
+
+/**
+ * Settles, in this process, the payment of a NUT-24 request that failed before it was served:
+ *  - its receive is still unknown at the mint: recovery runs now (replay, restore or retry);
+ *  - recovery finished it ('paid'): the whole payment is owed back as change;
+ *  - recovery found the token spent elsewhere: the request is counted as failed and forgotten.
+ * Returns 'running' while a handler still holds the request, 'pending' while the mint has not settled the
+ * receive, 'done' otherwise (the change, if any, is then owed under the request id).
+ */
+async function settleUnservedNut24(d: Deps, id: string): Promise<'running' | 'pending' | 'done'> {
+  const get = () =>
+    d.db.prepare("SELECT id, unit, model, supplier, encrypted, paid_units, lock_pubkey, status FROM requests WHERE id = ? AND payment = 'nut24'").get(id) as
+      | (UnservedNut24 & { status: string })
+      | undefined;
+  let r = get();
+  if (!r) return 'done';
+  if (r.status === 'failed' && paymentPending(d.db, id)) {
+    try {
+      await d.wallet.recoverIncomingFor(id);
+    } catch (e) {
+      log.warn('nut24_recovery_deferred', { request_id: id, err: errText(e) });
+      return 'pending';
+    }
+    r = get();
+    if (!r) return 'done';
+  }
+  if (r.status !== 'failed' && r.status !== 'paid') return 'running';
+  const req = r;
+  return tx(d.db, () => {
+    const cur = get();
+    if (!cur) return 'done';
+    if (cur.status === 'paid') {
+      returnNut24PaymentRaw(d, cur);
+      log.info('nut24_payment_returned', { request_id: id, amount: cur.paid_units });
+      return 'done';
+    }
+    if (cur.status !== 'failed') return 'running';
+    // Still unknown (another caller is recovering it right now) or refused at the mint.
+    return dropFailedNut24Raw(d.db, id, { ...req, encrypted: !!req.encrypted }) ? 'done' : 'pending';
+  });
+}
+
 function round(n: number): number {
   return Math.round(n * 10000) / 10000;
 }
@@ -995,15 +1082,8 @@ export async function startupRecovery(d: Deps, olderThanMs = 0): Promise<void> {
   const cutoff = Date.now() - olderThanMs;
   const stuck = d.db
     .prepare("SELECT id, unit, model, supplier, encrypted, paid_units, lock_pubkey FROM requests WHERE payment = 'nut24' AND status IN ('paid', 'running') AND created_at <= ?")
-    .all(cutoff) as Array<{ id: string; unit: Unit; model: string; supplier: string; encrypted: number; paid_units: number | null; lock_pubkey: string | null }>;
-  for (const r of stuck) {
-    const inc = d.db.prepare("SELECT mint FROM incoming WHERE request_id = ? AND status = 'done'").get(r.id) as { mint: string } | undefined;
-    tx(d.db, () => {
-      if (inc && r.paid_units && r.paid_units > 0) d.wallet.oweRaw({ mint: inc.mint, unit: r.unit, amount: r.paid_units, purpose: 'change', requestId: r.id, lockPubkey: r.lock_pubkey });
-      recordUsageRaw(d.db, failedUsage(r));
-      d.db.prepare('DELETE FROM requests WHERE id = ?').run(r.id);
-    });
-  }
+    .all(cutoff) as UnservedNut24[];
+  for (const r of stuck) tx(d.db, () => returnNut24PaymentRaw(d, r));
   // Requests whose payment never arrived (or was refused) and is no longer pending at the mint.
   const unpaid = d.db
     .prepare("SELECT id, unit, model, supplier, encrypted FROM requests WHERE status IN ('new', 'failed') AND created_at <= ?")
