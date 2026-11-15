@@ -31,7 +31,7 @@ CREATE INDEX IF NOT EXISTS reservations_active ON reservations(account_id, statu
 CREATE TABLE IF NOT EXISTS ledger (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   account_id TEXT NOT NULL,
-  kind TEXT NOT NULL,               -- topup | charge | refund
+  kind TEXT NOT NULL,               -- topup | charge | refund | open (an empty balance, 0)
   amount_msub INTEGER NOT NULL,     -- signed
   ref TEXT,
   created_at INTEGER NOT NULL

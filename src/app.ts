@@ -81,7 +81,7 @@ function bearer(c: Context): string | undefined {
 }
 
 /** Requests that can open a new balance. Without a known key they carry proof of work instead of a per-address limit. */
-export const OPENS_BALANCE = new Set(['/v1/wallet/topup', '/v1/wallet/fund/lightning', '/v1/wallet/fund/onchain', '/v1/wallet/fund/foreign/quote']);
+export const OPENS_BALANCE = new Set(['/v1/wallet/topup', '/v1/wallet/open', '/v1/wallet/fund/lightning', '/v1/wallet/fund/onchain', '/v1/wallet/fund/foreign/quote']);
 
 type Payment =
   | { kind: 'balance'; account: Account; reservationId: string }
@@ -391,7 +391,37 @@ export function createApp(d: Deps) {
     }
   };
 
-  app.get('/v1/wallet/fund/methods', async (c) => c.json({ ...(await funding.methods()), invite_only: env.BELLOWS_INVITE_ONLY }));
+  // An empty balance opened without eCash, so a new person can use free models without funding anything.
+  // Bounded by the invite when invite-only is on, by proof of work otherwise (both apply when both are on);
+  // with neither, anyone could open balances without limit, so it is off.
+  const openEmpty = { enabled: env.BELLOWS_INVITE_ONLY || pow.enabled, needs_invite: env.BELLOWS_INVITE_ONLY, pow_bits: pow.enabled ? pow.bits : 0 };
+
+  app.get('/v1/wallet/fund/methods', async (c) => c.json({ ...(await funding.methods()), invite_only: env.BELLOWS_INVITE_ONLY, open_empty: openEmpty }));
+
+  app.post('/v1/wallet/open', async (c) => {
+    const text = await c.req.text();
+    let body: any = {};
+    if (text.trim()) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        return apiError(c, 400, 'invalid_request', 'expected JSON {"invite": "...", "unit"?: "usd" | "sat"}');
+      }
+    }
+    const key = bearer(c);
+    const known = key ? ledger.findByKey(key) : undefined;
+    if (!known && !openEmpty.enabled) {
+      return apiError(c, 403, 'open_disabled', 'this Bellows opens a balance only with a topup or a funding: an empty balance needs invite-only or proof of work to be on');
+    }
+    // The unit as a funding takes it: the one named, else the default (a known balance keeps its own).
+    const unit = body?.unit === undefined && known ? known.unit : unitOf(body?.unit);
+    const invite = typeof body?.invite === 'string' ? body.invite : c.req.header('x-forge-invite');
+    // The same rules as a topup or a funding: an open invite while invite-only, redeemed for the new balance.
+    const opened = openAccount({ db, ledger, invites, inviteOnly: env.BELLOWS_INVITE_ONLY }, { key, invite, unit, keep: true });
+    const a = opened.account;
+    if (opened.created) log.info('balance_opened_empty', { unit: a.unit });
+    return c.json({ key: opened.generatedKey, account_id: a.id, unit: a.unit, created: opened.created, balance_msub: a.balance_msub, balance: a.balance_msub / MSUB_PER_UNIT });
+  });
 
   // Other mints whose eCash is accepted for funding. Public; never waits on a relay.
   app.get(FOREIGN_MINTS_PATH, (c) => {

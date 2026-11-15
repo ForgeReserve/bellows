@@ -35,6 +35,8 @@ NUT-24 does not specify change. Bellows's choice (header, final stream event, re
 
 Only a SHA-256 of each key is stored.
 
+An empty balance can also be opened without any eCash: `POST /v1/wallet/open` with an invite (when `BELLOWS_INVITE_ONLY=true`) returns a key for a balance of 0, for free models. The invite is redeemed and unlinked from the balance as a funded topup leaves it, and a ledger row of 0 (kind `open`) marks the balance as kept, so a later funding that fails or expires does not release it or reopen the invite. With invite-only off it needs proof of work; with proof of work off too it is refused (`open_disabled`), since nothing would bound how many balances anyone opens.
+
 ## Free models
 
 A model the catalog marks `"pricing": "free"` takes no money in any form. A request for it needs a known balance key that is not frozen; any balance works, 0 included. Nothing is reserved, the balance is only read, and settlement charges 0: no markup, no flat schedule, and token prices left in the catalog are read as 0. No BTC/USD rate is needed, so a sat balance can use free models while sat pricing is paused. A request without a balance key gets `401 balance_key_required` before its `X-Cashu` header is read, so no NUT-24 token is inspected, swapped or kept, and no `402` quote is made. Upstream failures, partial streams and EHBP pass-through settle the same way, at 0. The day's `usage_daily` row counts the request with `charged_msub`, `price_nusd` and `cost_nusd` of 0, and the request log says `payment: free` and `cost_source: free`. `test/unit/free-models.test.ts` and `test/e2e/free.e2e.test.ts` check this, and that paid models on the same balance are reserved and charged as before.

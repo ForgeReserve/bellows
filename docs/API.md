@@ -189,7 +189,7 @@ A paid NUT-24 request that fails inside the Bellows before it settles (an intern
 
 #### Free models
 
-Free models (`pricing.free` in `/v1/models`) take no payment. Send `Authorization: Bearer sk-forge-...` for a balance the Bellows knows: any balance works, 0 included, and it is not touched. The answer says `X-Forge-Charged-Msub: 0` (or `charged_msub: 0` in the stream's `event: forge`) with the balance unchanged in `X-Forge-Balance-Msub`. Without a balance key the request gets `401 balance_key_required`, whether it sent `X-Cashu`, asked for a quote or sent nothing; no `402` quote is made and an `X-Cashu` token is not looked at, so it stays yours. A frozen balance gets `403 account_frozen`, an unknown key `401 invalid_key`, and the per-balance rate limit applies. A balance key comes from a topup or a funding ([Balance](#balance)); a balance spent down to 0 keeps its key. Encrypted (EHBP) and Oblivious HTTP requests follow the same rules.
+Free models (`pricing.free` in `/v1/models`) take no payment. Send `Authorization: Bearer sk-forge-...` for a balance the Bellows knows: any balance works, 0 included, and it is not touched. The answer says `X-Forge-Charged-Msub: 0` (or `charged_msub: 0` in the stream's `event: forge`) with the balance unchanged in `X-Forge-Balance-Msub`. Without a balance key the request gets `401 balance_key_required`, whether it sent `X-Cashu`, asked for a quote or sent nothing; no `402` quote is made and an `X-Cashu` token is not looked at, so it stays yours. A frozen balance gets `403 account_frozen`, an unknown key `401 invalid_key`, and the per-balance rate limit applies. A balance key comes from `POST /v1/wallet/open` (an invite alone, no eCash), a topup or a funding ([Balance](#balance)); a balance spent down to 0 keeps its key. Encrypted (EHBP) and Oblivious HTTP requests follow the same rules.
 
 #### Encrypted chat (EHBP)
 
@@ -223,11 +223,13 @@ For a request that failed before it was served while its payment's outcome was u
 | Endpoint | Send | Answer |
 | - | - | - |
 | `POST /v1/wallet/topup` | `{"token": "cashuB...", "invite"?: "..."}`. Optional bearer key: tops up that balance, or opens a new one under a key you chose (`sk-forge-` and 24 to 64 characters from `A-Z a-z 0-9 _ -`) | `{key?, account_id, unit, credited, replay, balance_msub, balance}` |
+| `POST /v1/wallet/open` | `{"invite"?: "...", "unit"?: "usd" \| "sat"}`, no eCash. Optional bearer key: a key you chose for the new balance, or a known key (then nothing is opened) | `{key?, account_id, unit, created, balance_msub, balance}`: a balance of 0, for [free models](#free-models) |
 | `GET /v1/wallet` | Bearer key | `{account_id, unit, balance_msub, available_msub, balance, refundable}` |
 | `POST /v1/wallet/refund` | Bearer key; optional `{"amount": N, "pubkey"?: "02..."}`, `amount` in whole units, default all | `{id, token, amount, unit, mint, status, locked_to, balance_msub, refunds}` |
 | `GET /v1/wallet/refunds` | Bearer key | `{data: [{id, amount, unit, mint, status, token, locked_to}]}`: every withdrawal of this balance, for re-delivery |
 
 - **Topup.** The token must be from one of the `mints` in `/v1/models`. Its unit sets the balance's unit; a token in another unit gets `400 wrong_unit`. `key` is returned only when the Bellows generated it, once: keep it. Sending the same token again is safe: the answer has `replay: true` and `credited: 0`. If the mint cannot be reached mid-swap, the answer is `503 topup_pending` with the `key` (when generated) and `account_id`: retry with that key and the same token.
+- **Open.** Opens a balance of 0 without eCash, so a new person can use free models without funding anything. The unit is the one named, else the default unit; one this Bellows does not offer gets `400 wrong_unit`. With invite-only on, it needs an open invite (`invite` in the body, or `X-Forge-Invite`), which it spends exactly as a topup does: `403 invite_required`, `invite_used` or `invite_invalid` otherwise, and the invite opens no other balance. With invite-only off, the invite is not needed and proof of work is the bound. Proof of work applies as for every request that opens a balance, and so does the anonymous rate limit when proof of work is off. A Bellows with invite-only off and `BELLOWS_POW_BITS=0` would let anyone open balances without limit, so it answers `403 open_disabled` instead; `open_empty` in `GET /v1/wallet/fund/methods` says which applies. `key` is returned once, only when the Bellows generated it. With a known key nothing is opened and the answer has `created: false`. The balance is kept like a funded one: a later funding that fails or expires does not remove it. Top it up or fund it at any time to use paid models.
 - **Balance.** `available_msub` is the balance minus what running requests have reserved. `refundable` is the whole units that can be withdrawn now.
 - **Refund.** Answers `200` with the token, or `202` with `status: "owed"` and `token: null` when the mint did not answer; the refund is saved and `GET /v1/wallet/refunds` (or the next refund call) delivers it. A remainder below one unit stays on the balance. `refunds` lists every withdrawal, as `GET /v1/wallet/refunds` does. Errors: `400 invalid_amount` (outside `1..refundable`), `503 wallet_insufficient`.
 - **Unknown key.** A key the Bellows does not know gets `401 invalid_key` on `GET /v1/wallet`, refunds, funding status and chat. On a topup or a funding, a well-formed key it does not know opens a new balance under that key.
@@ -262,9 +264,12 @@ A balance can be funded without eCash from an accepted mint: by a Lightning invo
     "mints_url": "/v1/wallet/fund/mints",
     "unlisted": { "enabled": true, "max": { "sat": 10000, "usd": 1000 } }
   },
-  "invite_only": false
+  "invite_only": false,
+  "open_empty": { "enabled": true, "needs_invite": false, "pow_bits": 16 }
 }
 ```
+
+`open_empty` describes [`POST /v1/wallet/open`](#balance): whether it is on, whether it needs an invite, and the proof of work it needs (0 for none).
 
 `GET /v1/wallet/fund/mints`: `{enabled, policy, mints: [{url, name?, reviewers?, source}], updated_at}`, where `source` is `discovered` (from Cashu mint reviews on Nostr, NIP-87) or `operator`. Denied mints are never listed.
 
@@ -294,7 +299,7 @@ Every token a Bellows hands back (NUT-24 change, refunds, other-mint change and 
 
 ### Proof of work
 
-A request that opens a new balance (a topup or a funding sent without a known balance key) needs a proof of work when `BELLOWS_POW_BITS` is above 0 (default 16).
+A request that opens a new balance (a topup, an open or a funding sent without a known balance key) needs a proof of work when `BELLOWS_POW_BITS` is above 0 (default 16).
 
 1. Send the request. Without a solution the answer is `428 pow_required` with `{"pow": {"challenge", "bits", "expires_at", "header"}}` and the challenge in `X-Bellows-Pow-Challenge`. `GET /v1/pow` hands out a challenge ahead of time: `{challenge, bits, expires_at, header, paths}`, where `paths` lists the paths that need one.
 2. Find a nonce of 1 to 32 characters from `A-Z a-z 0-9 _ -` such that SHA-256 of `<challenge>:<nonce>` starts with `bits` zero bits. `solvePow(challenge, bits)` in the client library does this.
@@ -316,7 +321,7 @@ A request that opens a new balance (a topup or a funding sent without a known ba
 | 400 | `invalid_request`, `invalid_amount`, `invalid_token`, `invalid_pubkey`, `untrusted_mint`, `wrong_unit`, `insufficient_amount`, `token_spent`, `encryption_required`, `method_unavailable`, `use_topup`, `mint_not_allowed`, `mint_check_failed`, `amount_too_large`, `token_mismatch`, `foreign_mint_error`, `issue_failed` |
 | 401 | `invalid_key`, `balance_key_required` |
 | 402 | `payment_required`, `insufficient_balance` |
-| 403 | `invite_required`, `invite_used`, `invite_invalid`, `account_frozen` |
+| 403 | `invite_required`, `invite_used`, `invite_invalid`, `account_frozen`, `open_disabled` |
 | 404 | `model_not_found`, `not_found` |
 | 409 | `not_settled`, `quote_expired`, `mint_unlisted`, `in_flight`, `token_in_flight` |
 | 413 | `request_too_large` |

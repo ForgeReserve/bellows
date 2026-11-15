@@ -339,6 +339,7 @@ describe('tinfoil-config.yml', () => {
         '/v1/models',
         '/v1/chat/completions',
         '/v1/wallet',
+        '/v1/wallet/open',
         '/v1/wallet/fund/lightning',
         '/v1/change/abc',
         '/v1/pow',

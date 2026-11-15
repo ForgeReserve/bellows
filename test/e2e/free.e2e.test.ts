@@ -86,6 +86,20 @@ describe.skipIf(!up)('free models', () => {
     expect(g.deps.ledger.get(a.id)!.balance_msub).toBe(0);
   });
 
+  it('an invite alone opens a balance of 0 that uses free models, plaintext and EHBP', async () => {
+    const res = await fetch(`${g.url}/v1/wallet/open`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ invite: createInvite(g) }) });
+    expect(res.status).toBe(200);
+    const opened = await res.json();
+    expect(opened).toMatchObject({ created: true, unit: 'usd', balance_msub: 0 });
+    const auth = { authorization: `Bearer ${opened.key}` };
+    const free = await chat('mock-free', auth);
+    expect(free.status).toBe(200);
+    expect(free.headers.get('x-forge-charged-msub')).toBe('0');
+    expect((await encrypted(auth)).status).toBe(200);
+    expect((await chat('mock-echo', auth)).status).toBe(402);
+    expect(g.deps.ledger.get(opened.account_id)!.balance_msub).toBe(0);
+  });
+
   it('a funded balance: free requests leave it untouched, paid ones charge as before', async () => {
     const top = await (
       await fetch(`${g.url}/v1/wallet/topup`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: await mintToken(MINT_A, 'usd', 100), invite: createInvite(g) }) })
