@@ -129,8 +129,8 @@ describe('the shipped catalogs', () => {
     for (const m of c.catalog.models.filter((x) => x.supplier !== 'tokenfactory' && x.supplier !== 'mock')) expect(m.free, m.id).toBe(false);
   });
 
-  it('models.json ships all 13 Token Factory models', () => {
-    expect(read('models.json').models.filter((m) => m.supplier === 'tokenfactory')).toHaveLength(13);
+  it('models.json ships the 11 Token Factory models it still serves', () => {
+    expect(read('models.json').models.filter((m) => m.supplier === 'tokenfactory')).toHaveLength(11);
   });
 });
 

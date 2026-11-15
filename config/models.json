@@ -207,17 +207,6 @@
       "name": "Kimi K3.1 Pro"
     },
     {
-      "id": "minimax-m3.1-flash",
-      "supplier": "tokenfactory",
-      "upstream": "minimax-m3.1-flash",
-      "pricing": "free",
-      "free_reason": "Token Factory charges nothing during its beta",
-      "max_output_tokens": 8192,
-      "uncensored": false,
-      "context_length": 917504,
-      "name": "MiniMax M3.1 Flash"
-    },
-    {
       "id": "nemotron-3-ultra",
       "supplier": "tokenfactory",
       "upstream": "nemotron-3-ultra",
@@ -227,17 +216,6 @@
       "uncensored": false,
       "context_length": 917504,
       "name": "Nemotron 3 Ultra"
-    },
-    {
-      "id": "nemotron-3-super",
-      "supplier": "tokenfactory",
-      "upstream": "nemotron-3-super",
-      "pricing": "free",
-      "free_reason": "Token Factory charges nothing during its beta",
-      "max_output_tokens": 8192,
-      "uncensored": false,
-      "context_length": 917504,
-      "name": "Nemotron 3 Super"
     },
     {
       "id": "nemotron-3.5-lightning",
