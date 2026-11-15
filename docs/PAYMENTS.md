@@ -35,6 +35,10 @@ NUT-24 does not specify change. Bellows's choice (header, final stream event, re
 
 Only a SHA-256 of each key is stored.
 
+## Free models
+
+A model the catalog marks `"pricing": "free"` takes no money in any form. A request for it needs a known balance key that is not frozen; any balance works, 0 included. Nothing is reserved, the balance is only read, and settlement charges 0: no markup, no flat schedule, and token prices left in the catalog are read as 0. No BTC/USD rate is needed, so a sat balance can use free models while sat pricing is paused. A request without a balance key gets `401 balance_key_required` before its `X-Cashu` header is read, so no NUT-24 token is inspected, swapped or kept, and no `402` quote is made. Upstream failures, partial streams and EHBP pass-through settle the same way, at 0. The day's `usage_daily` row counts the request with `charged_msub`, `price_nusd` and `cost_nusd` of 0, and the request log says `payment: free` and `cost_source: free`. `test/unit/free-models.test.ts` and `test/e2e/free.e2e.test.ts` check this, and that paid models on the same balance are reserved and charged as before.
+
 ## Metering
 
 - Plaintext requests: the gateway asks the supplier for usage (`stream_options.include_usage` on streams) and settles on it. If the client did not ask for usage, the usage-only chunk is removed from the stream it sees.

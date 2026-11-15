@@ -35,7 +35,7 @@ The rules `pnpm deploy:check` enforces, and why:
 - A GitHub account for a **public** deploy repository. Tinfoil measures the config in a public repository so that anyone can check it.
 - A server for your keyserver with a domain and a certificate from a public certificate authority (Let's Encrypt works; self-signed is refused). It must be reachable from the enclave at every boot.
 - The mints you accept, and API keys for the suppliers you use.
-- Your suppliers' rate cards. Bellows serves a model only when its price in `config/models.json` is marked `price_verified: true`, so check each price you sell and mark it; a model left unverified is not listed or routable. `BELLOWS_SERVE_UNVERIFIED_PRICES=true` serves them anyway and logs that at error level at every start; it sits in the measured config, so anyone reading your deploy repository sees it.
+- Your suppliers' rate cards. Bellows serves a model only when its price in `config/models.json` is marked `price_verified: true`, so check each price you sell and mark it; a model left unverified is not listed or routable. `BELLOWS_SERVE_UNVERIFIED_PRICES=true` serves them anyway and logs that at error level at every start; it sits in the measured config, so anyone reading your deploy repository sees it. A model you sell at no charge is marked `"pricing": "free"` with a `free_reason` instead of prices (the shipped Token Factory models are, because Token Factory charges nothing during its beta): it is served without that setting, charges nothing and needs a balance key. When the supplier starts charging, replace both fields with its prices and `price_verified: true`.
 - A machine you keep offline, for making and backing up the keys.
 
 ## 1. Make your deploy repository

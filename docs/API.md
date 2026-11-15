@@ -104,8 +104,23 @@ The models this Bellows sells, in the OpenAI list shape, with prices and payment
       "max_output_tokens": 4096,
       "pricing": {
         "mode": "metered",
+        "free": false,
+        "free_reason": null,
+        "requires_balance_key": false,
         "usd_per_mtok": { "input": 0.5, "output": 1.5 },
         "sat_per_mtok": { "input": 500, "output": 1500 },
+        "verified": true
+      }
+    },
+    {
+      "id": "example-free-model",
+      "pricing": {
+        "mode": "free",
+        "free": true,
+        "free_reason": "The supplier charges nothing during its beta",
+        "requires_balance_key": true,
+        "usd_per_mtok": { "input": 0, "output": 0 },
+        "sat_per_mtok": { "input": 0, "output": 0 },
         "verified": true
       }
     }
@@ -119,14 +134,15 @@ The models this Bellows sells, in the OpenAI list shape, with prices and payment
 
 - `tier` (and its copy `privacy`) is `enclave` for a model that runs in its supplier's sealed hardware, `standard` otherwise.
 - `encrypted_passthrough` is true when the model takes EHBP-encrypted bodies ([Encrypted chat](#encrypted-chat-ehbp)). Such a model also lists `upstream_model`, the name to send in `X-Tinfoil-Model`.
-- `pricing.usd_per_mtok` is the price per million input and output tokens in US dollars, markup included. `sat_per_mtok` is the same at the current BTC/USD rate, or `null` when sats are not offered or no rate is known. `mode` is `metered` (charged by tokens) or `flat` (charged by a fixed schedule of request sizes). `verified` is true when the operator checked the price against the supplier's rate card. A Bellows serves a model with `verified: false` only when its operator has turned that on explicitly; treat such a price as an estimate.
+- `pricing.usd_per_mtok` is the price per million input and output tokens in US dollars, markup included. `sat_per_mtok` is the same at the current BTC/USD rate, or `null` when sats are not offered or no rate is known. `mode` is `metered` (charged by tokens), `flat` (charged by a fixed schedule of request sizes) or `free` (below). `verified` is true when the operator checked the price against the supplier's rate card. A Bellows serves a model with `verified: false` only when its operator has turned that on explicitly; treat such a price as an estimate.
+- A free model has `mode: "free"`, `free: true`, a `free_reason`, and prices of 0 in both units (with or without a rate). It costs nothing: nothing is reserved or charged, at any balance including 0. It needs a balance key (`requires_balance_key: true`): see [Free models](#free-models). Clients that only read `usd_per_mtok` see a price of 0; other models carry `free: false`, `free_reason: null` and `requires_balance_key: false`.
 - `mints` lists the mints whose eCash this Bellows takes for topups and per-request payment. `btc_usd` is the rate in use, or `null`.
 
 ### `POST /v1/chat/completions`
 
 OpenAI chat completions, streamed or not. `tools`, `tool_choice` and other fields pass through untouched. `n` must be 1. `max_tokens` (or `max_completion_tokens`) is capped per model at `max_output_tokens`; without one, the cap applies.
 
-**Payment.** Before the request runs, the Bellows reserves its maximum cost: the request's size as input tokens plus the full output allowance, at the model's price. It then charges the actual cost when the answer is done.
+**Payment.** Before the request runs (free models excepted: see [Free models](#free-models)), the Bellows reserves its maximum cost: the request's size as input tokens plus the full output allowance, at the model's price. It then charges the actual cost when the answer is done.
 
 | Send | Result |
 | - | - |
@@ -170,6 +186,10 @@ Its members: `request_id`, `unit`, `charged_msub`, and `balance_msub` (balance p
 **Upstream failures** charge nothing and return all NUT-24 change, including an answer whose body breaks after its headers arrived. The answer is `502` (or the upstream's own 4xx) with code `upstream_error`. A balance reservation is released at once.
 
 A paid NUT-24 request that fails inside the Bellows before it settles (an internal error) leaves its whole payment as change at `GET /v1/change/{request_id}`, in the same process, or for a retry with the same token to take over, once.
+
+#### Free models
+
+Free models (`pricing.free` in `/v1/models`) take no payment. Send `Authorization: Bearer sk-forge-...` for a balance the Bellows knows: any balance works, 0 included, and it is not touched. The answer says `X-Forge-Charged-Msub: 0` (or `charged_msub: 0` in the stream's `event: forge`) with the balance unchanged in `X-Forge-Balance-Msub`. Without a balance key the request gets `401 balance_key_required`, whether it sent `X-Cashu`, asked for a quote or sent nothing; no `402` quote is made and an `X-Cashu` token is not looked at, so it stays yours. A frozen balance gets `403 account_frozen`, an unknown key `401 invalid_key`, and the per-balance rate limit applies. A balance key comes from a topup or a funding ([Balance](#balance)); a balance spent down to 0 keeps its key. Encrypted (EHBP) and Oblivious HTTP requests follow the same rules.
 
 #### Encrypted chat (EHBP)
 
@@ -294,7 +314,7 @@ A request that opens a new balance (a topup or a funding sent without a known ba
 | Status | Codes |
 | - | - |
 | 400 | `invalid_request`, `invalid_amount`, `invalid_token`, `invalid_pubkey`, `untrusted_mint`, `wrong_unit`, `insufficient_amount`, `token_spent`, `encryption_required`, `method_unavailable`, `use_topup`, `mint_not_allowed`, `mint_check_failed`, `amount_too_large`, `token_mismatch`, `foreign_mint_error`, `issue_failed` |
-| 401 | `invalid_key` |
+| 401 | `invalid_key`, `balance_key_required` |
 | 402 | `payment_required`, `insufficient_balance` |
 | 403 | `invite_required`, `invite_used`, `invite_invalid`, `account_frozen` |
 | 404 | `model_not_found`, `not_found` |

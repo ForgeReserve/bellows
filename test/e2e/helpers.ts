@@ -108,6 +108,9 @@ export function testCatalog(enclavePort = 1) {
       m('mock-think', 'mock', { reasoning: true, reasoning_efforts: ['low', 'high'] }),
       { ...m('flat-echo', 'mockflat'), upstream: 'mock-echo' },
       { ...m('tinfoil/enc-model', 'tinfoil'), upstream: 'enc-model' },
+      // Free models (pricing free): no prices, served only with a balance key.
+      { id: 'mock-free', supplier: 'mock', upstream: 'mock-echo', pricing: 'free', free_reason: 'Free in tests', max_output_tokens: 256 },
+      { id: 'tinfoil/enc-free', supplier: 'tinfoil', upstream: 'enc-free', pricing: 'free', free_reason: 'Free in tests', max_output_tokens: 256 },
     ],
   };
 }

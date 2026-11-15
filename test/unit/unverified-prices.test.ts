@@ -146,14 +146,15 @@ describe('admin settings', () => {
 });
 
 describe('the shipped catalog', () => {
-  const shipped = JSON.parse(readFileSync(join(import.meta.dirname, '../../config/models.json'), 'utf8')) as typeof catalog;
+  const shipped = JSON.parse(readFileSync(join(import.meta.dirname, '../../config/models.json'), 'utf8')) as { suppliers: object; models: Array<{ id: string; price_verified?: boolean; pricing?: string }> };
   const keys = () => ({ secrets: memorySecrets({ BELLOWS_WALLET_SECRET: newWalletSecret(), TINFOIL_API_KEY: 'k', TOKENFACTORY_API_KEY: 'k' }) });
 
   it('with every supplier key present, serves no model whose price is unverified', () => {
     const c = loadConfig(base as NodeJS.ProcessEnv, shipped, keys());
     expect(c.catalog.models.length).toBeGreaterThan(0);
     expect(c.catalog.models.filter((m) => !m.price_verified)).toEqual([]);
-    const placeholders = shipped.models.filter((m) => m.price_verified !== true).map((m) => m.id);
+    // A free model (pricing free) has no price to check and counts as verified.
+    const placeholders = shipped.models.filter((m) => m.price_verified !== true && m.pricing !== 'free').map((m) => m.id);
     expect(c.unverifiedPrices.models).toEqual(placeholders);
     for (const id of placeholders) expect(c.catalog.models.map((m) => m.id)).not.toContain(id);
   });

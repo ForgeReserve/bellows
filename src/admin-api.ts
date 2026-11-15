@@ -652,6 +652,8 @@ export function createAdminRouter(d: Deps): Hono {
         tier: tierOf(m.supplier),
         uncensored: m.uncensored,
         verified: m.price_verified,
+        free: m.free,
+        free_reason: m.free_reason,
         max_output_tokens: m.max_output_tokens,
         cost_usd_per_mtok: { input: m.input_usd_per_mtok, output: m.output_usd_per_mtok },
         price_usd_per_mtok: { input: displayPrice(m.input_usd_per_mtok, markup, 'usd'), output: displayPrice(m.output_usd_per_mtok, markup, 'usd') },
