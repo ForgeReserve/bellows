@@ -9,7 +9,7 @@
 
 Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request and forwards the request to AI models. Point any OpenAI client at it, pay with eCash, and it forwards the request to a pluggable upstream supplier. Licensed MIT.
 
-Bellows started as the engine inside Forge AI, which remains an example deployment, and is extracted here so anyone can run one. Its goal is to be **operator-blind**: the person who runs a Bellows learns nothing worth taking from it. That work is in progress; [docs/DESIGN.md](docs/DESIGN.md) has the plan and states what each step hides and what stays visible. This release is the standalone engine. It keeps every secret in one secrets source and can refuse to run unless its database sits on an encrypted volume ([Secrets and sealed state](#secrets-and-sealed-state)), but it does not yet run in sealed hardware, so today the operator of a Bellows can read plaintext requests in memory and can read its database. Encrypted requests to enclave models (below) are unreadable to the gateway already.
+Bellows started as the engine inside Forge AI, which remains an example deployment, and is extracted here so anyone can run one. Its goal is to be **operator-blind**: the person who runs a Bellows learns nothing worth taking from it. That work is in progress; [docs/DESIGN.md](docs/DESIGN.md) has the plan and states what each step hides and what stays visible. Every secret comes from one secrets source, and Bellows can refuse to run unless its database sits on an encrypted volume ([Secrets and sealed state](#secrets-and-sealed-state)). Deployed with the deploy kit on Tinfoil Containers ([Sealed deployment](#sealed-deployment)), it runs in sealed hardware: releases 0.1.0, 0.1.1 and 0.1.2 were built and measured by the release workflows and are listed in [`builds.json`](builds.json), and the reference instance at `https://bellows.island-bitcoin.containers.tinfoil.dev` runs 0.1.2 that way. [docs/OPERATE.md](docs/OPERATE.md#not-verified-on-sealed-hardware) lists what has not yet been checked on sealed hardware. Run anywhere else, on your own server or in Docker, a Bellows is not sealed: its operator can read plaintext requests in memory and can read its database. Encrypted requests to enclave models (below) are unreadable to the gateway in either case.
 
 Two ways to pay:
 
@@ -45,10 +45,14 @@ pnpm mint:up                                  # three local Nutshell mints with 
 export BELLOWS_TRUSTED_MINTS=http://127.0.0.1:3338 BELLOWS_MODELS_FILE=config/models.dev.json BELLOWS_DB_PATH=data/dev.db
 pnpm start &                                  # http://localhost:8787
 pnpm test-token 50 usd                        # prints a test eCash token worth 50 cents
-curl -s localhost:8787/v1/wallet/topup -H 'content-type: application/json' -d '{"token": "cashuB..."}'
+SOLUTION=$(node --input-type=module -e "
+  import { solvePow } from './client/pow.ts';
+  const { challenge, bits } = await (await fetch('http://localhost:8787/v1/pow')).json();
+  console.log(await solvePow(challenge, bits));")
+curl -s localhost:8787/v1/wallet/topup -H 'content-type: application/json' -H "X-Bellows-Pow: $SOLUTION" -d '{"token": "cashuB..."}'
 ```
 
-The topup answer holds a new `sk-forge-...` key. Use it as a bearer key:
+Opening a new balance takes a small proof of work ([Proof of work for a new balance](#proof-of-work-for-a-new-balance)): the `node` line above solves one with the client library, and [docs/BUILD.md](docs/BUILD.md#open-a-balance) shows the same with curl and Python. The topup answer holds a new `sk-forge-...` key. Use it as a bearer key:
 
 ```sh
 curl -s localhost:8787/v1/chat/completions -H "authorization: Bearer sk-forge-..." \
@@ -135,6 +139,8 @@ Environment variables, validated with zod at startup (`src/config.ts`):
 | `BELLOWS_MARKUP` | `1.25` | Multiplier on supplier cost |
 | `BELLOWS_SERVE_UNVERIFIED_PRICES` | `false` | Serve models whose catalog price has `price_verified: false`. Off, they are neither listed nor routable, whatever supplier keys are present. On, startup logs them at error level. See [Model catalog](#model-catalog) |
 | `BELLOWS_MODELS_FILE` | `config/models.json` | Supplier and model catalog |
+| `PORT` | `8787` | Port the API listens on |
+| `HOST` | `0.0.0.0` | Address the API listens on |
 | `BELLOWS_DB_PATH` | `data/bellows.db` | SQLite ledger and wallet state. In sealed mode it must be on a mount in `BELLOWS_SEALED_MOUNTS` |
 | `BELLOWS_MODE` | `development` | `development` or `sealed`. See [Secrets and sealed state](#secrets-and-sealed-state) |
 | `BELLOWS_SECRETS` | `file` in development, `platform` in sealed mode | Where secrets come from |

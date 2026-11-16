@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operators | Bellows docs</title>
+<meta name="description" content="Operator announcements, choosing among many operators and moving a balance from one to another.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Operators | Bellows docs">
+<meta property="og:description" content="Operator announcements, choosing among many operators and moving a balance from one to another.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Operators | Bellows docs">
+<meta name="twitter:description" content="Operator announcements, choosing among many operators and moving a balance from one to another.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="docs">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
+        <li><a href="../docs/build.html">Build</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap docs-layout">
+<nav class="docs-nav" aria-label="Docs">
+<details class="docs-menu" open>
+<summary>All docs</summary>
+<p class="nav-group">Build</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+</ul>
+<p class="nav-group">Reference</p>
+<ul>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="operators.html" aria-current="page">Operators</a>
+<ul class="toc"><li><a href="#the-operator-announcement">The operator announcement</a></li><li><a href="#choosing-an-operator-client-library">Choosing an operator (client library)</a></li><li><a href="#moving-a-balance">Moving a balance</a></li><li><a href="#what-this-does-not-do">What this does not do</a></li><li><a href="#tests">Tests</a></li></ul></li>
+</ul>
+<p class="nav-group">Run</p>
+<ul>
+<li><a href="operate.html">Run your own</a></li>
+</ul>
+<p class="nav-group">On GitHub</p>
+<ul>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="prose">
+<h1 id="operators">Operators</h1>
+<p>Anyone can run a Bellows. This document covers how an operator says where their Bellows is and what it takes, how a client chooses among many operators, and how a client moves its balance from one operator to another.</p>
+<p>Balances do not move between operators by themselves. A balance key works only at the operator that issued it. To change operators, a client withdraws its balance as eCash and funds a new balance elsewhere (&quot;Moving a balance&quot; below).</p>
+<h2 id="the-operator-announcement">The operator announcement<a class="anchor" href="#the-operator-announcement" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>An operator publishes one signed Nostr event per Bellows. It is addressable (NIP-01): for one operator key and one address, the newest event replaces the older ones.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Field</th><th scope="col">Value</th></tr></thead>
+<tbody>
+<tr><td><code>kind</code></td><td><code>38390</code>. Chosen from the unused part of the addressable range; it is not registered in the NIPs list</td></tr>
+<tr><td><code>content</code></td><td>An optional plain-text description, at most 1000 characters</td></tr>
+<tr><td><code>[&quot;d&quot;, address]</code></td><td>The Bellows' origin, for example <code>https://bellows.example</code>. The replaceable key</td></tr>
+<tr><td><code>[&quot;u&quot;, address]</code></td><td>The same origin</td></tr>
+<tr><td><code>[&quot;ohttp-relay&quot;, url]</code></td><td>Zero or more. Each is the full URL a client posts encapsulated requests to (<a href="ohttp.html">Oblivious HTTP</a>)</td></tr>
+<tr><td><code>[&quot;onion&quot;, url]</code></td><td>Optional. The Bellows' v3 onion address, for example <code>http://&lt;56 characters&gt;.onion</code></td></tr>
+<tr><td><code>[&quot;version&quot;, version]</code></td><td>The Bellows release it runs</td></tr>
+<tr><td><code>[&quot;measurement&quot;, type, register, ...]</code></td><td>Optional. The build measurement, as <code>builds.json</code> lists it</td></tr>
+<tr><td><code>[&quot;unit&quot;, unit]</code></td><td>One or more. The units balances are kept in: <code>usd</code>, <code>sat</code></td></tr>
+<tr><td><code>[&quot;mint&quot;, url]</code></td><td>One or more. The mints whose eCash it takes (<code>BELLOWS_TRUSTED_MINTS</code>), with no trailing slash</td></tr>
+<tr><td><code>[&quot;alt&quot;, &quot;Bellows operator announcement&quot;]</code></td><td>NIP-31 text for clients that do not know the kind</td></tr>
+</tbody>
+</table></div>
+<p>Addresses are <code>https</code>. Plain <code>http</code> is accepted only on a loopback address, for local runs and tests. Tags a client does not know are ignored, so later versions can add fields.</p>
+<h3 id="where-the-announcement-lives">Where the announcement lives<a class="anchor" href="#where-the-announcement-lives" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The same signed event is published in two places:</p>
+<ol>
+<li><strong>On Nostr relays</strong>, where clients find operators.</li>
+<li><strong>Inside the Bellows' attested identity.</strong> Set <code>BELLOWS_OPERATOR_ANNOUNCEMENT_FILE</code> to the file holding the event, or <code>BELLOWS_OPERATOR_ANNOUNCEMENT</code> to the event itself as JSON. Bellows serves it in the <code>operator</code> field of the statement at <code>/.well-known/bellows</code> (<a href="attestation.html">Attestation</a>), so the hardware attestation covers it. A sealed deployment uses the variable: the operator cannot write a file on the encrypted volume, and the measured config cannot hold an announcement that names the build it is measured into, so the keyserver releases it with the secrets (<a href="operate.html">Run your own</a>).</li>
+</ol>
+<p>When a version of Bellows is listed in <code>builds.json</code> for several operator deployments, <code>pnpm announce</code> needs <code>--deployment owner/repo@tag</code> to pick the measurement of yours.</p>
+<p>At startup Bellows checks the announcement and refuses to start unless it is a correctly signed announcement that matches its configuration: the relays equal <code>BELLOWS_RELAYS</code> in the same order, the version is this release, the measurement (when the announcement names one) is the one this Bellows claims, every unit is in <code>BELLOWS_UNITS</code> and every mint is in <code>BELLOWS_TRUSTED_MINTS</code>. An announcement that does not match what the Bellows does would only make clients refuse it later.</p>
+<h3 id="publishing">Publishing<a class="anchor" href="#publishing" aria-hidden="true" tabindex="-1">#</a></h3>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">pnpm announce --url https://bellows.example --unit sat --unit usd \
+  --mint https://mint.example \
+  --relay https://relay.example/relay/bellows.example \
+  --onion http://&lt;56 characters&gt;.onion \
+  --description &quot;Example operator&quot; \
+  --out announcement.json \
+  --nostr wss://nostr-relay-one.example --nostr wss://nostr-relay-two.example</code></pre>
+<ul>
+<li>The command asks for the operator's Nostr secret key (an <code>nsec1...</code> string or 64 hex characters) at a prompt that does not show what is typed. When stdin is not a terminal it reads the first line, so the key can come from a password manager: <code>password-tool show nostr | pnpm announce ...</code>. The key is never taken from the command line or the environment, and is never printed or written.</li>
+<li>The fields are checked before the key is asked for.</li>
+<li><code>--version</code> defaults to this release. Unless <code>--measurement</code> gives one, the measurement is read from <code>builds.json</code> (<code>--builds</code> names another file) for that version, and left out when the version is not listed.</li>
+<li><code>--out</code> writes the signed event for <code>BELLOWS_OPERATOR_ANNOUNCEMENT_FILE</code>. <code>--nostr</code> publishes it and reports each relay's answer. <code>--dry-run</code> signs and writes but publishes nothing.</li>
+<li>Exit status: 0 when everything worked, 1 when a Nostr relay refused the event or did not answer, 2 for a usage error or a bad key.</li>
+</ul>
+<p>Publish again after every upgrade, relay change or mint change, and restart the Bellows with the new file. Clients take the attested copy as current.</p>
+<h2 id="choosing-an-operator-client-library">Choosing an operator (client library)<a class="anchor" href="#choosing-an-operator-client-library" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>The client library in <a href="https://github.com/ForgeReserve/bellows/tree/main/client/"><code>client/</code></a> runs in browsers and in Node 22+.</p>
+<pre tabindex="0" data-lang="ts"><code class="language-ts">import { loadOperatorAnnouncements, OperatorPool, storageMemory, tinfoilVerifier } from './client/index.ts';
+
+const { announcements } = await loadOperatorAnnouncements(['wss://nostr-relay.example'], { authors: trustedOperatorKeys });
+const pool = new OperatorPool({
+  operators: announcements,
+  approvedBuilds: buildsJson,
+  verifier: tinfoilVerifier({ authenticate }),
+  memory: storageMemory(localStorage),
+  unit: 'sat',
+});
+const { response, operator } = await pool.fetch('/v1/models');</code></pre>
+<p><code>loadOperatorAnnouncements</code> reads kind 38390 events from Nostr relays, checks each event's id and signature, and keeps the newest per key and address. <code>authors</code> limits it to keys the app trusts. An app can also ship a list of signed events and skip the relays.</p>
+<p>Before an operator is used, the pool:</p>
+<ol>
+<li>Verifies the Bellows with <code>verifyBellows</code>: a hardware attestation of a build on the approved list (<a href="attestation.html">Attestation</a>).</li>
+<li>Checks that the attested statement carries a signed announcement by the <strong>same operator key for the same address</strong>. A listed event that points at someone else's Bellows is refused (<code>announcement_mismatch</code>). From here on the pool uses the attested copy.</li>
+<li>Checks requirements: the unit and mint the app asks for (<code>not_accepted</code> otherwise).</li>
+<li>Checks health: <code>GET /healthz</code> through Oblivious HTTP, on the same path real requests take.</li>
+</ol>
+<p>Then it picks. The order is the remembered operator first, then the list order. An operator that failed in the last minute (<code>retryAfterMs</code>) goes to the back. <code>memory</code> is any <code>{get, set}</code>; <code>storageMemory(localStorage)</code> keeps it across page loads and ignores storage that throws. Every call that gets an answer below 500 makes its operator the remembered one.</p>
+<h3 id="routes">Routes<a class="anchor" href="#routes" aria-hidden="true" tabindex="-1">#</a></h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col"><code>route</code></th><th scope="col">Requests go</th></tr></thead>
+<tbody>
+<tr><td><code>relay-or-direct</code> (default)</td><td>Through the first relay the Bellows lists in its attested statement, straight to it when it lists none</td></tr>
+<tr><td><code>relay</code></td><td>Only through a relay. A Bellows that lists none is passed over</td></tr>
+<tr><td><code>direct</code></td><td>Straight to the Bellows. Its host sees the client's address</td></tr>
+<tr><td><code>onion</code></td><td>To the onion address in the announcement, with a <code>fetch</code> that reaches Tor. The attested announcement must name the same onion address</td></tr>
+</tbody>
+</table></div>
+<p>Who is asking is hidden from the operator only when you use a relay run by someone else, or Tor. A relay and a Bellows run by the same party hide nothing from that party.</p>
+<h3 id="failover">Failover<a class="anchor" href="#failover" aria-hidden="true" tabindex="-1">#</a></h3>
+<p><code>pool.fetch(path, init, options)</code> fails over to the next operator when one cannot be verified, fails its health check, cannot be reached, or answers 502, 503 or 504. Failing verification or health is always safe to skip: nothing of the request was sent.</p>
+<p>Once a request may have reached a Bellows, sending it to another one could run it twice, and a paid request would be paid twice. So by default only <code>GET</code> and <code>HEAD</code> fail over at that point. Set <code>failover: true</code> only for a request that is safe to send twice.</p>
+<p>A call that carries a balance key names its operator (<code>{ operator: id }</code>) and never fails over: the key means nothing elsewhere, and an operator that did not issue it could use it at the one that did. The pool enforces this: a call with an <code>authorization</code> header and no <code>operator</code> is refused (<code>not_accepted</code>) before anything is sent. A pinned call skips the pool's <code>unit</code> and <code>mint</code>, since it reaches a balance that operator already holds. A failed operator is verified again before its next use, which also picks up a Bellows that restarted with a new key. When every operator fails, the error (<code>no_operator</code>) lists each one and why.</p>
+<h2 id="moving-a-balance">Moving a balance<a class="anchor" href="#moving-a-balance" aria-hidden="true" tabindex="-1">#</a></h2>
+<pre tabindex="0" data-lang="ts"><code class="language-ts">import { moveBalance } from './client/index.ts';
+
+const moved = await moveBalance(pool, {
+  from: oldOperatorId,
+  key: oldBalanceKey,
+  onToken: async (w) =&gt; saveUntilDone(w.token),
+});
+// moved.to is the new operator, moved.key the new balance key there.</code></pre>
+<ol>
+<li><strong>Withdraw.</strong> <code>GET /v1/wallet</code> at the old operator, then <code>POST /v1/wallet/refund</code> for every whole unit. Withdrawals are whole units, so a remainder below one cent or one sat stays behind. The answer names the token's <code>mint</code>.</li>
+<li><strong>Hand over.</strong> <code>onToken</code> gets the token as soon as the old operator issues it, before anything else can fail. Keep it until the move returns: until then it is the balance.</li>
+<li><strong>Fund.</strong> The new key is chosen on the client before funding. The token goes to <code>POST /v1/wallet/topup</code> at <code>to</code>, or, when <code>to</code> is not given, at each other operator in pool order. An operator whose attested announcement does not take the token's unit and mint is passed over before anything is sent, so it never sees the token or a key. Proof of work for a new balance is solved on the client. An operator that refuses the mint or unit anyway, or that needs an invite, is passed over and the next one is asked. An operator that answers 429 (limiting requests) did not run the funding: the move waits out its <code>Retry-After</code> up to <code>rateLimitRetries</code> times (default 2) when the wait is at most <code>maxRetryAfterSeconds</code> (default 10), and otherwise asks the next operator, or stops with <code>fund_retry</code> when <code>to</code> is given. A 429 after the same operator answered that the funding is pending stops with <code>fund_unknown</code>, because the funding may still complete there. Without <code>newKey</code>, each operator asked gets a key of its own, so one that refuses never learns the key of the balance that is funded in the end.</li>
+</ol>
+<p>What can go wrong, and what is left in the error (<code>MoveBalanceError</code>):</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col"><code>code</code></th><th scope="col">Meaning</th><th scope="col">What to do</th></tr></thead>
+<tbody>
+<tr><td><code>nothing_to_move</code></td><td>The balance is below one unit</td><td>Nothing</td></tr>
+<tr><td><code>withdraw_pending</code></td><td>The old operator owes the withdrawal but has not issued it</td><td>Fetch it later at <code>GET /v1/wallet/refunds</code> there (with its <code>mint</code>), then call again with <code>token</code> and a <code>newKey</code></td></tr>
+<tr><td><code>withdraw_failed</code></td><td>The old operator refused or could not be reached. Nothing was withdrawn, or it is listed at <code>GET /v1/wallet/refunds</code></td><td>Try again</td></tr>
+<tr><td><code>withdrawn_unroutable</code></td><td>The balance was withdrawn, but the old operator did not say which mint the token is from, so no destination can be checked against it. <code>token</code> and <code>key</code> are in the error, and <code>onToken</code> already has the token</td><td>Redeem the token in any Cashu wallet, or finish the move with <code>token</code> (its unit and mint) and <code>newKey: key</code></td></tr>
+<tr><td><code>no_destination</code></td><td>No operator took the token. <code>token</code> and <code>key</code> are in the error</td><td>Fund another operator with <code>token</code> and <code>newKey: key</code>, or redeem the token in any Cashu wallet</td></tr>
+<tr><td><code>fund_unknown</code></td><td>The funding request may have reached <code>to</code> and its outcome is not known: <code>to</code> could not be reached, answered that the funding is pending, or answered with a server error (5xx). <code>token</code>, <code>to</code> and <code>key</code> are in the error</td><td>Call again with the same <code>to</code>, <code>newKey: key</code> and <code>token</code>. Never send the token elsewhere first: if it was received, it is spent</td></tr>
+<tr><td><code>fund_retry</code></td><td><code>to</code> is limiting requests (429) and did not run the funding, even after waiting as asked. The token is untouched. <code>token</code>, <code>to</code> and <code>key</code> are in the error</td><td>Call again later with the same <code>to</code>, <code>newKey: key</code> and <code>token</code>, or fund another operator</td></tr>
+<tr><td><code>fund_failed</code></td><td><code>to</code> refused the token for good with a 4xx answer other than 429, for example as already spent</td><td>Check the balance at <code>to</code> with <code>key</code>. The token is in the error</td></tr>
+</tbody>
+</table></div>
+<p>Finishing a move takes <code>token</code> (<code>{ token, unit, mint }</code>) and the <code>key</code> from the error as <code>newKey</code>. A call with <code>token</code> and no <code>newKey</code> is refused (<code>not_accepted</code>): a fresh key would open an empty balance and the token would be refused as spent. Calling again with the same <code>to</code>, <code>newKey</code> and <code>token</code> is safe: the operator recognizes the token and the key and credits once (<code>credited: 0</code> when the first call was credited).</p>
+<h2 id="what-this-does-not-do">What this does not do<a class="anchor" href="#what-this-does-not-do" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li>Balances never move between operators on their own, and operators do not talk to each other.</li>
+<li>An announcement says what an operator offers. It is not a promise of uptime, prices or honesty about anything the attestation does not cover.</li>
+<li>The pool trusts the approved-builds list and the verifier the app gives it. An app that lists an operator key trusts that operator to keep its announcement current.</li>
+</ul>
+<h2 id="tests">Tests<a class="anchor" href="#tests" aria-hidden="true" tabindex="-1">#</a></h2>
+<p><code>test/unit/operators.test.ts</code> checks event signing and verification, the announcement's fields and every refusal (unsigned, wrong kind, repeated or missing tags, bad URLs, dated in the future), newest-wins selection, reading and publishing on Nostr relays against a stand-in relay, the client's proof of work against the Bellows' check, the publishing command (NIP-19 key vector, hidden prompt in a terminal and from a pipe, fields checked before the key is asked for, the key never printed, publishing and dry run), startup refusing an announcement that does not match the configuration, and the pool against Bellows instances in the same process: picking and remembering, an announcement pointing at someone else's Bellows, unapproved builds, the development stand-in, units and mints, failover for <code>GET</code> and none for <code>POST</code> once sent, pinned calls, a restart with a new key, a failed health check, the relay and onion routes, pinned calls skipping the pool's unit and mint, unpinned calls with a balance key refused, and the move: its refusals, a funding request or answer lost on the way (<code>fund_unknown</code>, then finished once with the same key), a pending funding retried, a server error after a pending funding (<code>fund_unknown</code>, not <code>fund_failed</code>), a withdrawal owed but not issued (<code>withdraw_pending</code>), a withdrawal answered without its mint (<code>withdrawn_unroutable</code>, with <code>onToken</code> called first), a destination answering 429 (<code>fund_retry</code> with <code>to</code>, a short <code>Retry-After</code> waited out, the next operator asked without <code>to</code>, a 429 after a pending answer <code>fund_unknown</code> with no other operator asked), an operator that takes another mint never contacted, and a refusing operator never seeing the funded key.</p>
+<p><code>test/e2e/operators.e2e.test.ts</code> runs three Bellows over HTTP against the local mints, one behind a relay. It funds a balance at one, spends part of it, moves the rest (the first candidate takes another mint and gets no request, the second asks for proof of work and takes it), checks the amounts at both ends and that finishing the move again credits nothing, loses the answer to a funding and finishes it with the same key once, and fails over when operators go down.</p>
+<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OPERATORS.md">docs/OPERATORS.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
+    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="../docs/build.html">Build on Bellows</a></li>
+        <li><a href="../docs/api.html">API reference</a></li>
+        <li><a href="../docs/threat-model.html">Threat model</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

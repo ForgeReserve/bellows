@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operating a Bellows | Bellows docs</title>
+<meta name="description" content="Run a Bellows on Tinfoil Containers, step by step, so that its operator cannot read it.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Operating a Bellows | Bellows docs">
+<meta property="og:description" content="Run a Bellows on Tinfoil Containers, step by step, so that its operator cannot read it.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Operating a Bellows | Bellows docs">
+<meta name="twitter:description" content="Run a Bellows on Tinfoil Containers, step by step, so that its operator cannot read it.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="docs">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html">Docs</a></li>
+        <li><a href="../docs/build.html">Build</a></li>
+        <li><a href="../docs/operate.html" aria-current="page">Run your own</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap docs-layout">
+<nav class="docs-nav" aria-label="Docs">
+<details class="docs-menu" open>
+<summary>All docs</summary>
+<p class="nav-group">Build</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+</ul>
+<p class="nav-group">Reference</p>
+<ul>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="nav-group">Run</p>
+<ul>
+<li><a href="operate.html" aria-current="page">Run your own</a>
+<ul class="toc"><li><a href="#the-deploy-kit">The deploy kit</a></li><li><a href="#what-you-need">What you need</a></li><li><a href="#1-make-your-deploy-repository">1. Make your deploy repository</a></li><li><a href="#2-make-the-keys-offline">2. Make the keys, offline</a></li><li><a href="#3-run-your-keyserver">3. Run your keyserver</a></li><li><a href="#4-release">4. Release</a></li><li><a href="#5-approve-the-release-in-your-keyserver">5. Approve the release in your keyserver</a></li><li><a href="#6-create-the-volume-and-the-instance">6. Create the volume and the instance</a></li><li><a href="#7-check-it">7. Check it</a></li><li><a href="#onion-service">Onion service</a></li><li><a href="#oblivious-http-under-load">Oblivious HTTP under load</a></li><li><a href="#updating">Updating</a></li><li><a href="#backups-and-recovery">Backups and recovery</a></li><li><a href="#rehearse-locally">Rehearse locally</a></li><li><a href="#not-verified-on-sealed-hardware">Not verified on sealed hardware</a></li></ul></li>
+</ul>
+<p class="nav-group">On GitHub</p>
+<ul>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="prose">
+<h1 id="operating-a-bellows">Operating a Bellows</h1>
+<p>This page runs a Bellows on Tinfoil Containers, step by step, so that its operator cannot read the requests, the answers, the balances or the keys. What each party can still see is in <a href="threat-model.html">Threat model</a>.</p>
+<p><strong>NOT VERIFIED</strong> marks every step that needs real sealed hardware and has not been checked there one by one. Those steps follow Tinfoil's public documentation and the deploy kit in this repository. The release workflows have run on GitHub (<a href="#4-release">4. Release</a>), and the reference instance runs release 0.1.2 this way. Everything else here has been run locally. &quot;Not verified on sealed hardware&quot; at the end lists the open points.</p>
+<h2 id="the-deploy-kit">The deploy kit<a class="anchor" href="#the-deploy-kit" aria-hidden="true" tabindex="-1">#</a></h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">File</th><th scope="col">What it is</th></tr></thead>
+<tbody>
+<tr><td><code>tinfoil-config.yml</code></td><td>Your deployment, the file Tinfoil measures: the Bellows container, its encrypted volume, its egress allowlist, the secrets it asks your keyserver for, and the paths it serves. It starts as a copy of <code>deploy/tinfoil-config.example.yml</code></td></tr>
+<tr><td><code>deploy/tinfoil-config.example.yml</code></td><td>The template for <code>tinfoil-config.yml</code>. Leave it as it is; the tests check the templates</td></tr>
+<tr><td><code>deploy/tinfoil-config.onion.example.yml</code></td><td>The template with a Tor onion service as a sidecar (<a href="#onion-service">Onion service</a>)</td></tr>
+<tr><td><code>Dockerfile</code></td><td>The Bellows image: base pinned by digest, non-root, read-only root file system, no package manager</td></tr>
+<tr><td><code>deploy/tor/</code></td><td>The Tor sidecar image</td></tr>
+<tr><td><code>deploy/keyserver/policy.example.yaml</code>, <code>store.example.json</code></td><td>Example policy and file store for your keyserver</td></tr>
+<tr><td><code>.github/workflows/tinfoil-release.yml</code>, <code>tinfoil-release-publish.yml</code></td><td>The release: build and push the images, pin their digests, tag, measure, and propose the build for <code>builds.json</code></td></tr>
+<tr><td><code>pnpm deploy:check [--release]</code></td><td>Checks a config against the rules below</td></tr>
+<tr><td><code>pnpm deploy:pin</code>, <code>pnpm builds:add</code></td><td>The release workflow's steps, for running by hand</td></tr>
+</tbody>
+</table></div>
+<p>The rules <code>pnpm deploy:check</code> enforces, and why:</p>
+<ul>
+<li><strong>Only the <code>bellows</code> container has <code>attestation: true</code>.</strong> Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key (<a href="attestation.html">Attestation</a>). A Tor sidecar or any other container runs without it.</li>
+<li><strong>Secrets come from your keyserver, and only Bellows gets them.</strong> <code>keyserver-url</code> is required. Secrets are never <code>env</code> values and never Tinfoil-managed secrets, which Tinfoil's infrastructure can read. No container other than <code>bellows</code> lists <code>secrets</code>.</li>
+<li><strong>The database is on the encrypted volume.</strong> Bellows runs sealed (<code>BELLOWS_MODE=sealed</code>), the database path is under a mount listed in <code>BELLOWS_SEALED_MOUNTS</code>, that mount is a persistent volume, and every volume has a <code>key-secret</code> so it unlocks at boot with a key only your keyserver releases. A volume belongs to one container: no other container mounts Bellows' volume.</li>
+<li><strong>Every setting is measured.</strong> Every <code>env</code> entry is a literal in the measured file. A bare name, whose value would come from an unmeasured instance variable, is refused.</li>
+<li><strong>Nobody gets in.</strong> No <code>cvm_admin</code>, no <code>ports</code>, no <code>cvm-network</code>, no capabilities, no root user, and <code>read_only: true</code> on every container, so no writable root file system.</li>
+<li><strong>Bellows reaches only what it needs.</strong> Its egress network is an allowlist: your mints, the suppliers in <code>config/models.json</code>, the price sources and the Nostr relays for mint discovery. The test suite checks that the allowlist covers every host the config uses.</li>
+<li><strong>Requests reach Bellows only</strong>, on the paths it serves.</li>
+<li><strong>For a release</strong>, <code>--release</code> also refuses example values and an image digest that is still a placeholder.</li>
+</ul>
+<h2 id="what-you-need">What you need<a class="anchor" href="#what-you-need" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li>A Tinfoil organization with Containers enabled, an organization admin key and the Tinfoil CLI (<code>tinfoil login</code>).</li>
+<li>A GitHub account for a <strong>public</strong> deploy repository. Tinfoil measures the config in a public repository so that anyone can check it.</li>
+<li>A server for your keyserver with a domain and a certificate from a public certificate authority (Let's Encrypt works; self-signed is refused). It must be reachable from the enclave at every boot.</li>
+<li>The mints you accept, and API keys for the suppliers you use.</li>
+<li>Your suppliers' rate cards. Bellows serves a model only when its price in <code>config/models.json</code> is marked <code>price_verified: true</code>, so check each price you sell and mark it; a model left unverified is not listed or routable. <code>BELLOWS_SERVE_UNVERIFIED_PRICES=true</code> serves them anyway and logs that at error level at every start; it sits in the measured config, so anyone reading your deploy repository sees it.</li>
+<li>A machine you keep offline, for making and backing up the keys.</li>
+</ul>
+<h2 id="1-make-your-deploy-repository">1. Make your deploy repository<a class="anchor" href="#1-make-your-deploy-repository" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Copy this repository to a new public repository (a fork works). It is your deployment: the code, the measured config and its release workflows.</p>
+<p>Edit <code>tinfoil-config.yml</code>, not the templates in <code>deploy/</code>. The test suite, which the release runs, checks the templates against their example values and checks your <code>tinfoil-config.yml</code> against the rules above.</p>
+<ul>
+<li><code>keyserver-url</code>: your keyserver.</li>
+<li><code>BELLOWS_TRUSTED_MINTS</code> (and <code>BELLOWS_FUND_MINT</code> if you set it): your mints. Add each mint's host to the <code>egress</code> allowlist.</li>
+<li>Any other setting in <a href="https://github.com/ForgeReserve/bellows/blob/main/README.md#configuration">README.md</a>. Add it as a quoted literal.</li>
+<li>If you change <code>config/models.json</code>, list each supplier's API key under <code>secrets</code> and its host in the allowlist.</li>
+</ul>
+<p>Then check it:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">pnpm install --frozen-lockfile
+pnpm deploy:check</code></pre>
+<p>In the repository settings, allow GitHub Actions to create pull requests (Settings, Actions, General). The release workflow proposes each build as a pull request.</p>
+<h2 id="2-make-the-keys-offline">2. Make the keys, offline<a class="anchor" href="#2-make-the-keys-offline" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>On the offline machine:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">openssl rand -base64 32     # BELLOWS_DATA_VOLUME_KEY: unlocks the encrypted volume
+openssl rand -hex 32        # BELLOWS_WALLET_SECRET: the wallet seed is derived from it
+openssl rand -hex 32        # your admin token; keep it in your password manager
+printf %s '&lt;admin token&gt;' | sha256sum     # BELLOWS_ADMIN_TOKEN_HASH</code></pre>
+<p>Generate the admin token with <code>openssl rand -hex 32</code> and nothing else. The shim in <code>tinfoil-config.yml</code> serves <code>/admin/api</code> at your public origin, because TLS ends inside the sealed machine and no proxy of yours can stand in front of it. The token is the admin API's only protection, with a budget of 10 failed logins a minute. Bellows receives only its hash, so it cannot refuse a short or guessable token. If you do not need the admin API, remove <code>/admin/api</code> and <code>/admin/api/*</code> from the shim's <code>paths</code> before the release, and leave <code>BELLOWS_ADMIN_TOKEN_HASH</code> empty.</p>
+<h3 id="back-up-the-volume-key-and-the-wallet-secret">Back up the volume key and the wallet secret<a class="anchor" href="#back-up-the-volume-key-and-the-wallet-secret" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>These two values are the only way back to the money:</p>
+<ul>
+<li><strong>The volume key</strong> opens the encrypted volume, which holds the ledger: every customer balance and the state of the gateway's eCash wallet. If it is lost, the volume cannot be opened by you, by Tinfoil or by anyone. It never changes: a new key cannot open the existing volume, and Tinfoil's secret rotation does not re-encrypt it.</li>
+<li><strong>The wallet secret</strong> derives the wallet's keys. With it, the gateway's eCash can be recovered from the mint (NUT-09 restore, <a href="payments.html">Payments</a>) even without the volume. Customer balances cannot: they live only in the ledger on the volume.</li>
+</ul>
+<p>Keep both offline before anything is written to the volume:</p>
+<ol>
+<li>Write each value on paper, twice, or save it encrypted with a passphrase on two USB drives (for example <code>age -p -o volume-key.age</code>). Keep the copies in two places.</li>
+<li>Check each copy by reading it back on the offline machine and comparing it with the original (<code>sha256sum</code>).</li>
+<li>Never put either value in Tinfoil's secret store, in a repository, in email or in chat.</li>
+</ol>
+<p>With the onion service, back up <code>BELLOWS_ONION_VOLUME_KEY</code> the same way. Losing it loses the onion address.</p>
+<h2 id="3-run-your-keyserver">3. Run your keyserver<a class="anchor" href="#3-run-your-keyserver" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Run Tinfoil's reference keyserver (<a href="https://github.com/tinfoilsh/keyserver">github.com/tinfoilsh/keyserver</a>) on your server, with its TLS certificate. Pin its image to a release; this kit was written against release <code>v0.0.5</code> (its image tag has no <code>v</code>: <code>ghcr.io/tinfoilsh/keyserver:0.0.5</code>).</p>
+<ul>
+<li>Copy <code>deploy/keyserver/policy.example.yaml</code> and fill it in. You add the approval for your first release in step 5.</li>
+<li>Choose a backend: HashiCorp Vault, AWS Secrets Manager or a local file. For the file backend, copy <code>deploy/keyserver/store.example.json</code>, fill it in on the offline machine, move it to the server and <code>chmod 600</code> it.</li>
+<li>The keyserver must serve <code>/challenge</code> and <code>/fetch</code> directly at <code>keyserver-url</code>, without redirects.</li>
+</ul>
+<p>The keyserver releases a secret only to an enclave whose fresh attestation proves it runs your repository at an approved tag and holds a certificate for your instance's domain. You run it, so you decide which release gets your secrets. That is also the known weak point: see <a href="threat-model.html#the-operator-approves-releases">Threat model</a>.</p>
+<p>NOT VERIFIED: the keyserver's release to a Bellows enclave, and every secret arriving as an environment variable.</p>
+<h2 id="4-release">4. Release<a class="anchor" href="#4-release" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Set <code>version</code> in <code>package.json</code>, commit, and run the <strong>Tinfoil Release</strong> workflow (Actions tab, or <code>tinfoil repo build run &lt;owner&gt;/&lt;repo&gt; --version v1.0.0</code>) with <code>v</code> and that version. It:</p>
+<ol>
+<li>type-checks and tests the code, including the end-to-end suite against local mints;</li>
+<li>builds and pushes the Bellows and Tor images to GitHub's container registry, with timestamps from the release commit;</li>
+<li>pins their digests into <code>tinfoil-config.yml</code>, the file Tinfoil measures: the <code>bellows</code> image, and the <code>tor</code> image when your config has the onion service (<code>pnpm deploy:pin tinfoil-config.yml bellows=&lt;image&gt; tor=&lt;image&gt;</code>). It then runs <code>pnpm deploy:check --release</code>, which refuses any container left with a placeholder digest;</li>
+<li>commits the pinned config, tags that commit and pushes the tag;</li>
+<li>starts <strong>Tinfoil Release - Publish</strong>, which measures the tagged config with Tinfoil's measure action. That action signs the measurement into the Sigstore transparency log and publishes a GitHub release with <code>tinfoil-deployment.json</code>;</li>
+<li>adds the build to <code>builds.json</code> (<code>pnpm builds:add</code>) and opens a pull request.</li>
+</ol>
+<p>Review that pull request. The entry names the version, the image digest, the measurement (<code>https://tinfoil.sh/predicate/snp-tdx-multiplatform/v1</code>: the SEV-SNP launch measurement, then TDX RTMR1 and RTMR2) and the deployment (<code>&lt;owner&gt;/&lt;repo&gt;@v1.0.0</code>). Check the measurement against <code>tinfoil-deployment.json</code> in the GitHub release and its Sigstore entry, read <code>tinfoil-config.yml</code> at the tag, and merge.</p>
+<p>Clients accept the build only once it is in the <code>builds.json</code> they trust. A Tinfoil measurement covers the whole measured config, and each operator's config differs (its keyserver, its mints), so each operator deployment is its own entry. To be listed in the public Bellows <code>builds.json</code>, open a pull request there with the same entry.</p>
+<h3 id="if-a-step-fails">If a step fails<a class="anchor" href="#if-a-step-fails" aria-hidden="true" tabindex="-1">#</a></h3>
+<ul>
+<li><strong>Tinfoil Release failed before it pushed the tag.</strong> Nothing was published. Fix the cause and run it again with the same version.</li>
+<li><strong>The tag exists, and Tinfoil Release - Publish never started or failed before the GitHub release <code>v&lt;version&gt;</code> exists.</strong> Tinfoil Release refuses an existing tag, so start Publish on the tag yourself:
+<pre tabindex="0" data-lang="sh"><code class="language-sh">gh workflow run tinfoil-release-publish.yml --ref v&lt;version&gt;</code></pre></li>
+<li><strong>The GitHub release <code>v&lt;version&gt;</code> exists, and there is no builds pull request.</strong> The measure action refuses to publish a release twice, so do not run Publish again. Make the pull request by hand from the published measurement:
+<pre tabindex="0" data-lang="sh"><code class="language-sh">git switch -c builds/v&lt;version&gt; origin/&lt;default branch&gt;
+gh release download v&lt;version&gt; --pattern tinfoil-deployment.json --dir /tmp/bellows-release
+pnpm builds:add --deployment-file /tmp/bellows-release/tinfoil-deployment.json \
+  --version &lt;version&gt; --deployment &lt;owner&gt;/&lt;repo&gt;@v&lt;version&gt;
+pnpm builds:check
+git commit -am &quot;builds: approve v&lt;version&gt;&quot; &amp;&amp; git push origin builds/v&lt;version&gt;
+gh pr create --title &quot;builds: approve v&lt;version&gt;&quot; --fill</code></pre>
+<p>Review it as above before merging.</p></li>
+</ul>
+<p>The workflows have run on GitHub for releases 0.1.0, 0.1.1 and 0.1.2, and Tinfoil's measure action measured each one. The measurements in <code>builds.json</code> match the <code>tinfoil-deployment.json</code> of each GitHub release. For 0.1.0 the publish run failed at its last step, opening the pull request, and the entry was added from the published measurement. NOT VERIFIED: the image build has not been checked for reproducibility.</p>
+<h2 id="5-approve-the-release-in-your-keyserver">5. Approve the release in your keyserver<a class="anchor" href="#5-approve-the-release-in-your-keyserver" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Add a workload entry to your policy for the new tag, with your repository, the tag and your instance's domain, and restart the keyserver. Approve only a release whose build is in the public <code>builds.json</code>. Keep the entry of the previous release while it may still need to boot (a rollback).</p>
+<p>Sign your operator announcement now that the measurement is known, and put it in the keyserver store as <code>BELLOWS_OPERATOR_ANNOUNCEMENT</code>:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">pnpm announce --url https://&lt;your domain&gt; --unit usd --unit sat --mint https://&lt;your mint&gt; \
+  --deployment &lt;owner&gt;/&lt;repo&gt;@v1.0.0 --out announcement.json --nostr wss://&lt;nostr relay&gt;</code></pre>
+<p>It must match the measured config (units, mints, relays, version), or Bellows refuses to start. It is public; it travels through the keyserver only because the measured config cannot name the measurement it is measured into.</p>
+<h2 id="6-create-the-volume-and-the-instance">6. Create the volume and the instance<a class="anchor" href="#6-create-the-volume-and-the-instance" aria-hidden="true" tabindex="-1">#</a></h2>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">tinfoil container hosts
+tinfoil volume create bellows-data --size 16GB --host &lt;host&gt;
+tinfoil container create bellows --repo &lt;owner&gt;/&lt;repo&gt; --tag v1.0.0 --volume bellows-data:data</code></pre>
+<p>Leave debug mode off. A debug instance ignores the keyserver and takes Tinfoil-managed secrets instead; never point one at a real volume or real keys. Do not create any of the values from step 2 in Tinfoil's secret store, and do not pass <code>--secret</code>.</p>
+<p>On boot, the enclave fetches the declared secrets from your keyserver, unlocks the volume at <code>/data</code>, and starts Bellows. Bellows starts only in sealed mode with its database on that mount, and logs a <code>startup</code> line naming the mode, the mount and the attester, never a secret.</p>
+<p>NOT VERIFIED: volume creation, first-boot initialization of a blank volume through <code>key-secret</code>, the volume's mount point appearing in <code>/proc/self/mountinfo</code>, and the shim's handling of streamed answers.</p>
+<h2 id="7-check-it">7. Check it<a class="anchor" href="#7-check-it" aria-hidden="true" tabindex="-1">#</a></h2>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">curl https://&lt;your domain&gt;/healthz
+curl https://&lt;your domain&gt;/.well-known/bellows</code></pre>
+<ul>
+<li><code>/.well-known/bellows</code> must return an attestation, not <code>503 not_attested</code>. Verify it the way a client does, with <code>verifyBellows</code> from <code>client/</code> and your <code>builds.json</code> (<a href="attestation.html">Attestation</a>). It must find your build.</li>
+<li>The instance logs show <code>startup</code> with <code>&quot;mode&quot;:&quot;sealed&quot;</code> and <code>&quot;sealed_mount&quot;:&quot;/data&quot;</code>, then <code>attested</code> with <code>&quot;attester&quot;:&quot;tinfoil&quot;</code>.</li>
+<li><code>GET /v1/models</code> lists the models you mean to sell. A warning <code>unverified_prices_withheld</code> names models left out because their price is not verified; an error <code>unverified_prices_served</code> means <code>BELLOWS_SERVE_UNVERIFIED_PRICES</code> is on.</li>
+<li>The admin API answers with your admin token at <code>https://&lt;your domain&gt;/admin/api/overview</code>, and 401 without it. It is on the public origin (<a href="https://github.com/ForgeReserve/bellows/blob/main/README.md#admin-api">README.md</a>).</li>
+</ul>
+<p>NOT VERIFIED: a real Tinfoil attestation of a Bellows, and its verification with an app's <code>authenticate</code>.</p>
+<h2 id="onion-service">Onion service<a class="anchor" href="#onion-service" aria-hidden="true" tabindex="-1">#</a></h2>
+<p><code>deploy/tinfoil-config.onion.example.yml</code> adds a Tor onion service. Clients that reach Bellows through Tor hide their address from the operator. To use it:</p>
+<ol>
+<li>Copy it over <code>tinfoil-config.yml</code> (Tinfoil reads only that path) and make the same edits as in step 1. Leave the template itself as it is. The release pins both the <code>bellows</code> and the <code>tor</code> image in <code>tinfoil-config.yml</code>.</li>
+<li>Make and back up <code>BELLOWS_ONION_VOLUME_KEY</code> (step 2), and add it to your keyserver store and policy.</li>
+<li>Create a second volume and attach it to the <code>onion</code> mount: <code>--volume bellows-data:data --volume bellows-onion:onion</code>.</li>
+<li>After the first boot, the tor container logs <code>bellows-onion: onion address &lt;address&gt;.onion</code>. Add it to your announcement (<code>--onion http://&lt;address&gt;.onion</code>), update the keyserver store, and redeploy.</li>
+</ol>
+<p>The tor container runs as an unprivileged user on a read-only root file system. It has open egress, because it must reach Tor relays, and it has no secrets, no attestation access and no access to Bellows' volume; <code>pnpm deploy:check</code> refuses a config that gives it any of these. Its keys, and so the onion address, live on their own encrypted volume. It forwards port 80 of the onion address to <code>bellows:8787</code> over a network with no egress.</p>
+<p>Checked locally: the image builds, and <code>--verify-config</code> accepts the configuration the entrypoint writes, in a read-only container with no capabilities. NOT VERIFIED: Tor reaching its relays from Tinfoil's open egress, the onion service answering, and the onion keys persisting across boots. The entrypoint resolves <code>bellows</code> once at start; if the Bellows container's address changes, restart the tor container.</p>
+<h2 id="oblivious-http-under-load">Oblivious HTTP under load<a class="anchor" href="#oblivious-http-under-load" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Anyone can send <code>POST /ohttp</code>, and an encapsulated request names no account, so the gateway bounds new encapsulated requests for all clients together (<a href="ohttp.html#admission">Oblivious HTTP</a>):</p>
+<ul>
+<li>Only a request that will run takes a place in the replay cache. One refused for its method, path or date never does, so requests that run nothing cannot fill it.</li>
+<li><code>BELLOWS_OHTTP_ADMIT_PER_SECOND</code> new requests a second are admitted, with a burst of one second's worth. Past that, <code>/ohttp</code> answers <code>503</code> with <code>Retry-After</code> and logs <code>ohttp_refused</code> with reason <code>busy</code>.</li>
+<li>Left unset, the bound is <code>BELLOWS_OHTTP_REPLAY_CACHE_MAX / (2 * BELLOWS_OHTTP_MAX_SKEW_SECONDS + 2)</code>: about 332 a second with the defaults (200,000 keys, 300 s skew). At that rate the replay cache cannot fill, so <code>replay_cache_full</code> should not appear in the logs. If it does, the gateway's clock has jumped.</li>
+<li>To admit more, raise <code>BELLOWS_OHTTP_REPLAY_CACHE_MAX</code> (the default 200,000 keys take a few tens of megabytes) or lower <code>BELLOWS_OHTTP_MAX_SKEW_SECONDS</code>. Setting <code>BELLOWS_OHTTP_ADMIT_PER_SECOND</code> above what the cache holds is refused at startup, with the most it can be.</li>
+<li>Lower it on a small instance. Every admitted request runs in the app, where payment, rate limits and proof of work apply to it as to a direct request.</li>
+</ul>
+<p>Many <code>busy</code> lines mean someone is sending more than the bound. They crowd out other OHTTP clients while they keep sending, but nothing stays shut once they stop. Direct requests to <code>/v1</code> are not counted.</p>
+<h2 id="updating">Updating<a class="anchor" href="#updating" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>A new version is a new release (step 4), a new <code>builds.json</code> entry, a new keyserver approval (step 5) and then:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">tinfoil container update bellows --tag v1.0.1</code></pre>
+<p>An instance with a persistent volume is replaced, not run side by side: it is unreachable until the new version is running. The volume and its key stay the same. Do not replace the volume key.</p>
+<h2 id="backups-and-recovery">Backups and recovery<a class="anchor" href="#backups-and-recovery" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>The operator cannot read the volume, so there is no database export from a sealed deployment. What protects the money:</p>
+<ul>
+<li>the offline copies of the volume key and the wallet secret (step 2);</li>
+<li>the volume itself, which survives Stop, Deploy, updates and deleting the instance, until you delete the volume;</li>
+<li>the mint, from which the wallet secret restores the gateway's eCash.</li>
+</ul>
+<p>If the volume is lost, the eCash in the gateway's wallet can be restored with the wallet secret, and the balances customers held are lost. Clients that keep their balances small, and move them with <code>moveBalance</code> (<a href="operators.html">Operators</a>), lose little.</p>
+<p>The volume has no rollback protection: whoever controls the disk can put back an older copy, and the enclave does not notice. See <a href="threat-model.html">Threat model</a>.</p>
+<h2 id="rehearse-locally">Rehearse locally<a class="anchor" href="#rehearse-locally" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>The image runs the way Tinfoil runs it, with a read-only root file system, no capabilities and no new privileges:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">docker build -t bellows .
+docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --tmpfs /tmp:size=64m -v bellows-data:/data -p 127.0.0.1:8787:8787 \
+  -e BELLOWS_TRUSTED_MINTS=http://host.docker.internal:3338 -e BELLOWS_FOREIGN_DISCOVERY_RELAYS= \
+  -e BELLOWS_UNITS=usd -e BELLOWS_DEFAULT_UNIT=usd -e BELLOWS_MODELS_FILE=config/models.dev.json bellows</code></pre>
+<p>With <code>-e BELLOWS_MODE=sealed -e BELLOWS_SECRETS=platform -e BELLOWS_SEALED_MOUNTS=/data -e BELLOWS_ATTESTER=tinfoil</code> and a test wallet secret in <code>BELLOWS_WALLET_SECRET</code>, the same command starts in sealed mode on Docker's Linux mount table: <code>/healthz</code> answers and <code>/.well-known/bellows</code> answers <code>503 not_attested</code>, because there is no attestation socket outside an enclave. Never use real keys for this.</p>
+<h2 id="not-verified-on-sealed-hardware">Not verified on sealed hardware<a class="anchor" href="#not-verified-on-sealed-hardware" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li>The keyserver releasing secrets to a Bellows enclave, as environment variables, and refusing a debug enclave.</li>
+<li>Volume creation and unlock at boot through <code>key-secret</code>, first-boot initialization of a blank disk, the mount's owner (<code>1000:1000</code>), and the mount appearing in <code>/proc/self/mountinfo</code> so that sealed mode accepts it.</li>
+<li>The attestation socket in a Bellows container and the document it returns (<a href="attestation.html#not-verified-locally">Attestation</a>).</li>
+<li>The measurement form in <code>builds.json</code> matching what an app's <code>authenticate</code> returns, and reproducible image builds. The release workflows and Tinfoil's measure action have run (<a href="#4-release">4. Release</a>).</li>
+<li>On the reference instance: a paid request, an Oblivious HTTP round trip, and reading a balance back after a restart. The test suite and local runs cover each of them.</li>
+<li>Tinfoil's dashboard and CLI accepting these workflows in place of the template's, and the <code>version</code> input they send.</li>
+<li>The egress allowlist in practice: hostnames re-resolved by the platform, Nostr relays over WebSocket, and enclave hosts a client names beyond the ones listed (they are blocked unless you add them).</li>
+<li>Streamed answers and the admin API through the shim.</li>
+<li>The Tor sidecar on Tinfoil (see <a href="#onion-service">Onion service</a>).</li>
+<li>Price, self-serve access and where inbound TLS ends, as <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md#platform">DESIGN.md</a> notes.</li>
+</ul>
+<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OPERATE.md">docs/OPERATE.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
+    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="../docs/build.html">Build on Bellows</a></li>
+        <li><a href="../docs/api.html">API reference</a></li>
+        <li><a href="../docs/threat-model.html">Threat model</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

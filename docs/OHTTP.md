@@ -62,7 +62,7 @@ Each refusal writes one log line, `ohttp_refused`, with the reason only.
 
 Chunked OHTTP streams answers. Bellows seals each piece of the answer as the app writes it (pieces that are ready together are sealed together, never more than 16 KiB in one chunk), so a streamed chat answer reaches the client as it is written. The final chunk is empty, and the padding of the Binary HTTP message goes at its end.
 
-The crypto is [ohttp-ts](https://github.com/thibmeu/ohttp-ts) (MIT): HPKE, the request decryption and the per-chunk sealing with its nonces. Bellows writes the chunk framing itself (a length before each sealed chunk, 0 before the last), because the library's own answer stream seals 16 KiB at a time and holds each chunk until the next one exists. A short chat answer would then arrive only when it ended.
+The cryptography is [ohttp-ts](https://github.com/thibmeu/ohttp-ts) (MIT): HPKE, the request decryption and the per-chunk sealing with its nonces. Bellows writes the chunk framing itself (a length before each sealed chunk, 0 before the last), because the library's own answer stream seals 16 KiB at a time and holds each chunk until the next one exists. A short chat answer would then arrive only when it ended.
 
 What a streamed answer shows to the relay and the network: the size and timing of each sealed chunk, which follow the tokens the model writes. A direct HTTPS stream shows the same to the network. The total length is padded (at least 1 KiB, then within about 12%). Plain RFC 9458 answers (`chunked: false` in the client) arrive whole, padded the same way.
 

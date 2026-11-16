@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bellows API | Bellows docs</title>
+<meta name="description" content="The client API, the operator API and the discovery format, with every path, header, field and error code.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Bellows API | Bellows docs">
+<meta property="og:description" content="The client API, the operator API and the discovery format, with every path, header, field and error code.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Bellows API | Bellows docs">
+<meta name="twitter:description" content="The client API, the operator API and the discovery format, with every path, header, field and error code.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="docs">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
+        <li><a href="../docs/build.html">Build</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap docs-layout">
+<nav class="docs-nav" aria-label="Docs">
+<details class="docs-menu" open>
+<summary>All docs</summary>
+<p class="nav-group">Build</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+</ul>
+<p class="nav-group">Reference</p>
+<ul>
+<li><a href="api.html" aria-current="page">API reference</a>
+<ul class="toc"><li><a href="#conventions">Conventions</a></li><li><a href="#reaching-a-bellows">Reaching a Bellows</a></li><li><a href="#client-api">Client API</a></li><li><a href="#operator-api">Operator API</a></li><li><a href="#discovery-format">Discovery format</a></li><li><a href="#moving-an-existing-client-to-a-bellows">Moving an existing client to a Bellows</a></li></ul></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="nav-group">Run</p>
+<ul>
+<li><a href="operate.html">Run your own</a></li>
+</ul>
+<p class="nav-group">On GitHub</p>
+<ul>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="prose">
+<h1 id="bellows-api">Bellows API</h1>
+<p>This is the reference for building on a Bellows without reading its code. It has three parts:</p>
+<ul>
+<li><strong>The client API</strong>: what an app or an agent calls to pay for and use AI models.</li>
+<li><strong>The operator API</strong>: what the operator of a Bellows calls to run it.</li>
+<li><strong>The discovery format</strong>: how a client finds a Bellows, checks which build it runs, and reaches it.</li>
+</ul>
+<p>The Forge AI web app and its agent example use the client API exactly as written here. <code>test/e2e/forge-ai-fit.e2e.test.ts</code> runs their calls, unchanged, against a Bellows directly and through Oblivious HTTP, on local test mints.</p>
+<h2 id="conventions">Conventions<a class="anchor" href="#conventions" aria-hidden="true" tabindex="-1">#</a></h2>
+<p><strong>Base URL.</strong> Every path below is relative to the Bellows' origin, for example <code>https://bellows.example</code>. The client API lives under <code>/v1/</code>.</p>
+<p><strong>JSON.</strong> Request and response bodies are JSON unless a section says otherwise. Send <code>Content-Type: application/json</code> with a body.</p>
+<p><strong>Units and amounts.</strong> A Bellows keeps balances and takes payment in <code>usd</code> (cents) and <code>sat</code> (satoshis), as configured. Amounts named <code>amount</code>, <code>credited</code>, <code>credit</code> or <code>refundable</code> are whole units. Fields ending in <code>_msub</code> are thousandths of a unit: milli-cents for <code>usd</code>, millisatoshis for <code>sat</code>. A balance has one unit, set when it is opened.</p>
+<p><strong>Names kept from Forge AI.</strong> Bellows started as the engine inside Forge AI. To keep existing clients working, the client API keeps the <code>X-Forge-</code> header prefix, the <code>event: forge</code> stream event and the <code>sk-forge-</code> prefix of balance keys.</p>
+<p><strong>Errors.</strong> Every error is OpenAI-shaped: <code>{&quot;error&quot;: {&quot;message&quot;, &quot;type&quot;, &quot;code&quot;}}</code>, sometimes with extra members named in the endpoint's section. <code>type</code> and <code>code</code> carry the same value. Match on <code>code</code>, not on <code>message</code>. The full list is under <a href="#error-codes">Error codes</a>.</p>
+<p><strong>Paying.</strong> A request is paid one of two ways:</p>
+<ul>
+<li><strong>From a balance.</strong> Send <code>Authorization: Bearer sk-forge-...</code>. A balance is opened by a topup or a funding and returns its key once.</li>
+<li><strong>Per request (NUT-24).</strong> Send the eCash in <code>X-Cashu: cashuB...</code>. No account and no key. Unused value comes back as eCash change.</li>
+</ul>
+<p><strong>Invites.</strong> When the operator sets <code>BELLOWS_INVITE_ONLY=true</code> (<code>invite_only</code> in <a href="#get-v1models"><code>GET /v1/models</code></a>), opening a new balance needs an invite code (<code>invite</code> in the body) and a per-request payment needs one in <code>X-Forge-Invite</code>. An invite opens one balance. Requests on an existing balance need no invite.</p>
+<p><strong>Proof of work.</strong> A request that opens a new balance carries a small proof of work instead of being limited per client address, which a Bellows never reads. See <a href="#proof-of-work">Proof of work</a>. An operator can turn it off with <code>BELLOWS_POW_BITS=0</code>.</p>
+<p><strong>Rate limits.</strong> A <code>POST</code> on a known balance key counts against that balance's budget (<code>BELLOWS_RATE_LIMIT_RPM</code>, default 60 a minute). Any other <code>POST</code> counts against one budget shared by everyone (<code>BELLOWS_ANON_RATE_LIMIT_RPM</code>, default 600 a minute), except a request that opens a balance with a valid proof of work. Past a budget the answer is <code>429 rate_limited</code> with <code>Retry-After</code> in seconds. <code>GET</code> requests are not limited.</p>
+<p><strong>Body size.</strong> A request body over <code>BELLOWS_MAX_BODY_BYTES</code> (default 1,000,000) gets <code>413 request_too_large</code>.</p>
+<p><strong>Browsers.</strong> <code>/v1/*</code>, <code>/.well-known/*</code>, <code>/attestation</code>, <code>/ohttp</code> and <code>/ohttp-keys</code> answer any origin (<code>Access-Control-Allow-Origin: *</code>), so a web app on another origin can call a Bellows directly. Allowed request headers: <code>Accept</code>, <code>Authorization</code>, <code>Content-Type</code>, <code>X-Cashu</code>, <code>X-Cashu-Pubkey</code>, <code>X-Forge-Invite</code>, <code>X-Forge-Unit</code>, <code>X-Bellows-Pow</code>, <code>Ehbp-Encapsulated-Key</code>, <code>X-Tinfoil-Enclave-Url</code>, <code>X-Tinfoil-Model</code>, <code>X-Tinfoil-Max-Output-Tokens</code>, <code>X-Tinfoil-Completion-Count</code>. Exposed response headers: <code>X-Cashu</code>, <code>X-Cashu-Change</code>, <code>X-Forge-Request-Id</code>, <code>X-Forge-Unit</code>, <code>X-Forge-Charged-Msub</code>, <code>X-Forge-Balance-Msub</code>, <code>X-Forge-Change-Url</code>, <code>X-Forge-Privacy</code>, <code>Ehbp-Response-Nonce</code>, <code>Retry-After</code>, <code>X-Bellows-Pow-Challenge</code>. The operator API sends no CORS headers.</p>
+<h2 id="reaching-a-bellows">Reaching a Bellows<a class="anchor" href="#reaching-a-bellows" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>A client can reach a Bellows three ways. The paths, headers and bodies of the client API are the same in each.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Route</th><th scope="col">What the operator's network sees</th></tr></thead>
+<tbody>
+<tr><td>Straight over HTTPS</td><td>The client's address, timing and traffic volume</td></tr>
+<tr><td>Oblivious HTTP through a relay run by someone else (<a href="#oblivious-http">below</a>)</td><td>For the client API calls, the relay's address. The relay sees the client's address and ciphertext only. Discovery (<code>/.well-known/bellows</code>) does not go through the relay; send it through Tor to keep it hidden</td></tr>
+<tr><td>Tor, to the onion address in the operator's announcement</td><td>A Tor circuit</td></tr>
+</tbody>
+</table></div>
+<p>Who is asking is hidden from the operator only when you use a relay run by someone else, or Tor. A relay and a Bellows run by the same party hide nothing from that party.</p>
+<h3 id="oblivious-http">Oblivious HTTP<a class="anchor" href="#oblivious-http" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>A Bellows is an Oblivious HTTP gateway (<a href="https://www.rfc-editor.org/rfc/rfc9458.html">RFC 9458</a>) for its own client API. The client library does the work:</p>
+<pre tabindex="0" data-lang="ts"><code class="language-ts">import { bellowsFetch, tinfoilVerifier, verifyBellows } from './client/index.ts';
+
+const bellows = await verifyBellows('https://bellows.example', { approvedBuilds: buildsJson, verifier: tinfoilVerifier({ authenticate }) });
+const operator = { ...bellows, relay: bellows.relays[0] ?? null };
+const res = await bellowsFetch(operator, '/v1/wallet', { headers: { authorization: `Bearer ${key}` } });</code></pre>
+<p><code>verifyBellows</code> reads <code>/.well-known/bellows</code> directly from the Bellows, so the operator sees the client's address on that one request. To keep it hidden, pass a <code>fetch</code> in the <code>verifyBellows</code> options that sends through Tor.</p>
+<p><code>bellowsFetch(operator, path, init)</code> takes the same path and <code>init</code> a plain <code>fetch</code> would, and returns the Bellows' answer as an ordinary <code>Response</code>. An app that already calls <code>fetch(path, init)</code> switches by calling <code>bellowsFetch(operator, path, init)</code> instead; nothing else in the call changes. A non-2xx answer from the Bellows (402, 429 and the rest) is returned like any other answer. <code>bellowsFetch</code> throws <code>BellowsFetchError</code> only when the request cannot be sent or the answer cannot be opened, with <code>code</code> one of <code>bad_path</code>, <code>bad_request</code>, <code>bad_key_config</code>, <code>network</code>, <code>relay_error</code> (the relay refused, and set <code>Bellows-Relay-Error</code>), <code>gateway_refused</code> (the Bellows refused the encapsulated request; on a busy <code>503</code> with <code>Retry-After</code>, <code>retryAfter</code> holds its seconds) or <code>bad_response</code>.</p>
+<p>On the wire:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Route</th><th scope="col">What it does</th></tr></thead>
+<tbody>
+<tr><td><code>GET /ohttp-keys</code></td><td>The key configuration as <code>application/ohttp-keys</code>. It is the key <code>/.well-known/bellows</code> attests. Take the key from the attested statement, not from here</td></tr>
+<tr><td><code>POST /ohttp</code></td><td>Takes <code>message/ohttp-req</code> or <code>message/ohttp-chunked-req</code> (<a href="https://datatracker.ietf.org/doc/html/draft-ietf-ohai-chunked-ohttp-08">chunked OHTTP, draft 08</a>) and answers <code>message/ohttp-res</code> or <code>message/ohttp-chunked-res</code>. Chunked answers stream</td></tr>
+</tbody>
+</table></div>
+<ul>
+<li>An encapsulated request may name any path under <code>/v1/</code>, and <code>/healthz</code>, <code>/.well-known/bellows</code>, <code>/.well-known/hpke-keys</code> and <code>/attestation</code>, with <code>GET</code> or <code>POST</code>. Anything else gets an encapsulated <code>404 not_found</code>; another method gets <code>405 method_not_allowed</code>.</li>
+<li>It runs through the same app as a direct request: priced, paid, rate limited and gated the same way. It keeps its own headers. Nothing from the outer request reaches the app.</li>
+<li>It must carry the time it was made, in <code>Bellows-Date</code> or <code>Date</code> (<code>400 date_required</code> otherwise). A date more than 300 seconds from the gateway's clock gets <code>400 stale_request</code> with the gateway's time in <code>Bellows-Date</code>, and does not run. The client library retries once on that clock.</li>
+<li>A replay of an encapsulated request is refused before it runs (plain <code>400</code>). A replayed topup credits nothing.</li>
+<li>A request the gateway cannot open gets a status and no body: <code>415</code> (not an OHTTP type), <code>400</code> (cannot be opened, tampered, or a replay), <code>413</code> (too large), <code>500</code> (the answer could not be sealed; the request ran), <code>503</code> (the replay cache is full).</li>
+</ul>
+<p>A relay forwards to an allowlisted Bellows at <code>POST /relay/&lt;host of the Bellows&gt;</code>. Its full URL is what a statement's <code>relays</code> and an announcement's <code>ohttp-relay</code> tags list. <a href="ohttp.html">Oblivious HTTP</a> has the details, the size limits and what a streamed answer reveals.</p>
+<h2 id="client-api">Client API<a class="anchor" href="#client-api" aria-hidden="true" tabindex="-1">#</a></h2>
+<h3 id="get-v1models"><code>GET /v1/models</code><a class="anchor" href="#get-v1models" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The models this Bellows sells, in the OpenAI list shape, with prices and payment details. Only models it serves are listed; any other model id gets <code>404 model_not_found</code> from <code>POST /v1/chat/completions</code>.</p>
+<pre tabindex="0" data-lang="json"><code class="language-json">{
+  &quot;object&quot;: &quot;list&quot;,
+  &quot;data&quot;: [
+    {
+      &quot;id&quot;: &quot;example-model&quot;,
+      &quot;object&quot;: &quot;model&quot;,
+      &quot;created&quot;: 0,
+      &quot;owned_by&quot;: &quot;example-supplier&quot;,
+      &quot;name&quot;: &quot;Example Model&quot;,
+      &quot;tier&quot;: &quot;standard&quot;,
+      &quot;privacy&quot;: &quot;standard&quot;,
+      &quot;encrypted_passthrough&quot;: false,
+      &quot;uncensored&quot;: false,
+      &quot;capabilities&quot;: { &quot;vision&quot;: false, &quot;reasoning&quot;: true, &quot;reasoning_efforts&quot;: [&quot;low&quot;, &quot;high&quot;] },
+      &quot;speed&quot;: null,
+      &quot;context_length&quot;: 128000,
+      &quot;max_output_tokens&quot;: 4096,
+      &quot;pricing&quot;: {
+        &quot;mode&quot;: &quot;metered&quot;,
+        &quot;usd_per_mtok&quot;: { &quot;input&quot;: 0.5, &quot;output&quot;: 1.5 },
+        &quot;sat_per_mtok&quot;: { &quot;input&quot;: 500, &quot;output&quot;: 1500 },
+        &quot;verified&quot;: true
+      }
+    }
+  ],
+  &quot;units&quot;: [&quot;usd&quot;, &quot;sat&quot;],
+  &quot;mints&quot;: [&quot;https://mint.example&quot;],
+  &quot;invite_only&quot;: false,
+  &quot;btc_usd&quot;: 100000
+}</code></pre>
+<ul>
+<li><code>tier</code> (and its copy <code>privacy</code>) is <code>enclave</code> for a model that runs in its supplier's sealed hardware, <code>standard</code> otherwise.</li>
+<li><code>encrypted_passthrough</code> is true when the model takes EHBP-encrypted bodies (<a href="#encrypted-chat-ehbp">Encrypted chat</a>). Such a model also lists <code>upstream_model</code>, the name to send in <code>X-Tinfoil-Model</code>.</li>
+<li><code>pricing.usd_per_mtok</code> is the price per million input and output tokens in US dollars, markup included. <code>sat_per_mtok</code> is the same at the current BTC/USD rate, or <code>null</code> when sats are not offered or no rate is known. <code>mode</code> is <code>metered</code> (charged by tokens) or <code>flat</code> (charged by a fixed schedule of request sizes). <code>verified</code> is true when the operator checked the price against the supplier's rate card. A Bellows serves a model with <code>verified: false</code> only when its operator has turned that on explicitly; treat such a price as an estimate.</li>
+<li><code>mints</code> lists the mints whose eCash this Bellows takes for topups and per-request payment. <code>btc_usd</code> is the rate in use, or <code>null</code>.</li>
+</ul>
+<h3 id="post-v1chatcompletions"><code>POST /v1/chat/completions</code><a class="anchor" href="#post-v1chatcompletions" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>OpenAI chat completions, streamed or not. <code>tools</code>, <code>tool_choice</code> and other fields pass through untouched. <code>n</code> must be 1. <code>max_tokens</code> (or <code>max_completion_tokens</code>) is capped per model at <code>max_output_tokens</code>; without one, the cap applies.</p>
+<p><strong>Payment.</strong> Before the request runs, the Bellows reserves its maximum cost: the request's size as input tokens plus the full output allowance, at the model's price. It then charges the actual cost when the answer is done.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Send</th><th scope="col">Result</th></tr></thead>
+<tbody>
+<tr><td><code>Authorization: Bearer sk-forge-...</code></td><td>Paid from the balance. <code>402 insufficient_balance</code> if the balance cannot cover the maximum cost; <code>403 account_frozen</code> if the operator froze it</td></tr>
+<tr><td><code>X-Cashu: cashuB...</code></td><td>Paid per request (NUT-24). The token must cover the maximum cost. Add <code>X-Forge-Invite</code> when invite only. <code>X-Cashu-Pubkey</code> locks the change to your key (<a href="#locking-payouts-to-your-key">Locking</a>)</td></tr>
+<tr><td>Neither</td><td><code>402 payment_required</code> with a NUT-18 payment request (below). <code>X-Forge-Unit: sat</code> asks for a quote in sats</td></tr>
+</tbody>
+</table></div>
+<p>The <code>402</code> answer:</p>
+<pre tabindex="0"><code>HTTP/1.1 402 Payment Required
+X-Cashu: creqA...
+
+{&quot;error&quot;: {&quot;message&quot;: &quot;pay 20 usd in eCash: retry with X-Cashu: cashuB... Unused value is returned as change.&quot;, &quot;type&quot;: &quot;payment_required&quot;, &quot;code&quot;: &quot;payment_required&quot;},
+ &quot;payment_request&quot;: &quot;creqA...&quot;, &quot;amount&quot;: 20, &quot;unit&quot;: &quot;usd&quot;, &quot;mints&quot;: [&quot;https://mint.example&quot;]}</code></pre>
+<p>Pay <code>amount</code> in <code>unit</code> at one of <code>mints</code> and send the same request again with <code>X-Cashu</code>. A sat quote carries a small buffer for rate movement; the unused part comes back as change.</p>
+<p><strong>Answer headers.</strong></p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Header</th><th scope="col">Value</th></tr></thead>
+<tbody>
+<tr><td><code>X-Forge-Request-Id</code></td><td><code>req_...</code>, this request's id</td></tr>
+<tr><td><code>X-Forge-Privacy</code></td><td><code>standard</code>, <code>enclave-plaintext</code> or <code>enclave-encrypted</code></td></tr>
+<tr><td><code>X-Forge-Unit</code></td><td>The unit charged</td></tr>
+<tr><td><code>X-Forge-Charged-Msub</code></td><td>The amount charged (not on streamed answers; see below)</td></tr>
+<tr><td><code>X-Forge-Balance-Msub</code></td><td>The balance afterwards, for balance payments</td></tr>
+<tr><td><code>X-Cashu-Change</code></td><td>The change as an eCash token, for NUT-24 payments</td></tr>
+<tr><td><code>X-Forge-Change-Url</code></td><td><code>/v1/change/{request_id}</code>, where the change can be fetched again</td></tr>
+</tbody>
+</table></div>
+<p><strong>Streaming.</strong> With <code>&quot;stream&quot;: true</code> the answer is <code>text/event-stream</code>. The upstream's chunks pass through, then <code>data: [DONE]</code>, then one Bellows event that settles the request:</p>
+<pre tabindex="0"><code>event: forge
+data: {&quot;request_id&quot;:&quot;req_...&quot;,&quot;unit&quot;:&quot;usd&quot;,&quot;charged_msub&quot;:1300,&quot;balance_msub&quot;:98700}</code></pre>
+<p>Its members: <code>request_id</code>, <code>unit</code>, <code>charged_msub</code>, and <code>balance_msub</code> (balance payments) or <code>change</code>, <code>change_units</code> and <code>change_url</code> (NUT-24). If the upstream fails mid-stream, a <code>data: {&quot;error&quot;: {...}}</code> line comes first and the event carries <code>&quot;partial&quot;: true</code>; the part that was delivered is charged. A stream answer includes a usage chunk only if the request asked for it with <code>stream_options.include_usage</code>. The OpenAI JavaScript SDK ignores events after <code>[DONE]</code>. Other clients that parse every event should skip <code>event: forge</code> or read it.</p>
+<p><strong>Upstream failures</strong> charge nothing and return all NUT-24 change, including an answer whose body breaks after its headers arrived. The answer is <code>502</code> (or the upstream's own 4xx) with code <code>upstream_error</code>. A balance reservation is released at once.</p>
+<p>A paid NUT-24 request that fails inside the Bellows before it settles (an internal error) leaves its whole payment as change at <code>GET /v1/change/{request_id}</code>, in the same process, or for a retry with the same token to take over, once.</p>
+<h4 id="encrypted-chat-ehbp">Encrypted chat (EHBP)<a class="anchor" href="#encrypted-chat-ehbp" aria-hidden="true" tabindex="-1">#</a></h4>
+<p>For a model with <code>encrypted_passthrough</code>, a client can encrypt the body to the model's own enclave with Tinfoil's EHBP. The Bellows forwards the ciphertext and cannot read the request or the answer. Send:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Header</th><th scope="col">Value</th></tr></thead>
+<tbody>
+<tr><td><code>Ehbp-Encapsulated-Key</code></td><td>From the EHBP encryption</td></tr>
+<tr><td><code>X-Tinfoil-Model</code></td><td>The model's <code>upstream_model</code> (or its <code>id</code>)</td></tr>
+<tr><td><code>X-Tinfoil-Max-Output-Tokens</code></td><td>Optional; capped as <code>max_tokens</code> is</td></tr>
+<tr><td><code>X-Tinfoil-Completion-Count</code></td><td>Optional; must be <code>1</code></td></tr>
+<tr><td><code>X-Tinfoil-Enclave-Url</code></td><td>Optional; an enclave URL on the operator's allowlist</td></tr>
+</tbody>
+</table></div>
+<p>Pay as for any request. The answer body is ciphertext with <code>Ehbp-Response-Nonce</code>. The charge comes from the usage the enclave reports. A non-streamed answer carries the charge headers; a streamed one is settled when it ends, so read the balance afterwards with <code>GET /v1/wallet</code> (or fetch NUT-24 change from <code>X-Forge-Change-Url</code>). A model whose supplier requires encryption answers a plaintext request with <code>400 encryption_required</code>.</p>
+<p>To encrypt, a browser client loads the enclave's key and attestation through the Bellows' origin: <code>GET /.well-known/hpke-keys</code> and <code>GET /attestation</code> pass the enclave's own documents through. Tinfoil's SDK does this with its <code>baseURL</code> set to <code>&lt;origin&gt;/v1/</code>.</p>
+<h3 id="get-v1changerequest_id"><code>GET /v1/change/{request_id}</code><a class="anchor" href="#get-v1changerequest_id" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The change of a NUT-24 request, for a client that lost the answer. The request id is the capability: it was returned only to the payer. No other credentials.</p>
+<ul>
+<li><code>200 {&quot;request_id&quot;, &quot;data&quot;: [{id, amount, unit, mint, status, token, locked_to}], &quot;token&quot;}</code>. <code>token</code> is the first token.</li>
+<li><code>409 not_settled</code> with <code>Retry-After</code> while the request still runs, or while the mint has not settled the payment of a request that failed. A request whose handler ended without settling is not running: its whole payment is returned here.</li>
+<li><code>503 mint_unavailable</code> with <code>Retry-After</code> when the change is owed but the mint did not answer.</li>
+<li><code>404 not_found</code> when there is no change for that id.</li>
+</ul>
+<p>For a request that failed before it was served while its payment's outcome was unknown (<code>mint_unavailable</code> or an internal error after the token was sent), this fetch settles the payment: once the mint confirms it took the token, the whole payment is returned as change. Retrying the request with the same token instead uses the payment for the retry, once; see <a href="payments.html">Payments</a>.</p>
+<h3 id="balance">Balance<a class="anchor" href="#balance" aria-hidden="true" tabindex="-1">#</a></h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Endpoint</th><th scope="col">Send</th><th scope="col">Answer</th></tr></thead>
+<tbody>
+<tr><td><code>POST /v1/wallet/topup</code></td><td><code>{&quot;token&quot;: &quot;cashuB...&quot;, &quot;invite&quot;?: &quot;...&quot;}</code>. Optional bearer key: tops up that balance, or opens a new one under a key you chose (<code>sk-forge-</code> and 24 to 64 characters from <code>A-Z a-z 0-9 _ -</code>)</td><td><code>{key?, account_id, unit, credited, replay, balance_msub, balance}</code></td></tr>
+<tr><td><code>GET /v1/wallet</code></td><td>Bearer key</td><td><code>{account_id, unit, balance_msub, available_msub, balance, refundable}</code></td></tr>
+<tr><td><code>POST /v1/wallet/refund</code></td><td>Bearer key; optional <code>{&quot;amount&quot;: N, &quot;pubkey&quot;?: &quot;02...&quot;}</code>, <code>amount</code> in whole units, default all</td><td><code>{id, token, amount, unit, mint, status, locked_to, balance_msub, refunds}</code></td></tr>
+<tr><td><code>GET /v1/wallet/refunds</code></td><td>Bearer key</td><td><code>{data: [{id, amount, unit, mint, status, token, locked_to}]}</code>: every withdrawal of this balance, for re-delivery</td></tr>
+</tbody>
+</table></div>
+<ul>
+<li><strong>Topup.</strong> The token must be from one of the <code>mints</code> in <code>/v1/models</code>. Its unit sets the balance's unit; a token in another unit gets <code>400 wrong_unit</code>. <code>key</code> is returned only when the Bellows generated it, once: keep it. Sending the same token again is safe: the answer has <code>replay: true</code> and <code>credited: 0</code>. If the mint cannot be reached mid-swap, the answer is <code>503 topup_pending</code> with the <code>key</code> (when generated) and <code>account_id</code>: retry with that key and the same token.</li>
+<li><strong>Balance.</strong> <code>available_msub</code> is the balance minus what running requests have reserved. <code>refundable</code> is the whole units that can be withdrawn now.</li>
+<li><strong>Refund.</strong> Answers <code>200</code> with the token, or <code>202</code> with <code>status: &quot;owed&quot;</code> and <code>token: null</code> when the mint did not answer; the refund is saved and <code>GET /v1/wallet/refunds</code> (or the next refund call) delivers it. A remainder below one unit stays on the balance. <code>refunds</code> lists every withdrawal, as <code>GET /v1/wallet/refunds</code> does. Errors: <code>400 invalid_amount</code> (outside <code>1..refundable</code>), <code>503 wallet_insufficient</code>.</li>
+<li><strong>Unknown key.</strong> A key the Bellows does not know gets <code>401 invalid_key</code> on <code>GET /v1/wallet</code>, refunds, funding status and chat. On a topup or a funding, a well-formed key it does not know opens a new balance under that key.</li>
+</ul>
+<h3 id="funding-a-balance">Funding a balance<a class="anchor" href="#funding-a-balance" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>A balance can be funded without eCash from an accepted mint: by a Lightning invoice, a bitcoin deposit (off by default), or eCash from another Cashu mint. Each method opens a balance on first use (with an invite when invite only, and proof of work) and returns <code>key</code> once when the Bellows generated it. Send a bearer key to fund an existing balance, or to open a new one under a key you chose. A funding in another unit than the balance's gets <code>400 wrong_unit</code>.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Endpoint</th><th scope="col">Send</th><th scope="col">Answer</th></tr></thead>
+<tbody>
+<tr><td><code>GET /v1/wallet/fund/methods</code></td><td></td><td>What is offered (below)</td></tr>
+<tr><td><code>POST /v1/wallet/fund/lightning</code></td><td><code>{&quot;amount&quot;, &quot;unit&quot;, &quot;invite&quot;?}</code></td><td>A funding; <code>request</code> is a bolt11 invoice</td></tr>
+<tr><td><code>POST /v1/wallet/fund/onchain</code></td><td><code>{&quot;invite&quot;?}</code></td><td>A funding in <code>sat</code>; <code>request</code> is a bitcoin address</td></tr>
+<tr><td><code>GET /v1/wallet/fund/mints</code></td><td></td><td>Other mints accepted for funding (below)</td></tr>
+<tr><td><code>POST /v1/wallet/fund/foreign/quote</code></td><td><code>{&quot;token&quot;, &quot;unit&quot;, &quot;invite&quot;?, &quot;pubkey&quot;?, &quot;accept_unlisted&quot;?}</code></td><td>A funding in state <code>quoted</code> with the exact credit. Nothing is spent yet</td></tr>
+<tr><td><code>POST /v1/wallet/fund/foreign/confirm</code></td><td>Bearer key; <code>{&quot;id&quot;, &quot;token&quot;, &quot;pubkey&quot;?}</code></td><td>The funding, moving</td></tr>
+<tr><td><code>GET /v1/wallet/fund/{id}</code></td><td>Bearer key</td><td>The funding. Polling it also moves it forward</td></tr>
+<tr><td><code>GET /v1/wallet/fund</code></td><td>Bearer key</td><td><code>{data: [funding]}</code>, this balance's recent fundings</td></tr>
+</tbody>
+</table></div>
+<p><code>GET /v1/wallet/fund/methods</code>:</p>
+<pre tabindex="0" data-lang="json"><code class="language-json">{
+  &quot;ecash&quot;: { &quot;mints&quot;: [&quot;https://mint.example&quot;], &quot;units&quot;: [&quot;usd&quot;, &quot;sat&quot;] },
+  &quot;lightning&quot;: { &quot;enabled&quot;: true, &quot;units&quot;: [&quot;sat&quot;, &quot;usd&quot;], &quot;min&quot;: { &quot;sat&quot;: 1, &quot;usd&quot;: 1 }, &quot;max&quot;: { &quot;sat&quot;: 1000000, &quot;usd&quot;: 100000 } },
+  &quot;onchain&quot;: { &quot;enabled&quot;: false, &quot;unit&quot;: &quot;sat&quot;, &quot;min_amount&quot;: 0, &quot;confirmations&quot;: 3 },
+  &quot;foreign&quot;: {
+    &quot;enabled&quot;: true,
+    &quot;max&quot;: { &quot;sat&quot;: 100000, &quot;usd&quot;: 10000 },
+    &quot;policy&quot;: &quot;discovered&quot;,
+    &quot;mints&quot;: [&quot;https://other-mint.example&quot;],
+    &quot;mints_url&quot;: &quot;/v1/wallet/fund/mints&quot;,
+    &quot;unlisted&quot;: { &quot;enabled&quot;: true, &quot;max&quot;: { &quot;sat&quot;: 10000, &quot;usd&quot;: 1000 } }
+  },
+  &quot;invite_only&quot;: false
+}</code></pre>
+<p><code>GET /v1/wallet/fund/mints</code>: <code>{enabled, policy, mints: [{url, name?, reviewers?, source}], updated_at}</code>, where <code>source</code> is <code>discovered</code> (from Cashu mint reviews on Nostr, NIP-87) or <code>operator</code>. Denied mints are never listed.</p>
+<p><strong>The funding object.</strong></p>
+<pre tabindex="0"><code>{id, method: &quot;lightning&quot; | &quot;onchain&quot; | &quot;foreign&quot;, state, unit, amount, request, expires_at, credited, balance_msub, account_id, mint,
+ onchain?: {confirmations_required, paid_sat, seen_sat, confirmed_sat, confirmations, watch_until},
+ foreign?: {mint, unlisted, unit, token_amount, credit, fee_max, change_token, refund_token, locked_to, payout_pending},
+ error?, created_at, key?}</code></pre>
+<ul>
+<li><code>credited</code> is the exact amount, in whole units of <code>unit</code>, added to the balance so far. <code>amount</code> is what was asked for (Lightning) or the quoted credit (other mint).</li>
+<li><code>state</code> is one of <code>quoted</code>, <code>receiving</code>, <code>melting</code>, <code>pending</code>, <code>minting</code>, <code>done</code>, <code>expired</code>, <code>failed</code>, <code>refunded</code>. The last four are final.</li>
+<li><strong>Lightning:</strong> <code>pending</code> (invoice unpaid) to <code>minting</code> to <code>done</code>, or <code>expired</code>. <code>expires_at</code> is the invoice's expiry in milliseconds.</li>
+<li><strong>On-chain:</strong> <code>pending</code> while the address is watched. Every deposit the mint counts as paid is minted and credited, and <code>credited</code> grows. The funding ends <code>done</code> when the watch window (<code>onchain.watch_until</code>) closes. <code>expires_at</code> is <code>null</code>.</li>
+<li><strong>Other mint:</strong> the quote prices the token: <code>foreign.credit</code> is what the balance gets, <code>foreign.fee_max</code> the most the token's mint can keep. Confirm with the same token within <code>expires_at</code>. The Bellows receives the token at its mint, melts it to pay an invoice at its funding mint, then mints and credits <code>credit</code>. Unused fee reserve comes back as <code>foreign.change_token</code>, eCash from the token's mint. If the payment cannot go through, the token's value comes back as <code>foreign.refund_token</code> and the state is <code>refunded</code>. With <code>pubkey</code> (at quote or confirm) both are locked to it, and <code>payout_pending</code> is true until the locking swap is done; keep polling.</li>
+<li>Other-mint errors: a token from one of this Bellows' own mints gets <code>400 use_topup</code> (send it to <code>/v1/wallet/topup</code>); a denied mint or one the policy refuses gets <code>400 mint_not_allowed</code>; a mint not on the accepted list gets <code>409 mint_unlisted</code> with <code>{unlisted: {mint, max}}</code> until the quote is sent again with <code>accept_unlisted: true</code>, under the lower cap in <code>max</code>. A confirm with another token than the quoted one gets <code>400 token_mismatch</code>; a confirm after <code>expires_at</code>, <code>409 quote_expired</code>.</li>
+</ul>
+<h3 id="locking-payouts-to-your-key">Locking payouts to your key<a class="anchor" href="#locking-payouts-to-your-key" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>Every token a Bellows hands back (NUT-24 change, refunds, other-mint change and refunds) is ordinary eCash by default, so until you redeem it the Bellows could spend it too. Give a public key and the token is locked to it (NUT-11 P2PK, plain lock): only the wallet holding the private key can redeem it.</p>
+<ul>
+<li>Where: <code>X-Cashu-Pubkey</code> on a chat request, <code>pubkey</code> in a refund body, <code>pubkey</code> at an other-mint quote or confirm.</li>
+<li>Forms: a compressed secp256k1 key in hex (<code>02...</code> or <code>03...</code>, 66 characters), an <code>npub1...</code>, or a 64-hex x-only key. The last two become <code>&quot;02&quot; + x</code>. Anything else is <code>400 invalid_pubkey</code> before any eCash moves.</li>
+<li><code>locked_to</code> in the answer names the key. A token locked to a key you do not hold is lost.</li>
+</ul>
+<h3 id="proof-of-work">Proof of work<a class="anchor" href="#proof-of-work" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>A request that opens a new balance (a topup or a funding sent without a known balance key) needs a proof of work when <code>BELLOWS_POW_BITS</code> is above 0 (default 16).</p>
+<ol>
+<li>Send the request. Without a solution the answer is <code>428 pow_required</code> with <code>{&quot;pow&quot;: {&quot;challenge&quot;, &quot;bits&quot;, &quot;expires_at&quot;, &quot;header&quot;}}</code> and the challenge in <code>X-Bellows-Pow-Challenge</code>. <code>GET /v1/pow</code> hands out a challenge ahead of time: <code>{challenge, bits, expires_at, header, paths}</code>, where <code>paths</code> lists the paths that need one.</li>
+<li>Find a nonce of 1 to 32 characters from <code>A-Z a-z 0-9 _ -</code> such that SHA-256 of <code>&lt;challenge&gt;:&lt;nonce&gt;</code> starts with <code>bits</code> zero bits. <code>solvePow(challenge, bits)</code> in the client library does this.</li>
+<li>Send the same request again with <code>X-Bellows-Pow: &lt;challenge&gt;:&lt;nonce&gt;</code>. A challenge is good for 5 minutes and for one request.</li>
+</ol>
+<h3 id="other-client-paths">Other client paths<a class="anchor" href="#other-client-paths" aria-hidden="true" tabindex="-1">#</a></h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Path</th><th scope="col">Answer</th></tr></thead>
+<tbody>
+<tr><td><code>GET /healthz</code></td><td><code>{ok, rate: {btc_usd, age_s} | null, invite_only}</code></td></tr>
+<tr><td><code>GET /.well-known/bellows</code></td><td>The attested identity (<a href="#well-knownbellows">below</a>)</td></tr>
+<tr><td><code>GET /.well-known/hpke-keys</code></td><td>The model enclave's HPKE key configuration, passed through. <code>404</code> without an enclave supplier</td></tr>
+<tr><td><code>GET /attestation</code></td><td>The model enclave's attestation bundle, passed through. <code>404</code> without one</td></tr>
+</tbody>
+</table></div>
+<h3 id="error-codes">Error codes<a class="anchor" href="#error-codes" aria-hidden="true" tabindex="-1">#</a></h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Status</th><th scope="col">Codes</th></tr></thead>
+<tbody>
+<tr><td>400</td><td><code>invalid_request</code>, <code>invalid_amount</code>, <code>invalid_token</code>, <code>invalid_pubkey</code>, <code>untrusted_mint</code>, <code>wrong_unit</code>, <code>insufficient_amount</code>, <code>token_spent</code>, <code>encryption_required</code>, <code>method_unavailable</code>, <code>use_topup</code>, <code>mint_not_allowed</code>, <code>mint_check_failed</code>, <code>amount_too_large</code>, <code>token_mismatch</code>, <code>foreign_mint_error</code>, <code>issue_failed</code></td></tr>
+<tr><td>401</td><td><code>invalid_key</code></td></tr>
+<tr><td>402</td><td><code>payment_required</code>, <code>insufficient_balance</code></td></tr>
+<tr><td>403</td><td><code>invite_required</code>, <code>invite_used</code>, <code>invite_invalid</code>, <code>account_frozen</code></td></tr>
+<tr><td>404</td><td><code>model_not_found</code>, <code>not_found</code></td></tr>
+<tr><td>409</td><td><code>not_settled</code>, <code>quote_expired</code>, <code>mint_unlisted</code>, <code>in_flight</code>, <code>token_in_flight</code></td></tr>
+<tr><td>413</td><td><code>request_too_large</code></td></tr>
+<tr><td>428</td><td><code>pow_required</code></td></tr>
+<tr><td>429</td><td><code>rate_limited</code>, <code>too_many_pending</code></td></tr>
+<tr><td>502</td><td><code>upstream_error</code></td></tr>
+<tr><td>503</td><td><code>mint_unavailable</code> (retry with the same token), <code>topup_pending</code>, <code>rate_unavailable</code> (no BTC/USD rate; pay in <code>usd</code> or retry), <code>wallet_insufficient</code>, <code>wallet_inconsistent</code> (retry), <code>payout_unknown</code> (a locked payout the mint has not confirmed; it stays owed and is never paid twice)</td></tr>
+<tr><td>500</td><td><code>internal_error</code></td></tr>
+</tbody>
+</table></div>
+<h2 id="operator-api">Operator API<a class="anchor" href="#operator-api" aria-hidden="true" tabindex="-1">#</a></h2>
+<p><code>/admin/api/*</code> is for the operator. It is off, and every <code>/admin</code> path answers <code>404</code>, until the secrets source holds <code>BELLOWS_ADMIN_TOKEN</code> (a random token without spaces) or <code>BELLOWS_ADMIN_TOKEN_HASH</code> (its SHA-256 in hex). It is not reachable through Oblivious HTTP. Keep <code>/admin</code> on a private network or behind a proxy with its own authentication.</p>
+<ul>
+<li><strong>Authentication.</strong> <code>X-Bellows-Admin-Token: &lt;token&gt;</code> or <code>Authorization: Bearer &lt;token&gt;</code>. A missing or wrong token gets <code>401 unauthorized</code>. Failed logins share one budget of 10 a minute (<code>429 rate_limited</code> past it), apart from the operator's own budget.</li>
+<li><strong>Changes.</strong> Every request other than <code>GET</code> needs a same-origin <code>Origin</code> header, or the one in <code>BELLOWS_ADMIN_ORIGIN</code> (<code>403 bad_origin</code> otherwise), and <code>Content-Type: application/json</code> (<code>415 json_required</code> otherwise). Bodies are at most 64 KiB.</li>
+<li><strong>Answers</strong> are JSON with <code>Cache-Control: no-store</code>. Errors are <code>{&quot;error&quot;: {&quot;code&quot;, &quot;message&quot;}}</code>.</li>
+<li><strong>Aggregates only.</strong> No endpoint lists balances, fundings or requests, or ties a balance to an invite, an address or a time.</li>
+</ul>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Endpoint</th><th scope="col">Send</th><th scope="col">Answer</th></tr></thead>
+<tbody>
+<tr><td><code>GET /admin/api/session</code></td><td></td><td><code>{ok: true}</code>: checks the token</td></tr>
+<tr><td><code>GET /admin/api/overview</code></td><td></td><td><code>{at, markup, rate, units, holdings, windows, health, ...}</code>. <code>units</code> has per unit: revenue collected and exported, wallet holdings, owed payouts, customer balances, what can be swept, and counts of balances and frozen balances. <code>windows</code> (<code>today</code>, <code>d7</code>, <code>d30</code>) has requests, tokens, charged and supplier cost by model, tier and supplier, from daily aggregates. <code>health</code> has suppliers, mints, open fundings by state and method, quote-check budget and unfinished exports</td></tr>
+<tr><td><code>POST /admin/api/export/preview</code></td><td><code>{unit, amount?, mint?, pubkey?}</code></td><td><code>{unit, mint, amount, max, sweepable, locked_to}</code>: what an export would sweep</td></tr>
+<tr><td><code>POST /admin/api/export</code></td><td>The preview's fields plus <code>confirm_amount</code>, <code>confirm_mint</code>, <code>confirm_pubkey</code> copied from the preview</td><td><code>200 {id, status: &quot;done&quot;, unit, mint, amount, locked_to, token}</code>, or <code>202</code> with <code>status: &quot;owed&quot;</code> and <code>token: null</code> when the mint did not answer. <code>409 confirm_mismatch</code> if the confirmation differs</td></tr>
+<tr><td><code>GET /admin/api/exports</code></td><td></td><td><code>{data: [...]}</code>: export history (amount, lock, a hash of the token; never the token)</td></tr>
+<tr><td><code>POST /admin/api/exports/{id}/finish</code></td><td><code>{}</code></td><td>Finishes an interrupted export and returns its token. <code>409 already_delivered</code> once delivered</td></tr>
+<tr><td><code>GET /admin/api/invites</code></td><td></td><td><code>{data: [{id, label, status, nut24_uses, created_at, redeemed_at}]}</code></td></tr>
+<tr><td><code>POST /admin/api/invites</code></td><td><code>{count?: 1..100, label?}</code></td><td><code>{data: [{id, code}]}</code>. Codes are shown once</td></tr>
+<tr><td><code>POST /admin/api/invites/{id}/revoke</code></td><td><code>{}</code></td><td><code>{ok, id, status: &quot;revoked&quot;}</code></td></tr>
+<tr><td><code>POST /admin/api/accounts/{id}/freeze</code></td><td><code>{frozen: true | false}</code></td><td><code>{id, frozen}</code>. For a balance whose id its owner gave you. A frozen balance cannot spend; refunds still work</td></tr>
+<tr><td><code>POST /admin/api/fundings/{id}/recheck</code></td><td><code>{}</code></td><td><code>{data: funding, quote_checks}</code>. Re-checks one unfinished funding; <code>409 not_open</code> for a finished one, <code>429 quote_budget</code> when the mint's quote-check budget is used up</td></tr>
+<tr><td><code>GET /admin/api/costs?days=30</code></td><td></td><td>Supplier cost and margin per model over whole UTC days (1 to 365)</td></tr>
+<tr><td><code>GET /admin/api/mints/discovery</code></td><td></td><td>Other-mint policy, accepted mints, the operator's own list and discovery status</td></tr>
+<tr><td><code>POST /admin/api/mints/discovery/refresh</code></td><td><code>{}</code></td><td>Refreshes discovery now; at most once a minute</td></tr>
+<tr><td><code>POST /admin/api/mints/allowed</code></td><td><code>{url, note?, force?}</code></td><td><code>{mint, probe, forced, added, view}</code>. Adds a mint to the operator's list after a live check; <code>force</code> adds one that failed it (<code>400 mint_check_failed</code> otherwise). One of the Bellows' own mints gets <code>409 own_mint</code>, a denied one <code>409 mint_denied</code></td></tr>
+<tr><td><code>DELETE /admin/api/mints/allowed?url=...</code>, <code>POST /admin/api/mints/allowed/remove</code> <code>{url}</code></td><td></td><td>Removes a mint added through the API</td></tr>
+<tr><td><code>GET /admin/api/settings</code></td><td></td><td>The configuration in force: units, mints, caps, enabled methods, other-mint policy, models and prices, and where state and secrets live (a source kind and a mount, never a secret)</td></tr>
+</tbody>
+</table></div>
+<p>Every admin change is logged as <code>admin_action</code> with counts and amounts only. <code>pnpm admin</code> runs the same operations against the database from the host (<a href="https://github.com/ForgeReserve/bellows/blob/main/README.md#admin-cli">README</a>).</p>
+<h2 id="discovery-format">Discovery format<a class="anchor" href="#discovery-format" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>A client needs three things before it sends anything: where the Bellows is, which build it runs, and the key to encrypt to. They come from four documents.</p>
+<h3 id="well-knownbellows"><code>/.well-known/bellows</code><a class="anchor" href="#well-knownbellows" aria-hidden="true" tabindex="-1">#</a></h3>
+<pre tabindex="0" data-lang="json"><code class="language-json">{
+  &quot;format&quot;: &quot;bellows-identity/v1&quot;,
+  &quot;statement&quot;: &quot;&lt;base64 of the statement's JSON bytes&gt;&quot;,
+  &quot;attestation&quot;: { &quot;format&quot;: &quot;&lt;attestation format URI&gt;&quot;, &quot;...&quot;: &quot;...&quot; }
+}</code></pre>
+<p>The statement, decoded:</p>
+<pre tabindex="0" data-lang="json"><code class="language-json">{
+  &quot;version&quot;: &quot;0.1.0&quot;,
+  &quot;measurement&quot;: { &quot;type&quot;: &quot;&lt;format URI&gt;&quot;, &quot;registers&quot;: [&quot;&lt;lowercase hex&gt;&quot;] },
+  &quot;hpke&quot;: { &quot;key_config&quot;: &quot;&lt;base64 RFC 9458 key configuration&gt;&quot; },
+  &quot;relays&quot;: [&quot;https://relay.example/relay/bellows.example&quot;],
+  &quot;operator&quot;: null
+}</code></pre>
+<ul>
+<li><code>version</code> is the Bellows release. <code>measurement</code> is the build the server claims, or <code>null</code>; a client trusts only the measurement the attestation proves.</li>
+<li><code>hpke.key_config</code> is the RFC 9458 key configuration (section 3.1): key id, KEM <code>0x0020</code> (X25519), the 32-byte public key, and HKDF-SHA256 with AES-128-GCM. The key is made at boot, lives only in memory and is new on every restart.</li>
+<li><code>relays</code> are the Oblivious HTTP relay URLs for this Bellows, in the operator's order.</li>
+<li><code>operator</code> is the operator's signed announcement (<a href="#operator-announcement">below</a>) or <code>null</code>.</li>
+<li>The attestation binds <code>SHA-256(&quot;bellows-identity/v1&quot; || 0x00 || statement bytes)</code>. The statement travels as base64 so both sides hash the same bytes. Anyone in front of the sealed machine who changes the key, a relay or the announcement breaks the binding.</li>
+<li>Attestation <code>format</code> is <code>https://tinfoil.sh/predicate/attestation/v3</code> on Tinfoil, or <code>urn:bellows:attestation:dev:v1</code> for the development stand-in, which proves nothing and which clients refuse unless they opt in.</li>
+<li>Until the first attestation succeeds, the answer is <code>503 not_attested</code> with <code>Retry-After</code>.</li>
+</ul>
+<p><code>verifyBellows(url, {approvedBuilds, verifier})</code> in the client library fetches this document, checks the attestation with the app's verifier, and finds the proved measurement in <code>builds.json</code>. It returns the attested key configuration (<code>keyConfig</code>), the approved build, the proved measurement, the relays and the operator announcement, or throws <code>BellowsVerifyError</code> with a stable <code>code</code>. If it throws, send nothing. <a href="attestation.html">Attestation</a> has each check. It reads the document directly from the Bellows, so the operator sees the client's address on that request. To keep it hidden, pass a <code>fetch</code> in the options that sends through Tor (<code>verifyBellows(url, {approvedBuilds, verifier, fetch})</code>).</p>
+<h3 id="buildsjson"><code>builds.json</code><a class="anchor" href="#buildsjson" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The approved builds, published in the Bellows repository:</p>
+<pre tabindex="0" data-lang="json"><code class="language-json">{
+  &quot;format&quot;: &quot;bellows-builds/v1&quot;,
+  &quot;builds&quot;: [
+    {
+      &quot;version&quot;: &quot;1.0.0&quot;,
+      &quot;image&quot;: &quot;ghcr.io/example/bellows@sha256:&lt;64 hex&gt;&quot;,
+      &quot;measurement&quot;: { &quot;type&quot;: &quot;https://tinfoil.sh/predicate/snp-tdx-multiplatform/v1&quot;, &quot;registers&quot;: [&quot;&lt;hex&gt;&quot;, &quot;&lt;hex&gt;&quot;, &quot;&lt;hex&gt;&quot;] },
+      &quot;released&quot;: &quot;2026-12-01&quot;,
+      &quot;deployment&quot;: &quot;example/bellows-deploy@v1.0.0&quot;,
+      &quot;notes&quot;: &quot;optional&quot;
+    }
+  ]
+}</code></pre>
+<p>A client accepts a Bellows only when the measurement its attestation proves is listed here. <code>deployment</code> names the operator's measured deploy config as <code>owner/repo@tag</code>, since each operator's config is measured too. <code>pnpm builds:check</code> validates the file.</p>
+<h3 id="operator-announcement">Operator announcement<a class="anchor" href="#operator-announcement" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>An operator says where their Bellows is with one signed, addressable Nostr event (NIP-01), published on Nostr relays and served inside the attested statement:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Field</th><th scope="col">Value</th></tr></thead>
+<tbody>
+<tr><td><code>kind</code></td><td><code>38390</code> (not registered in the NIPs list)</td></tr>
+<tr><td><code>content</code></td><td>Optional description, at most 1000 characters</td></tr>
+<tr><td><code>[&quot;d&quot;, origin]</code>, <code>[&quot;u&quot;, origin]</code></td><td>The Bellows' origin, for example <code>https://bellows.example</code></td></tr>
+<tr><td><code>[&quot;ohttp-relay&quot;, url]</code></td><td>Zero or more relay URLs</td></tr>
+<tr><td><code>[&quot;onion&quot;, url]</code></td><td>Optional v3 onion address</td></tr>
+<tr><td><code>[&quot;version&quot;, version]</code></td><td>The release it runs</td></tr>
+<tr><td><code>[&quot;measurement&quot;, type, register, ...]</code></td><td>Optional build measurement, as in <code>builds.json</code></td></tr>
+<tr><td><code>[&quot;unit&quot;, unit]</code></td><td>One or more of <code>usd</code>, <code>sat</code></td></tr>
+<tr><td><code>[&quot;mint&quot;, url]</code></td><td>One or more accepted mints</td></tr>
+<tr><td><code>[&quot;alt&quot;, &quot;Bellows operator announcement&quot;]</code></td><td>NIP-31 text</td></tr>
+</tbody>
+</table></div>
+<p><code>loadOperatorAnnouncements(relays, {authors})</code> reads them and checks each signature. <code>OperatorPool</code> verifies each Bellows, checks that its attested statement carries an announcement by the same operator key for the same origin, health-checks it, picks one and fails over. <code>moveBalance</code> withdraws a balance from one operator as eCash and funds a new one at another. A balance key works only at the operator that issued it. <a href="operators.html">Operators</a> has the details.</p>
+<h3 id="key-and-relay-endpoints">Key and relay endpoints<a class="anchor" href="#key-and-relay-endpoints" aria-hidden="true" tabindex="-1">#</a></h3>
+<ul>
+<li><code>GET /ohttp-keys</code> serves the same key as <code>application/ohttp-keys</code>, for standard OHTTP tooling. Check it against the attested key.</li>
+<li>A relay URL has the form <code>https://&lt;relay host&gt;/relay/&lt;Bellows host&gt;</code>. A Bellows relay forwards the body and its content type only, and nothing that identifies the client.</li>
+</ul>
+<h2 id="moving-an-existing-client-to-a-bellows">Moving an existing client to a Bellows<a class="anchor" href="#moving-an-existing-client-to-a-bellows" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>A client written for Forge AI works against a Bellows with these changes, and no change to its calls:</p>
+<ul>
+<li><strong>Base URL.</strong> A Bellows does not serve a web app. A web app served from its own origin points its calls at the Bellows' origin (<code>fetch(base + path, init)</code>). Cross-origin calls work; see <a href="#conventions">Browsers</a>.</li>
+<li><strong>Proof of work.</strong> Opening a new balance needs a proof of work unless the operator sets <code>BELLOWS_POW_BITS=0</code>. A client that predates it gets <code>428 pow_required</code> when it opens a balance, and everything else works. Solve it as in <a href="#proof-of-work">Proof of work</a>.</li>
+<li><strong>Oblivious HTTP, optional.</strong> Verify the Bellows with <code>verifyBellows</code> and send each call with <code>bellowsFetch(operator, path, init)</code> in place of <code>fetch(path, init)</code>. Paths, headers, bodies and answers stay the same, streaming included.</li>
+<li><strong>Encrypted chat.</strong> Point the EHBP client's base URL at <code>&lt;Bellows origin&gt;/v1/</code>. Sending EHBP through Oblivious HTTP needs an EHBP client that takes a custom <code>fetch</code>.</li>
+</ul>
+<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/API.md">docs/API.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
+    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="../docs/build.html">Build on Bellows</a></li>
+        <li><a href="../docs/api.html">API reference</a></li>
+        <li><a href="../docs/threat-model.html">Threat model</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

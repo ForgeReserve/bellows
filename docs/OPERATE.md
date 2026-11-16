@@ -2,7 +2,7 @@
 
 This page runs a Bellows on Tinfoil Containers, step by step, so that its operator cannot read the requests, the answers, the balances or the keys. What each party can still see is in [THREAT-MODEL.md](THREAT-MODEL.md).
 
-**NOT VERIFIED** marks every step that needs real sealed hardware. Those steps follow Tinfoil's public documentation and the deploy kit in this repository, and have not yet been run on Tinfoil. Everything else here has been run locally. "Not verified on sealed hardware" at the end lists the open points.
+**NOT VERIFIED** marks every step that needs real sealed hardware and has not been checked there one by one. Those steps follow Tinfoil's public documentation and the deploy kit in this repository. The release workflows have run on GitHub ([4. Release](#4-release)), and the reference instance runs release 0.1.2 this way. Everything else here has been run locally. "Not verified on sealed hardware" at the end lists the open points.
 
 ## The deploy kit
 
@@ -136,7 +136,7 @@ Clients accept the build only once it is in the `builds.json` they trust. A Tinf
 
   Review it as above before merging.
 
-NOT VERIFIED: the workflows have not run on GitHub; Tinfoil's measure action has not measured this config; the image build has not been checked for reproducibility.
+The workflows have run on GitHub for releases 0.1.0, 0.1.1 and 0.1.2, and Tinfoil's measure action measured each one. The measurements in `builds.json` match the `tinfoil-deployment.json` of each GitHub release. For 0.1.0 the publish run failed at its last step, opening the pull request, and the entry was added from the published measurement. NOT VERIFIED: the image build has not been checked for reproducibility.
 
 ## 5. Approve the release in your keyserver
 
@@ -245,7 +245,8 @@ With `-e BELLOWS_MODE=sealed -e BELLOWS_SECRETS=platform -e BELLOWS_SEALED_MOUNT
 - The keyserver releasing secrets to a Bellows enclave, as environment variables, and refusing a debug enclave.
 - Volume creation and unlock at boot through `key-secret`, first-boot initialization of a blank disk, the mount's owner (`1000:1000`), and the mount appearing in `/proc/self/mountinfo` so that sealed mode accepts it.
 - The attestation socket in a Bellows container and the document it returns ([ATTESTATION.md](ATTESTATION.md#not-verified-locally)).
-- The release workflows on GitHub, Tinfoil's measure action on this config, the measurement form in `builds.json` matching what an app's `authenticate` returns, and reproducible image builds.
+- The measurement form in `builds.json` matching what an app's `authenticate` returns, and reproducible image builds. The release workflows and Tinfoil's measure action have run ([4. Release](#4-release)).
+- On the reference instance: a paid request, an Oblivious HTTP round trip, and reading a balance back after a restart. The test suite and local runs cover each of them.
 - Tinfoil's dashboard and CLI accepting these workflows in place of the template's, and the `version` input they send.
 - The egress allowlist in practice: hostnames re-resolved by the platform, Nostr relays over WebSocket, and enclave hosts a client names beyond the ones listed (they are blocked unless you add them).
 - Streamed answers and the admin API through the shim.
