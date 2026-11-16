@@ -14,7 +14,7 @@
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
-<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An AI gateway its operator cannot read.">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: A sealed AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Reference instance | Bellows developers">
 <meta name="twitter:description" content="The public Bellows on Tinfoil Containers: its address, what it answers and what has run there.">
@@ -81,7 +81,7 @@
 <p>Release 0.1.2 runs sealed on Tinfoil Containers at this address. It takes real eCash. Check its build before you send it anything.</p>
 <p><code class="addr">https://bellows.<wbr>island-bitcoin.<wbr>containers.<wbr>tinfoil.dev</code></p>
 <h2 id="what-it-answers">What it answers</h2>
-<p>Its public routes need no payment:</p>
+<p>Its public routes are free to read:</p>
 <pre tabindex="0"><code>B=https://bellows.island-bitcoin.containers.tinfoil.dev
 curl -s $B/healthz                 # liveness and the BTC/USD rate in use
 curl -s $B/v1/models | jq '{units, mints, ids: [.data[].id]}'

@@ -42,7 +42,7 @@ The rules `pnpm deploy:check` enforces, and why:
 
 Copy this repository to a new public repository (a fork works). It is your deployment: the code, the measured config and its release workflows.
 
-Edit `tinfoil-config.yml`, not the templates in `deploy/`. The test suite, which the release runs, checks the templates against their example values and checks your `tinfoil-config.yml` against the rules above.
+Edit `tinfoil-config.yml`. The templates in `deploy/` stay as they are. The test suite, which the release runs, checks the templates against their example values and checks your `tinfoil-config.yml` against the rules above.
 
 - `keyserver-url`: your keyserver.
 - `BELLOWS_TRUSTED_MINTS` (and `BELLOWS_FUND_MINT` if you set it): your mints. Add each mint's host to the `egress` allowlist.
@@ -212,7 +212,7 @@ A new version is a new release (step 4), a new `builds.json` entry, a new keyser
 tinfoil container update bellows --tag v1.0.1
 ```
 
-An instance with a persistent volume is replaced, not run side by side: it is unreachable until the new version is running. The volume and its key stay the same. Do not replace the volume key.
+An instance with a persistent volume is replaced in place: it is unreachable until the new version is running. The volume and its key stay the same. Do not replace the volume key.
 
 ## Backups and recovery
 

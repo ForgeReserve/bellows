@@ -80,14 +80,14 @@ export const PAGES: readonly PageDef[] = [
   { slug: 'ohttp', label: 'Oblivious HTTP', group: 'Build on it', md: 'OHTTP.md', summary: 'Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.' },
   { slug: 'operators', label: 'Operators', group: 'Build on it', md: 'OPERATORS.md', summary: 'Operator announcements on Nostr, choosing among many operators, and moving a balance from one to another.' },
   { slug: 'attestation', label: 'Attestation', group: 'Trust', md: 'ATTESTATION.md', summary: 'How a client checks which build a Bellows runs before it sends anything.' },
-  { slug: 'privacy', label: 'Privacy', group: 'Trust', md: 'PRIVACY.md', summary: 'What the gateway can see, per model tier, and what it never stores or logs.' },
+  { slug: 'privacy', label: 'Privacy', group: 'Trust', md: 'PRIVACY.md', summary: 'What the gateway can see, per model tier, and what it stores and logs.' },
   { slug: 'threat-model', label: 'Threat model', group: 'Trust', md: 'THREAT-MODEL.md', summary: 'What each party can see and do in a sealed deployment, what the design assumes and where it is weak.' },
   {
     slug: 'operate',
     label: 'Operator guide',
     group: 'Run your own',
     md: 'OPERATE.md',
-    summary: 'Run a Bellows on Tinfoil Containers, step by step, so that its operator cannot read the requests, the answers, the balances or the keys.',
+    summary: 'Run a Bellows on Tinfoil Containers, step by step, so that requests, answers, balances and keys stay sealed from its operator.',
     parts: {
       'the-deploy-kit': 'The files that make a sealed deployment, and the rules pnpm deploy:check enforces.',
       'what-you-need': 'The accounts, servers, keys and rate cards to have ready before you start.',
@@ -458,7 +458,7 @@ ${opts.noindex ? '<meta name="robots" content="noindex">\n' : ''}<meta name="the
 <meta property="og:image" content="${PREVIEW_IMAGE}">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
-<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An AI gateway its operator cannot read.">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: A sealed AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${escapeHtml(title)}">
 <meta name="twitter:description" content="${escapeHtml(description)}">
@@ -659,8 +659,8 @@ const LANDING_MOVED: Readonly<Record<string, string>> = {
 
 function landing(root: string): string {
   return `${head({
-    title: 'Bellows | An AI gateway its operator cannot read',
-    description: 'Bellows is an open-source AI gateway that runs sealed: its operator cannot read your prompts or see who paid. It speaks the OpenAI API and takes Cashu eCash per request.',
+    title: 'Bellows | A sealed AI gateway, paid with eCash',
+    description: 'Bellows is an open-source AI gateway that runs inside sealed hardware, so prompts and answers stay out of its operator\'s reach. It speaks the OpenAI API and takes Cashu eCash per request.',
     prefix: '',
   })}
 <body class="home">
@@ -675,7 +675,7 @@ ${footer()}
 }
 
 function notFound(root: string): string {
-  return `${head({ title: 'Page not found | Bellows', description: 'This page does not exist on the Bellows site. The home page and the Developers pages are linked below.', prefix: '', base: '/', noindex: true })}
+  return `${head({ title: 'Page not found | Bellows', description: 'The home page and the Developers pages of the Bellows site are linked below.', prefix: '', base: '/', noindex: true })}
 <body class="not-found-page">
 ${header('', false).replace('<a class="skip" href="#main">Skip to content</a>\n', '')}
 <main id="main">

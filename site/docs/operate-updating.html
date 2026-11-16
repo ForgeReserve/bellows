@@ -14,7 +14,7 @@
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
-<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An AI gateway its operator cannot read.">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: A sealed AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Updating | Operator guide | Bellows">
 <meta name="twitter:description" content="Roll a new release out to a running instance.">
@@ -78,7 +78,7 @@
 
 <p>A new version is a new release (step 4), a new <code>builds.json</code> entry, a new keyserver approval (step 5) and then:</p>
 <pre tabindex="0" data-lang="sh"><code class="language-sh">tinfoil container update bellows --tag v1.0.1</code></pre>
-<p>An instance with a persistent volume is replaced, not run side by side: it is unreachable until the new version is running. The volume and its key stay the same. Do not replace the volume key.</p>
+<p>An instance with a persistent volume is replaced in place: it is unreachable until the new version is running. The volume and its key stay the same. Do not replace the volume key.</p>
 </article>
 <nav class="pager" aria-label="Previous and next page">
 <a class="pager-prev" rel="prev" href="operate-oblivious-http-under-load.html"><span>Previous</span>Oblivious HTTP under load</a>

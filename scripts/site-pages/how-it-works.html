@@ -110,7 +110,7 @@
 <ol class="steps">
   <li>Your app reads the engine's attested identity and checks the hardware attestation and the build against <code>builds.json</code>. If the check fails, it sends nothing.</li>
   <li>It encrypts the API call to the attested key with Oblivious HTTP and posts it to a relay.</li>
-  <li>The relay forwards the ciphertext. It sees your address and cannot read the request.</li>
+  <li>The relay forwards the ciphertext. It sees your address and the ciphertext only.</li>
   <li>Inside the confidential VM, Bellows opens the request and takes payment: a balance key, or a Cashu token it swaps at the mint.</li>
   <li>Bellows calls the model, charges what the request used and streams the answer back the same way.</li>
 </ol>

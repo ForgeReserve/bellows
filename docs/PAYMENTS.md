@@ -6,7 +6,7 @@ This document describes how Bellows takes, holds and returns eCash, and what hap
 
 A token's unit is `usd` (amounts are cents) or `sat`. Internally every amount is tracked in **msub**, a thousandth of the unit: milli-cents for `usd`, millisatoshi for `sat`. Prices are set in USD per million tokens and computed in nano-USD, then rounded up once into msub.
 
-- Balances keep sub-cent precision. A request that costs 0.164 cents takes 164 msub from the balance; a hundred of them take 16.4 cents, not a dollar.
+- Balances keep sub-cent precision. A request that costs 0.164 cents takes 164 msub from the balance; a hundred of them take 16.4 cents.
 - NUT-24 payments are whole tokens, so a per-request charge rounds up to a whole cent or sat. The rest comes back as change.
 - Withdrawals are whole units. A sub-unit remainder stays on the balance.
 - Sat prices use the median BTC/USD rate from at least `BELLOWS_RATE_MIN_SOURCES` sources, cached for `BELLOWS_RATE_TTL_SECONDS`. If sources fail, the last good rate is used until it is `BELLOWS_RATE_MAX_STALE_SECONDS` old; after that, sat requests get HTTP 503 and USD keeps working. Within one request, reservation and settlement use the same rate.
@@ -181,7 +181,7 @@ A request that never ends (an upstream that stops sending without closing the st
 
 ## Known limits
 
-- One gateway process per database. In-process locks prevent concurrent use of the same token or payout; SQLite transactions guard balances. Two processes on one database are unsafe, not merely unsupported: each treats a receive the other has in flight as dead and can forget it after the mint swap, losing the received eCash. The late charge for a released reservation (see Reservations) is a backstop for this rule being broken by accident, not a way around it.
+- One gateway process per database. In-process locks prevent concurrent use of the same token or payout; SQLite transactions guard balances. Two processes on one database are unsafe: each treats a receive the other has in flight as dead and can forget it after the mint swap, losing the received eCash. The late charge for a released reservation (see Reservations) is a backstop for this rule being broken by accident, not a way around it.
 - The NUT-13 seed is derived from the wallet secret (`BELLOWS_WALLET_SECRET` in the secrets source) and never stored. A database from an earlier version that stored its seed keeps using that seed, so for such a database the seed sits in the database. With the wallet secret and no database, the gateway's eCash can be found again at the mint with NUT-09 restore (`test/e2e/sealed-state.e2e.test.ts` does this), but the ledger (who is owed what) is in the database only. Losing the wallet secret and the database loses the wallet.
 - Payouts come from one mint. With several trusted mints, a refund needs one mint to hold enough.
 - Sub-unit balance remainders cannot be withdrawn.
