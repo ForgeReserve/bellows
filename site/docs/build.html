@@ -3,448 +3,107 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Build on Bellows | Bellows docs</title>
-<meta name="description" content="Use a running Bellows from an app, an agent or a script: verify it, pay with eCash, chat, stream and go through Oblivious HTTP.">
+<title>Build on Bellows | Bellows developers</title>
+<meta name="description" content="The guide: verify an engine, pay with eCash, chat, stream and go through Oblivious HTTP, with examples in curl, JavaScript and Python.">
 <meta name="theme-color" content="#0B0D10">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bellows">
-<meta property="og:title" content="Build on Bellows | Bellows docs">
-<meta property="og:description" content="Use a running Bellows from an app, an agent or a script: verify it, pay with eCash, chat, stream and go through Oblivious HTTP.">
+<meta property="og:title" content="Build on Bellows | Bellows developers">
+<meta property="og:description" content="The guide: verify an engine, pay with eCash, chat, stream and go through Oblivious HTTP, with examples in curl, JavaScript and Python.">
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Build on Bellows | Bellows docs">
-<meta name="twitter:description" content="Use a running Bellows from an app, an agent or a script: verify it, pay with eCash, chat, stream and go through Oblivious HTTP.">
+<meta name="twitter:title" content="Build on Bellows | Bellows developers">
+<meta name="twitter:description" content="The guide: verify an engine, pay with eCash, chat, stream and go through Oblivious HTTP, with examples in curl, JavaScript and Python.">
 <meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../assets/icon.png">
 <link rel="stylesheet" href="../assets/site.css">
 <script src="../assets/site.js" defer></script>
 </head>
-<body class="docs">
+<body class="developers">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
     <nav aria-label="Main">
       <ul class="nav">
-        <li><a href="../docs/index.html">Docs</a></li>
-        <li><a href="../docs/build.html" aria-current="page">Build</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
         <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
       </ul>
     </nav>
   </div>
 </header>
-<div class="wrap docs-layout">
-<nav class="docs-nav" aria-label="Docs">
-<details class="docs-menu" open>
-<summary>All docs</summary>
-<p class="nav-group">Build</p>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
 <ul>
 <li><a href="build.html" aria-current="page">Build on Bellows</a>
-<ul class="toc"><li><a href="#pick-an-engine">Pick an engine</a></li><li><a href="#check-which-build-it-runs">Check which build it runs</a></li><li><a href="#list-models">List models</a></li><li><a href="#pay-for-requests">Pay for requests</a></li><li><a href="#send-a-chat-request">Send a chat request</a></li><li><a href="#stream-an-answer">Stream an answer</a></li><li><a href="#send-through-oblivious-http">Send through Oblivious HTTP</a></li><li><a href="#handle-errors">Handle errors</a></li><li><a href="#read-the-balance-and-take-it-back">Read the balance and take it back</a></li><li><a href="#use-the-client-library">Use the client library</a></li><li><a href="#run-your-own-engine">Run your own engine</a></li><li><a href="#how-these-examples-were-checked">How these examples were checked</a></li></ul></li>
-</ul>
-<p class="nav-group">Reference</p>
-<ul>
+<ol class="side-parts"><li><a href="build-pick-an-engine.html">Pick an engine</a></li><li><a href="build-check-which-build-it-runs.html">Check which build it runs</a></li><li><a href="build-list-models.html">List models</a></li><li><a href="build-pay-for-requests.html">Pay for requests</a></li><li><a href="build-send-a-chat-request.html">Send a chat request</a></li><li><a href="build-stream-an-answer.html">Stream an answer</a></li><li><a href="build-send-through-oblivious-http.html">Send through Oblivious HTTP</a></li><li><a href="build-handle-errors.html">Handle errors</a></li><li><a href="build-read-the-balance-and-take-it-back.html">Read the balance and take it back</a></li><li><a href="build-use-the-client-library.html">Use the client library</a></li><li><a href="build-run-your-own-engine.html">Run your own engine</a></li><li><a href="build-how-these-examples-were-checked.html">How these examples were checked</a></li></ol></li>
 <li><a href="api.html">API reference</a></li>
 <li><a href="payments.html">Payments</a></li>
-<li><a href="attestation.html">Attestation</a></li>
 <li><a href="ohttp.html">Oblivious HTTP</a></li>
-<li><a href="privacy.html">Privacy</a></li>
-<li><a href="threat-model.html">Threat model</a></li>
 <li><a href="operators.html">Operators</a></li>
 </ul>
-<p class="nav-group">Run</p>
+<p class="side-group">Trust</p>
 <ul>
-<li><a href="operate.html">Run your own</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
 </ul>
-<p class="nav-group">On GitHub</p>
+<p class="side-group">Run your own</p>
 <ul>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+<li><a href="operate.html">Operator guide</a></li>
 </ul>
 </details>
 </nav>
-<main id="main" class="prose">
+<main id="main" class="dev-main" data-moved="{&quot;pick-an-engine&quot;:&quot;build-pick-an-engine.html&quot;,&quot;check-which-build-it-runs&quot;:&quot;build-check-which-build-it-runs.html&quot;,&quot;list-models&quot;:&quot;build-list-models.html&quot;,&quot;pay-for-requests&quot;:&quot;build-pay-for-requests.html&quot;,&quot;open-a-balance&quot;:&quot;build-pay-for-requests.html&quot;,&quot;fund-a-balance-with-lightning&quot;:&quot;build-pay-for-requests.html&quot;,&quot;pay-per-request-nut-24&quot;:&quot;build-pay-for-requests.html&quot;,&quot;send-a-chat-request&quot;:&quot;build-send-a-chat-request.html&quot;,&quot;stream-an-answer&quot;:&quot;build-stream-an-answer.html&quot;,&quot;send-through-oblivious-http&quot;:&quot;build-send-through-oblivious-http.html&quot;,&quot;handle-errors&quot;:&quot;build-handle-errors.html&quot;,&quot;read-the-balance-and-take-it-back&quot;:&quot;build-read-the-balance-and-take-it-back.html&quot;,&quot;use-the-client-library&quot;:&quot;build-use-the-client-library.html&quot;,&quot;run-your-own-engine&quot;:&quot;build-run-your-own-engine.html&quot;,&quot;how-these-examples-were-checked&quot;:&quot;build-how-these-examples-were-checked.html&quot;}">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Build on it</p>
+<article class="prose">
 <h1 id="build-on-bellows">Build on Bellows</h1>
+<p class="summary">The guide: verify an engine, pay with eCash, chat, stream and go through Oblivious HTTP, with examples in curl, JavaScript and Python.</p>
+
 <p>Bellows is an OpenAI-compatible AI gateway that you pay per request with Cashu eCash. This guide shows how an app, an agent or a script uses a running Bellows: pick one, check which build it runs, list its models, pay, send chat requests, stream answers, go through Oblivious HTTP, handle errors and take your money back. The last part points operators at the pages for running their own.</p>
-<p>Every path, header and field here is described in full in <a href="api.html">API reference</a>. The examples were run against a local Bellows with local test mints; <a href="#how-these-examples-were-checked">How these examples were checked</a> lists what ran and what did not.</p>
-<h2 id="pick-an-engine">Pick an engine<a class="anchor" href="#pick-an-engine" aria-hidden="true" tabindex="-1">#</a></h2>
-<p>A Bellows is an origin that serves the API. Two choices:</p>
-<ul>
-<li><strong>The reference instance</strong> at <code>https://bellows.island-bitcoin.containers.tinfoil.dev</code>, which runs release 0.1.2 on Tinfoil Containers. It takes real eCash.</li>
-<li><strong>A local engine</strong> on your machine, with test mints that pay their own invoices. Use it while you build.</li>
-</ul>
-<p>Start a local engine from a checkout of this repository. You need Node 22.18 or later, pnpm and Docker.</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">pnpm install --frozen-lockfile
-pnpm mint:up        # three local Nutshell test mints (FakeWallet, usd and sat)
-BELLOWS_TRUSTED_MINTS=http://127.0.0.1:3338 BELLOWS_MODELS_FILE=config/models.dev.json \
-  BELLOWS_DB_PATH=data/dev.db pnpm start      # listens on http://localhost:8787</code></pre>
-<p><code>config/models.dev.json</code> adds mock models (<code>mock-echo</code>, <code>mock-slow</code> and others) that answer without any supplier key. In another terminal, make test eCash worth 100 cents:</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">pnpm test-token 100 usd     # prints cashuB...</code></pre>
-<p><code>pnpm test-token</code> talks only to a local test mint. Never point it at a real mint.</p>
-<p>Check that the engine answers:</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">B=http://localhost:8787     # or https://bellows.island-bitcoin.containers.tinfoil.dev
-curl -s $B/healthz
-# {&quot;ok&quot;:true,&quot;rate&quot;:{&quot;btc_usd&quot;:65008.12,&quot;age_s&quot;:5},&quot;invite_only&quot;:false}</code></pre>
-<h2 id="check-which-build-it-runs">Check which build it runs<a class="anchor" href="#check-which-build-it-runs" aria-hidden="true" tabindex="-1">#</a></h2>
-<p>Before you send a prompt or a token, check that the engine runs an approved build. A Bellows serves its identity at <code>GET /.well-known/bellows</code>: a statement (version, claimed build, the HPKE key clients encrypt to, its relays, the operator's announcement) and an attestation that binds that statement. <a href="attestation.html">Attestation</a> describes each part.</p>
-<p>Look at it by hand:</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s $B/.well-known/bellows | jq '.attestation | {format, warning}'
-curl -s $B/.well-known/bellows | jq -r .statement | base64 -d | jq '{version, measurement, relays, operator}'</code></pre>
-<p>On a local engine the attestation format is <code>urn:bellows:attestation:dev:v1</code> with the warning <code>DEVELOPMENT STAND-IN. NOT HARDWARE ATTESTATION. PROVES NOTHING.</code> On Tinfoil it is <code>https://tinfoil.sh/predicate/attestation/v3</code>.</p>
-<p><code>GET /ohttp-keys</code> serves the same key for standard OHTTP tools. It should equal the attested one:</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s $B/ohttp-keys | tail -c +3 | base64                                    # drop the 2-byte length
-curl -s $B/.well-known/bellows | jq -r .statement | base64 -d | jq -r .hpke.key_config</code></pre>
-<p>Reading the document proves nothing by itself. The check that counts is <code>verifyBellows</code> in the client library: it verifies the attestation, finds the measured build in <code>builds.json</code>, and returns the attested key, or throws. If it throws, send nothing.</p>
-<pre tabindex="0" data-lang="ts"><code class="language-ts">import { tinfoilVerifier, verifyBellows } from './client/index.ts';
-import buildsJson from './builds.json' with { type: 'json' };
-
-const bellows = await verifyBellows('https://bellows.island-bitcoin.containers.tinfoil.dev', {
-  approvedBuilds: buildsJson,
-  verifier: tinfoilVerifier({ authenticate }),
-});
-// bellows.keyConfig is the attested key, bellows.relays its relays, bellows.build the approved build.</code></pre>
-<p><code>authenticate</code> is yours to supply. It must check the SEV-SNP report or TDX quote (vendor certificate chain, collateral, provenance) and return the measurement it proves and the REPORT_DATA read from the quote. No implementation ships in this repository; <a href="attestation.html#the-client-library">Attestation</a> says what it must do, and <a href="attestation.html#not-verified-locally">Attestation</a> lists what has not been run on real sealed hardware.</p>
-<p>Against a local engine, accept the development stand-in explicitly. It proves nothing, so use it only for development:</p>
-<pre tabindex="0" data-lang="ts"><code class="language-ts">import { devVerifier, verifyBellows } from './client/index.ts';
-
-const BELLOWS = 'http://localhost:8787';
-// A local engine is not in builds.json. List the build it claims, for development only.
-const doc = await (await fetch(`${BELLOWS}/.well-known/bellows`)).json();
-const claimed = JSON.parse(atob(doc.statement));
-const devBuilds = {
-  format: 'bellows-builds/v1',
-  builds: [{ version: claimed.version, image: `ghcr.io/example/bellows@sha256:${'0'.repeat(64)}`, measurement: claimed.measurement, released: '2026-11-16' }],
-};
-const bellows = await verifyBellows(BELLOWS, { approvedBuilds: devBuilds, verifier: devVerifier(), allowDevelopment: true });</code></pre>
-<p>Without <code>allowDevelopment</code> the same call throws <code>BellowsVerifyError</code> with code <code>development_refused</code>.</p>
-<p><code>verifyBellows</code> reads <code>/.well-known/bellows</code> straight from the engine, so the operator sees your address on that one request. To keep it hidden, pass a <code>fetch</code> in its options that sends through Tor.</p>
-<h2 id="list-models">List models<a class="anchor" href="#list-models" aria-hidden="true" tabindex="-1">#</a></h2>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s $B/v1/models | jq '{units, mints, invite_only, models: [.data[] | {id, tier, encrypted_passthrough, usd_per_mtok: .pricing.usd_per_mtok, verified: .pricing.verified}]}'</code></pre>
-<p>What to read from the answer:</p>
-<ul>
-<li><code>data[].id</code> is the model name to send. <code>tier</code> is <code>enclave</code> for a model that runs in its supplier's sealed hardware, <code>standard</code> otherwise.</li>
-<li><code>pricing.usd_per_mtok</code> is the price per million input and output tokens, markup included. <code>sat_per_mtok</code> is the same at the current BTC/USD rate. A price with <code>verified: false</code> is an estimate.</li>
-<li><code>mints</code> lists the mints whose eCash this engine takes. <code>units</code> lists <code>usd</code> (cents) and <code>sat</code>.</li>
-<li><code>invite_only: true</code> means opening a balance or paying per request needs an invite code from the operator.</li>
-</ul>
-<h2 id="pay-for-requests">Pay for requests<a class="anchor" href="#pay-for-requests" aria-hidden="true" tabindex="-1">#</a></h2>
-<p>There are two ways to pay. Both use eCash from one of the <code>mints</code> in <code>/v1/models</code>.</p>
-<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
-<thead><tr><th scope="col">Way</th><th scope="col">Send</th><th scope="col">Good for</th></tr></thead>
-<tbody>
-<tr><td>Prepaid balance</td><td><code>Authorization: Bearer sk-forge-...</code></td><td>Apps and chats that make many requests</td></tr>
-<tr><td>Per request (NUT-24)</td><td><code>X-Cashu: cashuB...</code></td><td>Agents and scripts that want no account and no key</td></tr>
-</tbody>
-</table></div>
-<p>A balance key links every request made with it to the others. A per-request payment is not linked to other requests by the engine. <a href="privacy.html">Privacy</a> has the details.</p>
-<h3 id="open-a-balance">Open a balance<a class="anchor" href="#open-a-balance" aria-hidden="true" tabindex="-1">#</a></h3>
-<p>Send a token to <code>POST /v1/wallet/topup</code>. Opening a new balance needs a small proof of work: the first answer is <code>428 pow_required</code> with a challenge. Find a nonce so that SHA-256 of <code>&lt;challenge&gt;:&lt;nonce&gt;</code> starts with <code>bits</code> zero bits, then send the same request again with <code>X-Bellows-Pow: &lt;challenge&gt;:&lt;nonce&gt;</code>. <code>GET /v1/pow</code> hands out a challenge ahead of time. A challenge is good for 5 minutes and one request.</p>
-<p>With curl and a small Python solver:</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">pow_solve() {
-  python3 -c 'import hashlib, itertools, sys
-c, bits = sys.argv[1], int(sys.argv[2])
-for i in itertools.count():
-    n = format(i, &quot;x&quot;)
-    h = int.from_bytes(hashlib.sha256(f&quot;{c}:{n}&quot;.encode()).digest(), &quot;big&quot;)
-    if h &gt;&gt; (256 - bits) == 0:
-        print(f&quot;{c}:{n}&quot;)
-        break' &quot;$1&quot; &quot;$2&quot;
-}
-
-TOKEN=cashuB...     # eCash from one of the engine's mints
-POW=$(curl -s $B/v1/pow)
-SOLUTION=$(pow_solve &quot;$(jq -r .challenge &lt;&lt;&lt;&quot;$POW&quot;)&quot; &quot;$(jq -r .bits &lt;&lt;&lt;&quot;$POW&quot;)&quot;)
-TOPUP=$(curl -s $B/v1/wallet/topup -H 'content-type: application/json' \
-  -H &quot;X-Bellows-Pow: $SOLUTION&quot; -d &quot;{\&quot;token\&quot;: \&quot;$TOKEN\&quot;}&quot;)
-KEY=$(jq -r .key &lt;&lt;&lt;&quot;$TOPUP&quot;)
-echo &quot;$TOPUP&quot; | jq '{unit, credited, balance_msub}'</code></pre>
-<p>The answer holds <code>key</code> once. Keep it: it is the balance. To make sure a lost answer never loses the key, choose the key yourself and send it as the bearer key on the topup: <code>sk-forge-</code> followed by 24 to 64 characters from <code>A-Z a-z 0-9 _ -</code>, for example <code>&quot;sk-forge-$(openssl rand -hex 16)&quot;</code>. The answer then has <code>key: null</code>, and the balance is under your key. Sending the same token again is safe: the answer has <code>replay: true</code> and <code>credited: 0</code>.</p>
-<p>In JavaScript, with <code>solvePow</code> from the client library:</p>
-<pre tabindex="0" data-lang="ts"><code class="language-ts">import { solvePow } from './client/index.ts';
-
-async function topup(base: string, token: string) {
-  const send = (headers: Record&lt;string, string&gt; = {}) =&gt;
-    fetch(`${base}/v1/wallet/topup`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', ...headers },
-      body: JSON.stringify({ token }),
-    });
-  let res = await send();
-  if (res.status === 428) {
-    const { pow } = await res.json();
-    res = await send({ 'X-Bellows-Pow': await solvePow(pow.challenge, pow.bits) });
-  }
-  const body = await res.json();
-  if (!res.ok) throw new Error(`${res.status} ${body.error.code}: ${body.error.message}`);
-  return body; // { key, account_id, unit, credited, balance_msub, ... }
-}
-
-const { key } = await topup('http://localhost:8787', 'cashuB...');</code></pre>
-<p>In Python, with <code>requests</code>:</p>
-<pre tabindex="0" data-lang="python"><code class="language-python">import hashlib, itertools
-import requests
-
-BELLOWS = &quot;http://localhost:8787&quot;
-
-def solve_pow(challenge, bits):
-    for i in itertools.count():
-        nonce = format(i, &quot;x&quot;)
-        digest = hashlib.sha256(f&quot;{challenge}:{nonce}&quot;.encode()).digest()
-        if int.from_bytes(digest, &quot;big&quot;) &gt;&gt; (256 - bits) == 0:
-            return f&quot;{challenge}:{nonce}&quot;
-
-def topup(token, key=None):
-    headers = {&quot;authorization&quot;: f&quot;Bearer {key}&quot;} if key else {}
-    res = requests.post(f&quot;{BELLOWS}/v1/wallet/topup&quot;, json={&quot;token&quot;: token}, headers=headers)
-    if res.status_code == 428:
-        pow_ = res.json()[&quot;pow&quot;]
-        headers[&quot;X-Bellows-Pow&quot;] = solve_pow(pow_[&quot;challenge&quot;], pow_[&quot;bits&quot;])
-        res = requests.post(f&quot;{BELLOWS}/v1/wallet/topup&quot;, json={&quot;token&quot;: token}, headers=headers)
-    body = res.json()
-    if not res.ok:
-        raise RuntimeError(f&quot;{res.status_code} {body['error']['code']}: {body['error']['message']}&quot;)
-    return body
-
-key = topup(&quot;cashuB...&quot;)[&quot;key&quot;]</code></pre>
-<p>A balance has one unit, set by its first topup. A token in another unit gets <code>400 wrong_unit</code>.</p>
-<h3 id="fund-a-balance-with-lightning">Fund a balance with Lightning<a class="anchor" href="#fund-a-balance-with-lightning" aria-hidden="true" tabindex="-1">#</a></h3>
-<p>A user who holds no eCash from the engine's mints can pay a Lightning invoice instead. The engine mints eCash at its funding mint and credits the exact amount.</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s $B/v1/wallet/fund/methods | jq '{lightning, onchain: .onchain.enabled}'
-
-KEY=&quot;sk-forge-$(openssl rand -hex 16)&quot;
-POW=$(curl -s $B/v1/pow)
-SOLUTION=$(pow_solve &quot;$(jq -r .challenge &lt;&lt;&lt;&quot;$POW&quot;)&quot; &quot;$(jq -r .bits &lt;&lt;&lt;&quot;$POW&quot;)&quot;)
-FUNDING=$(curl -s $B/v1/wallet/fund/lightning -H 'content-type: application/json' \
-  -H &quot;authorization: Bearer $KEY&quot; -H &quot;X-Bellows-Pow: $SOLUTION&quot; -d '{&quot;amount&quot;: 500, &quot;unit&quot;: &quot;sat&quot;}')
-jq '{id, state, request}' &lt;&lt;&lt;&quot;$FUNDING&quot;      # request is the bolt11 invoice to pay
-ID=$(jq -r .id &lt;&lt;&lt;&quot;$FUNDING&quot;)
-
-curl -s $B/v1/wallet/fund/$ID -H &quot;authorization: Bearer $KEY&quot; | jq '{state, credited}'</code></pre>
-<p>Poll the funding until <code>state</code> is <code>done</code> (or <code>expired</code>). Polling also moves it forward. Other funding methods (a bitcoin deposit, eCash from another mint) are in <a href="api.html#funding-a-balance">API reference</a>.</p>
-<h3 id="pay-per-request-nut-24">Pay per request (NUT-24)<a class="anchor" href="#pay-per-request-nut-24" aria-hidden="true" tabindex="-1">#</a></h3>
-<p>Send a chat request with no credentials. The answer is <code>402</code> with a NUT-18 payment request in <code>X-Cashu</code> and the amount in the body:</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s -i $B/v1/chat/completions -H 'content-type: application/json' \
-  -d '{&quot;model&quot;: &quot;mock-echo&quot;, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}]}'
-# HTTP/1.1 402 Payment Required
-# x-cashu: creqA...
-# {&quot;error&quot;:{...,&quot;code&quot;:&quot;payment_required&quot;},&quot;payment_request&quot;:&quot;creqA...&quot;,&quot;amount&quot;:7,&quot;unit&quot;:&quot;usd&quot;,&quot;mints&quot;:[&quot;http://127.0.0.1:3338&quot;]}</code></pre>
-<p>Pay <code>amount</code> in <code>unit</code> at one of <code>mints</code>: send the same request again with <code>X-Cashu: cashuB...</code>. The amount is the request's maximum cost. The engine charges what the request used and returns the rest as eCash change: in the <code>X-Cashu-Change</code> header, in the final <code>event: forge</code> of a stream, and at <code>GET /v1/change/{request_id}</code> (the <code>X-Forge-Change-Url</code> header). Add <code>X-Cashu-Pubkey: 02...</code> to lock the change to your wallet key, so that only the holder of the private key can redeem it.</p>
-<p><code>examples/agent-pays.ts</code> does all of this with cashu-ts. Against a local engine it can mint its own test eCash:</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">BELLOWS_URL=http://localhost:8787 DEMO_FAKE_MINT=1 pnpm demo:agent &quot;What is eCash?&quot;
-# 402 Payment Required: 7 cents (usd) from one of http://127.0.0.1:3338
-# Answer: ...
-# Charged: 1 cents
-# Change returned: 6 cents; ...</code></pre>
-<p>Set <code>CASHU_PUBKEY=generate</code> to lock the change to a fresh key for the run. Against a real engine, set <code>CASHU_TOKEN=cashuB...</code> to spend real eCash.</p>
-<h2 id="send-a-chat-request">Send a chat request<a class="anchor" href="#send-a-chat-request" aria-hidden="true" tabindex="-1">#</a></h2>
-<p><code>POST /v1/chat/completions</code> takes OpenAI chat completions. <code>tools</code>, <code>tool_choice</code> and other fields pass through. <code>n</code> must be 1. <code>max_tokens</code> is capped at the model's <code>max_output_tokens</code>.</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s -D - $B/v1/chat/completions -H &quot;authorization: Bearer $KEY&quot; -H 'content-type: application/json' \
-  -d '{&quot;model&quot;: &quot;mock-echo&quot;, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}]}'</code></pre>
-<p>The answer is an OpenAI chat completion. Its headers say what it cost:</p>
-<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
-<thead><tr><th scope="col">Header</th><th scope="col">Value</th></tr></thead>
-<tbody>
-<tr><td><code>X-Forge-Request-Id</code></td><td><code>req_...</code>, this request's id</td></tr>
-<tr><td><code>X-Forge-Unit</code></td><td>The unit charged</td></tr>
-<tr><td><code>X-Forge-Charged-Msub</code></td><td>The amount charged, in thousandths of the unit (milli-cents for <code>usd</code>)</td></tr>
-<tr><td><code>X-Forge-Balance-Msub</code></td><td>The balance afterwards</td></tr>
-<tr><td><code>X-Forge-Privacy</code></td><td><code>standard</code>, <code>enclave-plaintext</code> or <code>enclave-encrypted</code></td></tr>
-</tbody>
-</table></div>
-<p>In JavaScript:</p>
-<pre tabindex="0" data-lang="ts"><code class="language-ts">const res = await fetch(`${BELLOWS}/v1/chat/completions`, {
-  method: 'POST',
-  headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-  body: JSON.stringify({ model: 'mock-echo', messages: [{ role: 'user', content: 'Hello' }] }),
-});
-const answer = await res.json();
-console.log(answer.choices[0].message.content, res.headers.get('x-forge-charged-msub'));</code></pre>
-<p>Any OpenAI client works with the balance key as its API key and <code>&lt;engine&gt;/v1</code> as its base URL. With the OpenAI Python SDK:</p>
-<pre tabindex="0" data-lang="python"><code class="language-python">from openai import OpenAI
-
-client = OpenAI(base_url=f&quot;{BELLOWS}/v1&quot;, api_key=key)   # key is the sk-forge-... balance key
-print([m.id for m in client.models.list()])
-reply = client.chat.completions.create(model=&quot;mock-echo&quot;, messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}])
-print(reply.choices[0].message.content)</code></pre>
-<h2 id="stream-an-answer">Stream an answer<a class="anchor" href="#stream-an-answer" aria-hidden="true" tabindex="-1">#</a></h2>
-<p>Send <code>&quot;stream&quot;: true</code>. The answer is <code>text/event-stream</code>: the model's chunks, then <code>data: [DONE]</code>, then one Bellows event that settles the request.</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -sN $B/v1/chat/completions -H &quot;authorization: Bearer $KEY&quot; -H 'content-type: application/json' \
-  -d '{&quot;model&quot;: &quot;mock-echo&quot;, &quot;stream&quot;: true, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}]}'
-# data: {&quot;id&quot;:&quot;chatcmpl-mock-2&quot;,...,&quot;choices&quot;:[{&quot;index&quot;:0,&quot;delta&quot;:{&quot;content&quot;:&quot;Hello&quot;},...}]}
-# ...
-# data: [DONE]
-#
-# event: forge
-# data: {&quot;request_id&quot;:&quot;req_...&quot;,&quot;unit&quot;:&quot;usd&quot;,&quot;charged_msub&quot;:162,&quot;balance_msub&quot;:99676}</code></pre>
-<p>The <code>forge</code> event carries <code>charged_msub</code> and, for a balance, <code>balance_msub</code>. For a per-request payment it carries <code>change</code>, <code>change_units</code> and <code>change_url</code>. If the model fails mid-stream, a <code>data: {&quot;error&quot;: {...}}</code> line comes first and the event has <code>&quot;partial&quot;: true</code>; the part that was delivered is charged. A client that parses every event should read or skip <code>event: forge</code>.</p>
-<p>In JavaScript, a small reader that works on a plain <code>fetch</code> answer and on a <code>bellowsFetch</code> answer alike:</p>
-<pre tabindex="0" data-lang="ts"><code class="language-ts">async function streamChat(response: Response, onText: (text: string) =&gt; void) {
-  const reader = response.body!.pipeThrough(new TextDecoderStream()).getReader();
-  let buf = '';
-  let event = '';
-  let settled: unknown = null;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += value;
-    let i: number;
-    while ((i = buf.indexOf('\n')) &gt;= 0) {
-      const line = buf.slice(0, i).trimEnd();
-      buf = buf.slice(i + 1);
-      if (line.startsWith('event:')) event = line.slice(6).trim();
-      else if (line.startsWith('data:')) {
-        const data = line.slice(5).trim();
-        if (event === 'forge') settled = JSON.parse(data);
-        else if (data !== '[DONE]') {
-          const chunk = JSON.parse(data);
-          if (chunk.error) throw new Error(chunk.error.message);
-          onText(chunk.choices?.[0]?.delta?.content ?? '');
-        }
-      } else if (line === '') event = '';
-    }
-  }
-  return settled; // { request_id, unit, charged_msub, balance_msub }
-}
-
-const res = await fetch(`${BELLOWS}/v1/chat/completions`, {
-  method: 'POST',
-  headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-  body: JSON.stringify({ model: 'mock-echo', stream: true, messages: [{ role: 'user', content: 'Hello' }] }),
-});
-const settled = await streamChat(res, (text) =&gt; process.stdout.write(text));</code></pre>
-<p>In Python:</p>
-<pre tabindex="0" data-lang="python"><code class="language-python">import json
-
-with requests.post(f&quot;{BELLOWS}/v1/chat/completions&quot;, headers={&quot;authorization&quot;: f&quot;Bearer {key}&quot;}, stream=True,
-                   json={&quot;model&quot;: &quot;mock-echo&quot;, &quot;stream&quot;: True, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}]}) as res:
-    event = &quot;&quot;
-    for line in res.iter_lines(decode_unicode=True):
-        if line.startswith(&quot;event:&quot;):
-            event = line[6:].strip()
-        elif line.startswith(&quot;data:&quot;):
-            data = line[5:].strip()
-            if event == &quot;forge&quot;:
-                print(&quot;\nsettled:&quot;, json.loads(data))
-            elif data != &quot;[DONE]&quot;:
-                print(json.loads(data)[&quot;choices&quot;][0][&quot;delta&quot;].get(&quot;content&quot;, &quot;&quot;), end=&quot;&quot;, flush=True)
-        elif line == &quot;&quot;:
-            event = &quot;&quot;</code></pre>
-<p>The OpenAI Python SDK streams too, with <code>stream=True</code> on <code>client.chat.completions.create</code>.</p>
-<h2 id="send-through-oblivious-http">Send through Oblivious HTTP<a class="anchor" href="#send-through-oblivious-http" aria-hidden="true" tabindex="-1">#</a></h2>
-<p>Oblivious HTTP (RFC 9458) wraps each API call for the attested key and sends it through a relay. The relay sees your address and ciphertext. The engine sees the request and the relay's address. Who is asking is hidden from the operator when you use a relay run by someone else, or Tor. A relay and a Bellows run by the same party hide nothing from that party. <a href="ohttp.html">Oblivious HTTP</a> has the details.</p>
-<p><code>bellowsFetch(operator, path, init)</code> takes the same path and <code>init</code> as <code>fetch</code> and returns the engine's answer as an ordinary <code>Response</code>, streamed answers included:</p>
-<pre tabindex="0" data-lang="ts"><code class="language-ts">import { bellowsFetch } from './client/index.ts';
-
-// bellows comes from verifyBellows (above). Use its first relay, or send straight to the engine.
-const operator = { ...bellows, relay: bellows.relays[0] ?? null };
-
-const wallet = await bellowsFetch(operator, '/v1/wallet', { headers: { authorization: `Bearer ${key}` } });
-console.log(await wallet.json());
-
-const res = await bellowsFetch(operator, '/v1/chat/completions', {
-  method: 'POST',
-  headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-  body: JSON.stringify({ model: 'mock-echo', stream: true, messages: [{ role: 'user', content: 'Hello' }] }),
-});
-const settled = await streamChat(res, (text) =&gt; process.stdout.write(text));</code></pre>
-<ul>
-<li>A topup, a NUT-24 payment and a refund work through <code>bellowsFetch</code> the same way as a direct call. A <code>402</code>, <code>428</code> or <code>429</code> from the engine comes back as an answer.</li>
-<li><code>bellowsFetch</code> throws <code>BellowsFetchError</code> only when the request cannot be sent or the answer cannot be opened. Its <code>code</code> is one of <code>bad_path</code>, <code>bad_request</code>, <code>bad_key_config</code>, <code>network</code>, <code>relay_error</code>, <code>gateway_refused</code> or <code>bad_response</code>. On a busy <code>503</code>, <code>retryAfter</code> holds the seconds to wait.</li>
-<li>Answers stream by default (chunked OHTTP). Pass <code>{ chunked: false }</code> as the fourth argument for relays that take only plain RFC 9458 messages.</li>
-<li>The key is new on every restart of the engine. After a refusal, verify again and use the new key.</li>
-</ul>
-<p>To try a relay locally, run the one in <code>relay/</code> in front of your local engine and list it on the engine:</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">BELLOWS_RELAY_TARGETS=http://127.0.0.1:8787/ohttp pnpm relay      # listens on 127.0.0.1:8788
-# and start the engine with:
-BELLOWS_RELAYS=http://127.0.0.1:8788/relay/127.0.0.1:8787</code></pre>
-<p>The relay forwards only the body and its content type and keeps no logs. <a href="https://github.com/ForgeReserve/bellows/blob/main/relay/README.md">relay/README.md</a> shows how to run it as a Node server or a Cloudflare Worker.</p>
-<h2 id="handle-errors">Handle errors<a class="anchor" href="#handle-errors" aria-hidden="true" tabindex="-1">#</a></h2>
-<p>Every error is OpenAI-shaped: <code>{&quot;error&quot;: {&quot;message&quot;, &quot;type&quot;, &quot;code&quot;}}</code>. Match on <code>code</code>.</p>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s $B/v1/chat/completions -H &quot;authorization: Bearer $KEY&quot; -H 'content-type: application/json' \
-  -d '{&quot;model&quot;: &quot;no-such-model&quot;, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}]}'
-# {&quot;error&quot;:{&quot;message&quot;:&quot;unknown model no-such-model; see GET /v1/models&quot;,&quot;type&quot;:&quot;model_not_found&quot;,&quot;code&quot;:&quot;model_not_found&quot;}}</code></pre>
-<p>The ones an app meets most:</p>
-<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
-<thead><tr><th scope="col">Status and code</th><th scope="col">What to do</th></tr></thead>
-<tbody>
-<tr><td><code>402 payment_required</code></td><td>Pay: send the request again with <code>X-Cashu</code> for the amount in the body, or with a balance key</td></tr>
-<tr><td><code>402 insufficient_balance</code></td><td>Top up the balance, or ask for fewer <code>max_tokens</code></td></tr>
-<tr><td><code>401 invalid_key</code></td><td>The engine does not know this key. A key works only at the engine that issued it</td></tr>
-<tr><td><code>404 model_not_found</code></td><td>Pick a model from <code>GET /v1/models</code></td></tr>
-<tr><td><code>400 untrusted_mint</code>, <code>wrong_unit</code>, <code>insufficient_amount</code>, <code>invalid_token</code></td><td>The token was refused before any eCash moved. It is still yours to spend</td></tr>
-<tr><td><code>400 token_spent</code></td><td>The mint reports the token as already spent</td></tr>
-<tr><td><code>403 invite_required</code></td><td>The engine is invite only. Ask its operator for a code</td></tr>
-<tr><td><code>428 pow_required</code></td><td>Solve the proof of work and send the request again</td></tr>
-<tr><td><code>429 rate_limited</code></td><td>Wait <code>Retry-After</code> seconds</td></tr>
-<tr><td><code>502 upstream_error</code></td><td>The model failed. Nothing was charged and a per-request payment comes back whole as change</td></tr>
-<tr><td><code>503 mint_unavailable</code></td><td>Send the request again with the same token, or fetch its change at <code>GET /v1/change/{request_id}</code></td></tr>
-<tr><td><code>503 topup_pending</code></td><td>Send the topup again with the returned key and the same token</td></tr>
-</tbody>
-</table></div>
-<p><code>GET /v1/change/{request_id}</code> answers <code>409 not_settled</code> with <code>Retry-After</code> while the request still runs. The full list of codes is in <a href="api.html#error-codes">API reference</a>.</p>
-<h2 id="read-the-balance-and-take-it-back">Read the balance and take it back<a class="anchor" href="#read-the-balance-and-take-it-back" aria-hidden="true" tabindex="-1">#</a></h2>
-<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s $B/v1/wallet -H &quot;authorization: Bearer $KEY&quot;
-# {&quot;account_id&quot;:&quot;acct_...&quot;,&quot;unit&quot;:&quot;usd&quot;,&quot;balance_msub&quot;:99676,&quot;available_msub&quot;:99676,&quot;balance&quot;:99.676,&quot;refundable&quot;:99}
-
-curl -s $B/v1/wallet/refund -H &quot;authorization: Bearer $KEY&quot; -H 'content-type: application/json' -d '{}' \
-  | jq '{amount, unit, mint, status, token}'</code></pre>
-<ul>
-<li><code>balance_msub</code> is the balance in thousandths of the unit. <code>available_msub</code> subtracts what running requests have reserved. <code>refundable</code> is the whole units you can withdraw now.</li>
-<li><code>POST /v1/wallet/refund</code> withdraws every whole unit as an eCash token, or <code>{&quot;amount&quot;: N}</code> units. A remainder below one unit stays on the balance. Add <code>&quot;pubkey&quot;: &quot;02...&quot;</code> to lock the token to your wallet key.</li>
-<li>If the mint does not answer, the refund answers <code>202</code> with <code>status: &quot;owed&quot;</code>. <code>GET /v1/wallet/refunds</code> delivers every withdrawal again, so a lost token can be fetched later.</li>
-</ul>
-<p>Keep balances small. A balance lives in the engine's ledger, and moving it to another engine means withdrawing it as eCash and funding a new balance there.</p>
-<h2 id="use-the-client-library">Use the client library<a class="anchor" href="#use-the-client-library" aria-hidden="true" tabindex="-1">#</a></h2>
-<p><code>client/</code> is TypeScript that runs in browsers and in Node. It uses Web APIs only (fetch, WebCrypto, streams). It is not published as a package: copy the directory into your app, or import it from a checkout as the examples above do (<code>./client/index.ts</code>). Its dependencies are <code>hpke</code>, <code>ohttp-ts</code>, <code>@noble/hashes</code> and <code>@noble/curves</code>; take the versions from this repository's <code>package.json</code>. Node 22.18 and later run the <code>.ts</code> files directly; a browser app builds them with its own bundler.</p>
-<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
-<thead><tr><th scope="col">Export</th><th scope="col">What it does</th></tr></thead>
-<tbody>
-<tr><td><code>verifyBellows(url, {approvedBuilds, verifier})</code></td><td>Checks the attested identity against <code>builds.json</code> and returns the key, relays and build, or throws <code>BellowsVerifyError</code></td></tr>
-<tr><td><code>tinfoilVerifier({authenticate})</code>, <code>devVerifier()</code></td><td>Attestation verifiers for Tinfoil and for the development stand-in</td></tr>
-<tr><td><code>bellowsFetch(operator, path, init, options)</code></td><td>One API call through Oblivious HTTP</td></tr>
-<tr><td><code>solvePow(challenge, bits)</code></td><td>The proof of work for opening a balance</td></tr>
-<tr><td><code>loadOperatorAnnouncements</code>, <code>OperatorPool</code></td><td>Find operators on Nostr, verify them, pick one and fail over</td></tr>
-<tr><td><code>moveBalance(pool, {from, key})</code></td><td>Withdraw a balance from one operator and fund a new one at another</td></tr>
-</tbody>
-</table></div>
-<p><a href="operators.html">Operators</a> shows the operator pool and moving a balance.</p>
-<h2 id="run-your-own-engine">Run your own engine<a class="anchor" href="#run-your-own-engine" aria-hidden="true" tabindex="-1">#</a></h2>
-<ul>
-<li>To try it on your machine, follow <a href="#pick-an-engine">Pick an engine</a>. The repository's <a href="https://github.com/ForgeReserve/bellows#readme">README</a> lists every setting.</li>
-<li>To run one with Docker behind your own TLS proxy, see &quot;Running a Bellows&quot; in the <a href="https://github.com/ForgeReserve/bellows#running-a-bellows">README</a>. In that setup the operator can read requests in memory and can read the database.</li>
-<li>To run one its operator cannot read, deploy it on Tinfoil Containers with the deploy kit: <a href="operate.html">Run your own</a> goes step by step, and marks every step that has not yet been run on sealed hardware. <a href="threat-model.html">Threat model</a> says what each party can still see.</li>
-</ul>
-<h2 id="how-these-examples-were-checked">How these examples were checked<a class="anchor" href="#how-these-examples-were-checked" aria-hidden="true" tabindex="-1">#</a></h2>
-<p>Run on 2026-11-16 against a local engine at release 0.1.2 (<code>config/models.dev.json</code>, development attester), one local Nutshell 0.22.1 test mint and the relay in <code>relay/</code>, on other ports than the defaults shown here:</p>
-<ul>
-<li>the curl commands for health, the identity document, the key comparison, models, proof of work and topup, Lightning funding with a chosen key, chat, streaming, the <code>402</code> answer, errors, balance and refund;</li>
-<li>the JavaScript examples (<code>verifyBellows</code> with <code>devVerifier</code>, its <code>development_refused</code> refusal, topup with <code>solvePow</code>, chat, the stream reader, and <code>bellowsFetch</code> through the relay for the balance, a streamed chat, an unpaid <code>402</code> and a refund) on Node 24;</li>
-<li>the Python examples with <code>requests</code> on Python 3.9, and the OpenAI Python SDK 2.48.0 for models, chat, streaming and a <code>404</code>;</li>
-<li><code>pnpm demo:agent</code>, with plain and with locked change.</li>
-</ul>
-<p>Not run here: <code>verifyBellows</code> with <code>tinfoilVerifier</code> (it needs an <code>authenticate</code> you supply) and any paid request to the reference instance.</p>
+<p>Every path, header and field here is described in full in <a href="api.html">API reference</a>. The examples were run against a local Bellows with local test mints; <a href="build-how-these-examples-were-checked.html#how-these-examples-were-checked">How these examples were checked</a> lists what ran and what did not.</p>
+<h2 id="in-this-guide">In this guide</h2>
+<ol class="parts">
+<li><a href="build-pick-an-engine.html">Pick an engine</a><span>Use the reference instance, or start a local engine with test mints while you build.</span></li>
+<li><a href="build-check-which-build-it-runs.html">Check which build it runs</a><span>Read the attested identity, and verify it with verifyBellows before you send anything.</span></li>
+<li><a href="build-list-models.html">List models</a><span>Read the models, prices, mints and units an engine offers.</span></li>
+<li><a href="build-pay-for-requests.html">Pay for requests</a><span>Open a balance with eCash or Lightning, or pay each request with a token in a header.</span></li>
+<li><a href="build-send-a-chat-request.html">Send a chat request</a><span>Send an OpenAI chat request with curl, JavaScript or any OpenAI client, and read what it cost.</span></li>
+<li><a href="build-stream-an-answer.html">Stream an answer</a><span>Stream the answer, and read the event that settles the request at the end.</span></li>
+<li><a href="build-send-through-oblivious-http.html">Send through Oblivious HTTP</a><span>Send each call through a relay with bellowsFetch, so who is asking is hidden from the operator when someone else runs the relay.</span></li>
+<li><a href="build-handle-errors.html">Handle errors</a><span>The error shape, and what to do about the codes an app meets most.</span></li>
+<li><a href="build-read-the-balance-and-take-it-back.html">Read the balance and take it back</a><span>Read the balance, and withdraw what is left as an eCash token.</span></li>
+<li><a href="build-use-the-client-library.html">Use the client library</a><span>What the client library in client/ exports, and how to bring it into your app.</span></li>
+<li><a href="build-run-your-own-engine.html">Run your own engine</a><span>Where to go next to run an engine of your own.</span></li>
+<li><a href="build-how-these-examples-were-checked.html">How these examples were checked</a><span>Which examples in this guide were run, against what, and which were not.</span></li>
+</ol>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="reference-instance.html"><span>Previous</span>Reference instance</a>
+<a class="pager-next" rel="next" href="build-pick-an-engine.html"><span>Next</span>Pick an engine</a>
+</nav>
 <p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/BUILD.md">docs/BUILD.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">
-  <div class="wrap footer-inner">
-    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
-    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
-    <nav aria-label="Footer">
-      <ul>
-        <li><a href="../docs/build.html">Build on Bellows</a></li>
-        <li><a href="../docs/api.html">API reference</a></li>
-        <li><a href="../docs/threat-model.html">Threat model</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
-      </ul>
-    </nav>
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
   </div>
 </footer>
 </body>

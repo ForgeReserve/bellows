@@ -3,75 +3,81 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Operators | Bellows docs</title>
-<meta name="description" content="Operator announcements, choosing among many operators and moving a balance from one to another.">
+<title>Operators | Bellows developers</title>
+<meta name="description" content="Operator announcements on Nostr, choosing among many operators, and moving a balance from one to another.">
 <meta name="theme-color" content="#0B0D10">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bellows">
-<meta property="og:title" content="Operators | Bellows docs">
-<meta property="og:description" content="Operator announcements, choosing among many operators and moving a balance from one to another.">
+<meta property="og:title" content="Operators | Bellows developers">
+<meta property="og:description" content="Operator announcements on Nostr, choosing among many operators, and moving a balance from one to another.">
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Operators | Bellows docs">
-<meta name="twitter:description" content="Operator announcements, choosing among many operators and moving a balance from one to another.">
+<meta name="twitter:title" content="Operators | Bellows developers">
+<meta name="twitter:description" content="Operator announcements on Nostr, choosing among many operators, and moving a balance from one to another.">
 <meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../assets/icon.png">
 <link rel="stylesheet" href="../assets/site.css">
 <script src="../assets/site.js" defer></script>
 </head>
-<body class="docs">
+<body class="developers">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
     <nav aria-label="Main">
       <ul class="nav">
-        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
-        <li><a href="../docs/build.html">Build</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
         <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
       </ul>
     </nav>
   </div>
 </header>
-<div class="wrap docs-layout">
-<nav class="docs-nav" aria-label="Docs">
-<details class="docs-menu" open>
-<summary>All docs</summary>
-<p class="nav-group">Build</p>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
 <ul>
 <li><a href="build.html">Build on Bellows</a></li>
-</ul>
-<p class="nav-group">Reference</p>
-<ul>
 <li><a href="api.html">API reference</a></li>
 <li><a href="payments.html">Payments</a></li>
-<li><a href="attestation.html">Attestation</a></li>
 <li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html" aria-current="page">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
 <li><a href="privacy.html">Privacy</a></li>
 <li><a href="threat-model.html">Threat model</a></li>
-<li><a href="operators.html" aria-current="page">Operators</a>
-<ul class="toc"><li><a href="#the-operator-announcement">The operator announcement</a></li><li><a href="#choosing-an-operator-client-library">Choosing an operator (client library)</a></li><li><a href="#moving-a-balance">Moving a balance</a></li><li><a href="#what-this-does-not-do">What this does not do</a></li><li><a href="#tests">Tests</a></li></ul></li>
 </ul>
-<p class="nav-group">Run</p>
+<p class="side-group">Run your own</p>
 <ul>
-<li><a href="operate.html">Run your own</a></li>
-</ul>
-<p class="nav-group">On GitHub</p>
-<ul>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+<li><a href="operate.html">Operator guide</a></li>
 </ul>
 </details>
 </nav>
-<main id="main" class="prose">
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Build on it</p>
+<article class="prose">
 <h1 id="operators">Operators</h1>
+<p class="summary">Operator announcements on Nostr, choosing among many operators, and moving a balance from one to another.</p>
+<nav class="on-this-page" aria-label="On this page">
+<p>On this page</p>
+<ul><li><a href="#the-operator-announcement">The operator announcement</a></li><li><a href="#choosing-an-operator-client-library">Choosing an operator (client library)</a></li><li><a href="#moving-a-balance">Moving a balance</a></li><li><a href="#what-this-does-not-do">What this does not do</a></li><li><a href="#tests">Tests</a></li></ul>
+</nav>
 <p>Anyone can run a Bellows. This document covers how an operator says where their Bellows is and what it takes, how a client chooses among many operators, and how a client moves its balance from one operator to another.</p>
 <p>Balances do not move between operators by themselves. A balance key works only at the operator that issued it. To change operators, a client withdraws its balance as eCash and funds a new balance elsewhere (&quot;Moving a balance&quot; below).</p>
 <h2 id="the-operator-announcement">The operator announcement<a class="anchor" href="#the-operator-announcement" aria-hidden="true" tabindex="-1">#</a></h2>
@@ -97,7 +103,7 @@
 <p>The same signed event is published in two places:</p>
 <ol>
 <li><strong>On Nostr relays</strong>, where clients find operators.</li>
-<li><strong>Inside the Bellows' attested identity.</strong> Set <code>BELLOWS_OPERATOR_ANNOUNCEMENT_FILE</code> to the file holding the event, or <code>BELLOWS_OPERATOR_ANNOUNCEMENT</code> to the event itself as JSON. Bellows serves it in the <code>operator</code> field of the statement at <code>/.well-known/bellows</code> (<a href="attestation.html">Attestation</a>), so the hardware attestation covers it. A sealed deployment uses the variable: the operator cannot write a file on the encrypted volume, and the measured config cannot hold an announcement that names the build it is measured into, so the keyserver releases it with the secrets (<a href="operate.html">Run your own</a>).</li>
+<li><strong>Inside the Bellows' attested identity.</strong> Set <code>BELLOWS_OPERATOR_ANNOUNCEMENT_FILE</code> to the file holding the event, or <code>BELLOWS_OPERATOR_ANNOUNCEMENT</code> to the event itself as JSON. Bellows serves it in the <code>operator</code> field of the statement at <code>/.well-known/bellows</code> (<a href="attestation.html">Attestation</a>), so the hardware attestation covers it. A sealed deployment uses the variable: the operator cannot write a file on the encrypted volume, and the measured config cannot hold an announcement that names the build it is measured into, so the keyserver releases it with the secrets (<a href="operate.html">Operator guide</a>).</li>
 </ol>
 <p>When a version of Bellows is listed in <code>builds.json</code> for several operator deployments, <code>pnpm announce</code> needs <code>--deployment owner/repo@tag</code> to pick the measurement of yours.</p>
 <p>At startup Bellows checks the announcement and refuses to start unless it is a correctly signed announcement that matches its configuration: the relays equal <code>BELLOWS_RELAYS</code> in the same order, the version is this release, the measurement (when the announcement names one) is the one this Bellows claims, every unit is in <code>BELLOWS_UNITS</code> and every mint is in <code>BELLOWS_TRUSTED_MINTS</code>. An announcement that does not match what the Bellows does would only make clients refuse it later.</p>
@@ -192,21 +198,17 @@ const moved = await moveBalance(pool, {
 <h2 id="tests">Tests<a class="anchor" href="#tests" aria-hidden="true" tabindex="-1">#</a></h2>
 <p><code>test/unit/operators.test.ts</code> checks event signing and verification, the announcement's fields and every refusal (unsigned, wrong kind, repeated or missing tags, bad URLs, dated in the future), newest-wins selection, reading and publishing on Nostr relays against a stand-in relay, the client's proof of work against the Bellows' check, the publishing command (NIP-19 key vector, hidden prompt in a terminal and from a pipe, fields checked before the key is asked for, the key never printed, publishing and dry run), startup refusing an announcement that does not match the configuration, and the pool against Bellows instances in the same process: picking and remembering, an announcement pointing at someone else's Bellows, unapproved builds, the development stand-in, units and mints, failover for <code>GET</code> and none for <code>POST</code> once sent, pinned calls, a restart with a new key, a failed health check, the relay and onion routes, pinned calls skipping the pool's unit and mint, unpinned calls with a balance key refused, and the move: its refusals, a funding request or answer lost on the way (<code>fund_unknown</code>, then finished once with the same key), a pending funding retried, a server error after a pending funding (<code>fund_unknown</code>, not <code>fund_failed</code>), a withdrawal owed but not issued (<code>withdraw_pending</code>), a withdrawal answered without its mint (<code>withdrawn_unroutable</code>, with <code>onToken</code> called first), a destination answering 429 (<code>fund_retry</code> with <code>to</code>, a short <code>Retry-After</code> waited out, the next operator asked without <code>to</code>, a 429 after a pending answer <code>fund_unknown</code> with no other operator asked), an operator that takes another mint never contacted, and a refusing operator never seeing the funded key.</p>
 <p><code>test/e2e/operators.e2e.test.ts</code> runs three Bellows over HTTP against the local mints, one behind a relay. It funds a balance at one, spends part of it, moves the rest (the first candidate takes another mint and gets no request, the second asks for proof of work and takes it), checks the amounts at both ends and that finishing the move again credits nothing, loses the answer to a funding and finishes it with the same key once, and fails over when operators go down.</p>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="ohttp.html"><span>Previous</span>Oblivious HTTP</a>
+<a class="pager-next" rel="next" href="attestation.html"><span>Next</span>Attestation</a>
+</nav>
 <p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OPERATORS.md">docs/OPERATORS.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">
-  <div class="wrap footer-inner">
-    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
-    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
-    <nav aria-label="Footer">
-      <ul>
-        <li><a href="../docs/build.html">Build on Bellows</a></li>
-        <li><a href="../docs/api.html">API reference</a></li>
-        <li><a href="../docs/threat-model.html">Threat model</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
-      </ul>
-    </nav>
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
   </div>
 </footer>
 </body>

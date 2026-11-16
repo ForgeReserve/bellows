@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run your own engine | Build on Bellows | Bellows</title>
+<meta name="description" content="Where to go next to run an engine of your own.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Run your own engine | Build on Bellows | Bellows">
+<meta property="og:description" content="Where to go next to run an engine of your own.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Run your own engine | Build on Bellows | Bellows">
+<meta name="twitter:description" content="Where to go next to run an engine of your own.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html" class="in-section">Build on Bellows</a>
+<ol class="side-parts"><li><a href="build-pick-an-engine.html">Pick an engine</a></li><li><a href="build-check-which-build-it-runs.html">Check which build it runs</a></li><li><a href="build-list-models.html">List models</a></li><li><a href="build-pay-for-requests.html">Pay for requests</a></li><li><a href="build-send-a-chat-request.html">Send a chat request</a></li><li><a href="build-stream-an-answer.html">Stream an answer</a></li><li><a href="build-send-through-oblivious-http.html">Send through Oblivious HTTP</a></li><li><a href="build-handle-errors.html">Handle errors</a></li><li><a href="build-read-the-balance-and-take-it-back.html">Read the balance and take it back</a></li><li><a href="build-use-the-client-library.html">Use the client library</a></li><li><a href="build-run-your-own-engine.html" aria-current="page">Run your own engine</a></li><li><a href="build-how-these-examples-were-checked.html">How these examples were checked</a></li></ol></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html">Operator guide</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Build on it <span aria-hidden="true">/</span> <a href="build.html">Build on Bellows</a></p>
+<article class="prose">
+<h1 id="run-your-own-engine">Run your own engine</h1>
+<p class="summary">Where to go next to run an engine of your own.</p>
+
+<ul>
+<li>To try it on your machine, follow <a href="build-pick-an-engine.html#pick-an-engine">Pick an engine</a>. The repository's <a href="https://github.com/ForgeReserve/bellows#readme">README</a> lists every setting.</li>
+<li>To run one with Docker behind your own TLS proxy, see &quot;Running a Bellows&quot; in the <a href="https://github.com/ForgeReserve/bellows#running-a-bellows">README</a>. In that setup the operator can read requests in memory and can read the database.</li>
+<li>To run one its operator cannot read, deploy it on Tinfoil Containers with the deploy kit: <a href="operate.html">Operator guide</a> goes step by step, and marks every step that has not yet been run on sealed hardware. <a href="threat-model.html">Threat model</a> says what each party can still see.</li>
+</ul>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="build-use-the-client-library.html"><span>Previous</span>Use the client library</a>
+<a class="pager-next" rel="next" href="build-how-these-examples-were-checked.html"><span>Next</span>How these examples were checked</a>
+</nav>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/BUILD.md">docs/BUILD.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

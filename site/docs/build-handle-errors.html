@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handle errors | Build on Bellows | Bellows</title>
+<meta name="description" content="The error shape, and what to do about the codes an app meets most.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Handle errors | Build on Bellows | Bellows">
+<meta property="og:description" content="The error shape, and what to do about the codes an app meets most.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Handle errors | Build on Bellows | Bellows">
+<meta name="twitter:description" content="The error shape, and what to do about the codes an app meets most.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html" class="in-section">Build on Bellows</a>
+<ol class="side-parts"><li><a href="build-pick-an-engine.html">Pick an engine</a></li><li><a href="build-check-which-build-it-runs.html">Check which build it runs</a></li><li><a href="build-list-models.html">List models</a></li><li><a href="build-pay-for-requests.html">Pay for requests</a></li><li><a href="build-send-a-chat-request.html">Send a chat request</a></li><li><a href="build-stream-an-answer.html">Stream an answer</a></li><li><a href="build-send-through-oblivious-http.html">Send through Oblivious HTTP</a></li><li><a href="build-handle-errors.html" aria-current="page">Handle errors</a></li><li><a href="build-read-the-balance-and-take-it-back.html">Read the balance and take it back</a></li><li><a href="build-use-the-client-library.html">Use the client library</a></li><li><a href="build-run-your-own-engine.html">Run your own engine</a></li><li><a href="build-how-these-examples-were-checked.html">How these examples were checked</a></li></ol></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html">Operator guide</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Build on it <span aria-hidden="true">/</span> <a href="build.html">Build on Bellows</a></p>
+<article class="prose">
+<h1 id="handle-errors">Handle errors</h1>
+<p class="summary">The error shape, and what to do about the codes an app meets most.</p>
+
+<p>Every error is OpenAI-shaped: <code>{&quot;error&quot;: {&quot;message&quot;, &quot;type&quot;, &quot;code&quot;}}</code>. Match on <code>code</code>.</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s $B/v1/chat/completions -H &quot;authorization: Bearer $KEY&quot; -H 'content-type: application/json' \
+  -d '{&quot;model&quot;: &quot;no-such-model&quot;, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}]}'
+# {&quot;error&quot;:{&quot;message&quot;:&quot;unknown model no-such-model; see GET /v1/models&quot;,&quot;type&quot;:&quot;model_not_found&quot;,&quot;code&quot;:&quot;model_not_found&quot;}}</code></pre>
+<p>The ones an app meets most:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Status and code</th><th scope="col">What to do</th></tr></thead>
+<tbody>
+<tr><td><code>402 payment_required</code></td><td>Pay: send the request again with <code>X-Cashu</code> for the amount in the body, or with a balance key</td></tr>
+<tr><td><code>402 insufficient_balance</code></td><td>Top up the balance, or ask for fewer <code>max_tokens</code></td></tr>
+<tr><td><code>401 invalid_key</code></td><td>The engine does not know this key. A key works only at the engine that issued it</td></tr>
+<tr><td><code>404 model_not_found</code></td><td>Pick a model from <code>GET /v1/models</code></td></tr>
+<tr><td><code>400 untrusted_mint</code>, <code>wrong_unit</code>, <code>insufficient_amount</code>, <code>invalid_token</code></td><td>The token was refused before any eCash moved. It is still yours to spend</td></tr>
+<tr><td><code>400 token_spent</code></td><td>The mint reports the token as already spent</td></tr>
+<tr><td><code>403 invite_required</code></td><td>The engine is invite only. Ask its operator for a code</td></tr>
+<tr><td><code>428 pow_required</code></td><td>Solve the proof of work and send the request again</td></tr>
+<tr><td><code>429 rate_limited</code></td><td>Wait <code>Retry-After</code> seconds</td></tr>
+<tr><td><code>502 upstream_error</code></td><td>The model failed. Nothing was charged and a per-request payment comes back whole as change</td></tr>
+<tr><td><code>503 mint_unavailable</code></td><td>Send the request again with the same token, or fetch its change at <code>GET /v1/change/{request_id}</code></td></tr>
+<tr><td><code>503 topup_pending</code></td><td>Send the topup again with the returned key and the same token</td></tr>
+</tbody>
+</table></div>
+<p><code>GET /v1/change/{request_id}</code> answers <code>409 not_settled</code> with <code>Retry-After</code> while the request still runs. The full list of codes is in <a href="api.html#error-codes">API reference</a>.</p>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="build-send-through-oblivious-http.html"><span>Previous</span>Send through Oblivious HTTP</a>
+<a class="pager-next" rel="next" href="build-read-the-balance-and-take-it-back.html"><span>Next</span>Read the balance and take it back</a>
+</nav>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/BUILD.md">docs/BUILD.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

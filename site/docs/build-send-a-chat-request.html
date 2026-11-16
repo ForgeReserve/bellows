@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Send a chat request | Build on Bellows | Bellows</title>
+<meta name="description" content="Send an OpenAI chat request with curl, JavaScript or any OpenAI client, and read what it cost.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Send a chat request | Build on Bellows | Bellows">
+<meta property="og:description" content="Send an OpenAI chat request with curl, JavaScript or any OpenAI client, and read what it cost.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Send a chat request | Build on Bellows | Bellows">
+<meta name="twitter:description" content="Send an OpenAI chat request with curl, JavaScript or any OpenAI client, and read what it cost.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html" class="in-section">Build on Bellows</a>
+<ol class="side-parts"><li><a href="build-pick-an-engine.html">Pick an engine</a></li><li><a href="build-check-which-build-it-runs.html">Check which build it runs</a></li><li><a href="build-list-models.html">List models</a></li><li><a href="build-pay-for-requests.html">Pay for requests</a></li><li><a href="build-send-a-chat-request.html" aria-current="page">Send a chat request</a></li><li><a href="build-stream-an-answer.html">Stream an answer</a></li><li><a href="build-send-through-oblivious-http.html">Send through Oblivious HTTP</a></li><li><a href="build-handle-errors.html">Handle errors</a></li><li><a href="build-read-the-balance-and-take-it-back.html">Read the balance and take it back</a></li><li><a href="build-use-the-client-library.html">Use the client library</a></li><li><a href="build-run-your-own-engine.html">Run your own engine</a></li><li><a href="build-how-these-examples-were-checked.html">How these examples were checked</a></li></ol></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html">Operator guide</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Build on it <span aria-hidden="true">/</span> <a href="build.html">Build on Bellows</a></p>
+<article class="prose">
+<h1 id="send-a-chat-request">Send a chat request</h1>
+<p class="summary">Send an OpenAI chat request with curl, JavaScript or any OpenAI client, and read what it cost.</p>
+
+<p><code>POST /v1/chat/completions</code> takes OpenAI chat completions. <code>tools</code>, <code>tool_choice</code> and other fields pass through. <code>n</code> must be 1. <code>max_tokens</code> is capped at the model's <code>max_output_tokens</code>.</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s -D - $B/v1/chat/completions -H &quot;authorization: Bearer $KEY&quot; -H 'content-type: application/json' \
+  -d '{&quot;model&quot;: &quot;mock-echo&quot;, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}]}'</code></pre>
+<p>The answer is an OpenAI chat completion. Its headers say what it cost:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Header</th><th scope="col">Value</th></tr></thead>
+<tbody>
+<tr><td><code>X-Forge-Request-Id</code></td><td><code>req_...</code>, this request's id</td></tr>
+<tr><td><code>X-Forge-Unit</code></td><td>The unit charged</td></tr>
+<tr><td><code>X-Forge-Charged-Msub</code></td><td>The amount charged, in thousandths of the unit (milli-cents for <code>usd</code>)</td></tr>
+<tr><td><code>X-Forge-Balance-Msub</code></td><td>The balance afterwards</td></tr>
+<tr><td><code>X-Forge-Privacy</code></td><td><code>standard</code>, <code>enclave-plaintext</code> or <code>enclave-encrypted</code></td></tr>
+</tbody>
+</table></div>
+<p>In JavaScript:</p>
+<pre tabindex="0" data-lang="ts"><code class="language-ts">const res = await fetch(`${BELLOWS}/v1/chat/completions`, {
+  method: 'POST',
+  headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+  body: JSON.stringify({ model: 'mock-echo', messages: [{ role: 'user', content: 'Hello' }] }),
+});
+const answer = await res.json();
+console.log(answer.choices[0].message.content, res.headers.get('x-forge-charged-msub'));</code></pre>
+<p>Any OpenAI client works with the balance key as its API key and <code>&lt;engine&gt;/v1</code> as its base URL. With the OpenAI Python SDK:</p>
+<pre tabindex="0" data-lang="python"><code class="language-python">from openai import OpenAI
+
+client = OpenAI(base_url=f&quot;{BELLOWS}/v1&quot;, api_key=key)   # key is the sk-forge-... balance key
+print([m.id for m in client.models.list()])
+reply = client.chat.completions.create(model=&quot;mock-echo&quot;, messages=[{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}])
+print(reply.choices[0].message.content)</code></pre>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="build-pay-for-requests.html"><span>Previous</span>Pay for requests</a>
+<a class="pager-next" rel="next" href="build-stream-an-answer.html"><span>Next</span>Stream an answer</a>
+</nav>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/BUILD.md">docs/BUILD.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

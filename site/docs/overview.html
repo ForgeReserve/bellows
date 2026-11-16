@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What Bellows is | Bellows developers</title>
+<meta name="description" content="What Bellows is, and what a sealed deployment hides from its operator, with the limits of each.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="What Bellows is | Bellows developers">
+<meta property="og:description" content="What Bellows is, and what a sealed deployment hides from its operator, with the limits of each.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="What Bellows is | Bellows developers">
+<meta name="twitter:description" content="What Bellows is, and what a sealed deployment hides from its operator, with the limits of each.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html" aria-current="page">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html">Operator guide</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Start</p>
+<article class="prose">
+<h1 id="what-bellows-is">What Bellows is</h1>
+<p class="summary">What Bellows is, and what a sealed deployment hides from its operator, with the limits of each.</p>
+<nav class="on-this-page" aria-label="On this page">
+<p>On this page</p>
+<ul><li><a href="#what-a-sealed-bellows-does-for-you">What a sealed Bellows does for you</a></li><li><a href="#what-has-run-on-sealed-hardware">What has run on sealed hardware</a></li></ul>
+</nav>
+<p>Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request and forwards the request to AI models. Point any OpenAI client at it and pay with no account. Anyone can run one, under the MIT licence.</p>
+<h2 id="what-a-sealed-bellows-does-for-you">What a sealed Bellows does for you</h2>
+<p>A sealed deployment runs on Tinfoil Containers with the deploy kit in the repository. Each property below comes from a mechanism you can read and check. Each card says what stays visible.</p>
+<div class="grid">
+  <article class="card">
+    <h3><span class="dot gold" aria-hidden="true"></span>You can check the build</h3>
+    <p>At boot Bellows makes a key pair in memory and serves a hardware attestation that binds the key to the build it runs.</p>
+    <p class="how">Before it sends anything, a client checks that attestation and finds the build in the public <code>builds.json</code>. If the check fails, it sends nothing.</p>
+    <p class="limit"><strong>Limit.</strong> Whoever controls <code>builds.json</code> decides which builds clients trust. The operator approves releases in their own keyserver, the known weak point of version 1.</p>
+    <p class="more"><a href="attestation.html">How attestation works</a></p>
+  </article>
+  <article class="card">
+    <h3><span class="dot white" aria-hidden="true"></span>The operator cannot read the words</h3>
+    <p>Requests, answers, balances, the wallet seed and the supplier keys exist in plaintext only inside the confidential VM.</p>
+    <p class="how">Clients encrypt each call to the attested key. The database sits on an encrypted volume whose key a keyserver releases only to an approved build.</p>
+    <p class="limit"><strong>Limit.</strong> The operator still sees aggregate totals, logs that hold no client data, and traffic timing and volume. A model's supplier sees the prompts of plaintext models.</p>
+    <p class="more"><a href="threat-model.html">What each party can see</a></p>
+  </article>
+  <article class="card">
+    <h3><span class="dot gold" aria-hidden="true"></span>Pay with eCash, no account</h3>
+    <p>Pay each request with a Cashu token in a header and get the unused value back as change. Or top up a balance and use its key like an API key.</p>
+    <p class="how">Prices are set per million tokens. Balances stay in <code>usd</code> or <code>sat</code>, and you can withdraw what is left as eCash at any time.</p>
+    <p class="limit"><strong>Limit.</strong> Every request on one balance key is linkable to the others. The mint sees its own swaps.</p>
+    <p class="more"><a href="payments.html">How payments work</a></p>
+  </article>
+  <article class="card">
+    <h3><span class="dot teal" aria-hidden="true"></span>A relay hides who is asking</h3>
+    <p>Send each call through an Oblivious HTTP relay. The relay sees your address and ciphertext. Bellows sees the request and the relay's address.</p>
+    <p class="how">Who is asking is hidden from the operator when you use a relay run by someone else, or Tor. Answers still stream.</p>
+    <p class="limit"><strong>Limit.</strong> A relay and a Bellows run by the same party hide nothing from that party. Without a relay or Tor, the operator's network sees client addresses.</p>
+    <p class="more"><a href="ohttp.html">How Oblivious HTTP works</a></p>
+  </article>
+</div>
+<h2 id="what-has-run-on-sealed-hardware">What has run on sealed hardware</h2>
+<p>Releases 0.1.0 to 0.1.2 were built and measured by the public release workflows, and the reference instance runs 0.1.2 sealed on Tinfoil Containers. A paid request, an Oblivious HTTP round trip and reading a balance back after a restart are covered by the test suite and local runs, and have not yet been run on sealed hardware. <a href="operate-not-verified-on-sealed-hardware.html">Not verified on sealed hardware</a> lists every step not yet checked there. A Bellows run outside the deploy kit, on your own server, does not seal anything: its operator can read requests in memory and its database.</p>
+
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<span></span>
+<a class="pager-next" rel="next" href="how-it-works.html"><span>Next</span>How a request flows</a>
+</nav>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

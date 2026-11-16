@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Threat model | Bellows docs</title>
+<title>Threat model | Bellows developers</title>
 <meta name="description" content="What each party can see and do in a sealed deployment, what the design assumes and where it is weak.">
 <meta name="theme-color" content="#0B0D10">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bellows">
-<meta property="og:title" content="Threat model | Bellows docs">
+<meta property="og:title" content="Threat model | Bellows developers">
 <meta property="og:description" content="What each party can see and do in a sealed deployment, what the design assumes and where it is weak.">
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Threat model | Bellows docs">
+<meta name="twitter:title" content="Threat model | Bellows developers">
 <meta name="twitter:description" content="What each party can see and do in a sealed deployment, what the design assumes and where it is weak.">
 <meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
@@ -24,56 +24,62 @@
 <link rel="stylesheet" href="../assets/site.css">
 <script src="../assets/site.js" defer></script>
 </head>
-<body class="docs">
+<body class="developers">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
     <nav aria-label="Main">
       <ul class="nav">
-        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
-        <li><a href="../docs/build.html">Build</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
         <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
       </ul>
     </nav>
   </div>
 </header>
-<div class="wrap docs-layout">
-<nav class="docs-nav" aria-label="Docs">
-<details class="docs-menu" open>
-<summary>All docs</summary>
-<p class="nav-group">Build</p>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
 <ul>
 <li><a href="build.html">Build on Bellows</a></li>
-</ul>
-<p class="nav-group">Reference</p>
-<ul>
 <li><a href="api.html">API reference</a></li>
 <li><a href="payments.html">Payments</a></li>
-<li><a href="attestation.html">Attestation</a></li>
 <li><a href="ohttp.html">Oblivious HTTP</a></li>
-<li><a href="privacy.html">Privacy</a></li>
-<li><a href="threat-model.html" aria-current="page">Threat model</a>
-<ul class="toc"><li><a href="#three-things-to-hide-three-mechanisms">Three things to hide, three mechanisms</a></li><li><a href="#what-each-party-can-see">What each party can see</a></li><li><a href="#what-the-operator-can-do">What the operator can do</a></li><li><a href="#what-the-design-assumes">What the design assumes</a></li><li><a href="#what-the-deploy-kit-enforces">What the deploy kit enforces</a></li><li><a href="#what-it-does-not-cover">What it does not cover</a></li></ul></li>
 <li><a href="operators.html">Operators</a></li>
 </ul>
-<p class="nav-group">Run</p>
+<p class="side-group">Trust</p>
 <ul>
-<li><a href="operate.html">Run your own</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html" aria-current="page">Threat model</a></li>
 </ul>
-<p class="nav-group">On GitHub</p>
+<p class="side-group">Run your own</p>
 <ul>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+<li><a href="operate.html">Operator guide</a></li>
 </ul>
 </details>
 </nav>
-<main id="main" class="prose">
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Trust</p>
+<article class="prose">
 <h1 id="threat-model">Threat model</h1>
-<p>Bellows aims to be operator-blind: the person who runs one learns nothing worth taking from it. This page says what each party can see and do in a sealed deployment (<a href="operate.html">Run your own</a>), what the design assumes, and where it is weak. It follows the wording rule in <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">DESIGN.md</a>: &quot;the operator cannot read&quot; is said only of the words and of money and state; who is asking is &quot;hidden from the operator when you use a relay or Tor&quot;.</p>
-<p>Parts of this depend on sealed hardware and on Tinfoil's platform behaving as documented. Release 0.1.2 runs sealed on Tinfoil Containers at the reference instance, and not every one of those parts has been checked there; <a href="operate.html#not-verified-on-sealed-hardware">Run your own</a> lists the ones that have not.</p>
+<p class="summary">What each party can see and do in a sealed deployment, what the design assumes and where it is weak.</p>
+<nav class="on-this-page" aria-label="On this page">
+<p>On this page</p>
+<ul><li><a href="#three-things-to-hide-three-mechanisms">Three things to hide, three mechanisms</a></li><li><a href="#what-each-party-can-see">What each party can see</a></li><li><a href="#what-the-operator-can-do">What the operator can do</a></li><li><a href="#what-the-design-assumes">What the design assumes</a></li><li><a href="#what-the-deploy-kit-enforces">What the deploy kit enforces</a></li><li><a href="#what-it-does-not-cover">What it does not cover</a></li></ul>
+</nav>
+<p>Bellows aims to be operator-blind: the person who runs one learns nothing worth taking from it. This page says what each party can see and do in a sealed deployment (<a href="operate.html">Operator guide</a>), what the design assumes, and where it is weak. It follows the wording rule in <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">DESIGN.md</a>: &quot;the operator cannot read&quot; is said only of the words and of money and state; who is asking is &quot;hidden from the operator when you use a relay or Tor&quot;.</p>
+<p>Parts of this depend on sealed hardware and on Tinfoil's platform behaving as documented. Release 0.1.2 runs sealed on Tinfoil Containers at the reference instance, and not every one of those parts has been checked there; <a href="operate-not-verified-on-sealed-hardware.html#not-verified-on-sealed-hardware">Operator guide</a> lists the ones that have not.</p>
 <h2 id="three-things-to-hide-three-mechanisms">Three things to hide, three mechanisms<a class="anchor" href="#three-things-to-hide-three-mechanisms" aria-hidden="true" tabindex="-1">#</a></h2>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
 <thead><tr><th scope="col">What</th><th scope="col">Hidden from the operator by</th></tr></thead>
@@ -120,7 +126,7 @@
 <li><strong>The code.</strong> The build that is measured is the code in its public repository at that tag. Clients rely on reviewers having read it.</li>
 </ul>
 <h2 id="what-the-deploy-kit-enforces">What the deploy kit enforces<a class="anchor" href="#what-the-deploy-kit-enforces" aria-hidden="true" tabindex="-1">#</a></h2>
-<p><code>pnpm deploy:check</code> refuses a config that would break one of these assumptions from the inside: a second container with attestation access (it could attest a statement with its own key), a second container with secrets or with access to Bellows' volume (the tor sidecar has open egress), a container without a read-only root file system, admin access to the enclave, open ports, secrets in the measured file or in Tinfoil's secret store, a database off the encrypted volume, a volume without a keyserver-released key, unmeasured settings, or open egress for Bellows. See <a href="operate.html#the-deploy-kit">Run your own</a>.</p>
+<p><code>pnpm deploy:check</code> refuses a config that would break one of these assumptions from the inside: a second container with attestation access (it could attest a statement with its own key), a second container with secrets or with access to Bellows' volume (the tor sidecar has open egress), a container without a read-only root file system, admin access to the enclave, open ports, secrets in the measured file or in Tinfoil's secret store, a database off the encrypted volume, a volume without a keyserver-released key, unmeasured settings, or open egress for Bellows. See <a href="operate-the-deploy-kit.html#the-deploy-kit">Operator guide</a>.</p>
 <h2 id="what-it-does-not-cover">What it does not cover<a class="anchor" href="#what-it-does-not-cover" aria-hidden="true" tabindex="-1">#</a></h2>
 <ul>
 <li>A client whose own device is compromised.</li>
@@ -129,21 +135,17 @@
 <li>A flood of anonymous requests. Oblivious HTTP requests carry no identity, so they share one admission bound: a sender above it crowds out other OHTTP clients while it keeps sending, though it cannot fill the replay cache or shut new requests out after it stops (<a href="ohttp.html#admission">Oblivious HTTP</a>).</li>
 <li>The AI supplier's handling of plaintext models.</li>
 </ul>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="privacy.html"><span>Previous</span>Privacy</a>
+<a class="pager-next" rel="next" href="operate.html"><span>Next</span>Operator guide</a>
+</nav>
 <p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/THREAT-MODEL.md">docs/THREAT-MODEL.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">
-  <div class="wrap footer-inner">
-    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
-    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
-    <nav aria-label="Footer">
-      <ul>
-        <li><a href="../docs/build.html">Build on Bellows</a></li>
-        <li><a href="../docs/api.html">API reference</a></li>
-        <li><a href="../docs/threat-model.html">Threat model</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
-      </ul>
-    </nav>
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
   </div>
 </footer>
 </body>

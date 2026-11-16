@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check which build it runs | Build on Bellows | Bellows</title>
+<meta name="description" content="Read the attested identity, and verify it with verifyBellows before you send anything.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Check which build it runs | Build on Bellows | Bellows">
+<meta property="og:description" content="Read the attested identity, and verify it with verifyBellows before you send anything.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Check which build it runs | Build on Bellows | Bellows">
+<meta name="twitter:description" content="Read the attested identity, and verify it with verifyBellows before you send anything.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html" class="in-section">Build on Bellows</a>
+<ol class="side-parts"><li><a href="build-pick-an-engine.html">Pick an engine</a></li><li><a href="build-check-which-build-it-runs.html" aria-current="page">Check which build it runs</a></li><li><a href="build-list-models.html">List models</a></li><li><a href="build-pay-for-requests.html">Pay for requests</a></li><li><a href="build-send-a-chat-request.html">Send a chat request</a></li><li><a href="build-stream-an-answer.html">Stream an answer</a></li><li><a href="build-send-through-oblivious-http.html">Send through Oblivious HTTP</a></li><li><a href="build-handle-errors.html">Handle errors</a></li><li><a href="build-read-the-balance-and-take-it-back.html">Read the balance and take it back</a></li><li><a href="build-use-the-client-library.html">Use the client library</a></li><li><a href="build-run-your-own-engine.html">Run your own engine</a></li><li><a href="build-how-these-examples-were-checked.html">How these examples were checked</a></li></ol></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html">Operator guide</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Build on it <span aria-hidden="true">/</span> <a href="build.html">Build on Bellows</a></p>
+<article class="prose">
+<h1 id="check-which-build-it-runs">Check which build it runs</h1>
+<p class="summary">Read the attested identity, and verify it with verifyBellows before you send anything.</p>
+
+<p>Before you send a prompt or a token, check that the engine runs an approved build. A Bellows serves its identity at <code>GET /.well-known/bellows</code>: a statement (version, claimed build, the HPKE key clients encrypt to, its relays, the operator's announcement) and an attestation that binds that statement. <a href="attestation.html">Attestation</a> describes each part.</p>
+<p>Look at it by hand:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s $B/.well-known/bellows | jq '.attestation | {format, warning}'
+curl -s $B/.well-known/bellows | jq -r .statement | base64 -d | jq '{version, measurement, relays, operator}'</code></pre>
+<p>On a local engine the attestation format is <code>urn:bellows:attestation:dev:v1</code> with the warning <code>DEVELOPMENT STAND-IN. NOT HARDWARE ATTESTATION. PROVES NOTHING.</code> On Tinfoil it is <code>https://tinfoil.sh/predicate/attestation/v3</code>.</p>
+<p><code>GET /ohttp-keys</code> serves the same key for standard OHTTP tools. It should equal the attested one:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s $B/ohttp-keys | tail -c +3 | base64                                    # drop the 2-byte length
+curl -s $B/.well-known/bellows | jq -r .statement | base64 -d | jq -r .hpke.key_config</code></pre>
+<p>Reading the document proves nothing by itself. The check that counts is <code>verifyBellows</code> in the client library: it verifies the attestation, finds the measured build in <code>builds.json</code>, and returns the attested key, or throws. If it throws, send nothing.</p>
+<pre tabindex="0" data-lang="ts"><code class="language-ts">import { tinfoilVerifier, verifyBellows } from './client/index.ts';
+import buildsJson from './builds.json' with { type: 'json' };
+
+const bellows = await verifyBellows('https://bellows.island-bitcoin.containers.tinfoil.dev', {
+  approvedBuilds: buildsJson,
+  verifier: tinfoilVerifier({ authenticate }),
+});
+// bellows.keyConfig is the attested key, bellows.relays its relays, bellows.build the approved build.</code></pre>
+<p><code>authenticate</code> is yours to supply. It must check the SEV-SNP report or TDX quote (vendor certificate chain, collateral, provenance) and return the measurement it proves and the REPORT_DATA read from the quote. No implementation ships in this repository; <a href="attestation.html#the-client-library">Attestation</a> says what it must do, and <a href="attestation.html#not-verified-locally">Attestation</a> lists what has not been run on real sealed hardware.</p>
+<p>Against a local engine, accept the development stand-in explicitly. It proves nothing, so use it only for development:</p>
+<pre tabindex="0" data-lang="ts"><code class="language-ts">import { devVerifier, verifyBellows } from './client/index.ts';
+
+const BELLOWS = 'http://localhost:8787';
+// A local engine is not in builds.json. List the build it claims, for development only.
+const doc = await (await fetch(`${BELLOWS}/.well-known/bellows`)).json();
+const claimed = JSON.parse(atob(doc.statement));
+const devBuilds = {
+  format: 'bellows-builds/v1',
+  builds: [{ version: claimed.version, image: `ghcr.io/example/bellows@sha256:${'0'.repeat(64)}`, measurement: claimed.measurement, released: '2026-11-16' }],
+};
+const bellows = await verifyBellows(BELLOWS, { approvedBuilds: devBuilds, verifier: devVerifier(), allowDevelopment: true });</code></pre>
+<p>Without <code>allowDevelopment</code> the same call throws <code>BellowsVerifyError</code> with code <code>development_refused</code>.</p>
+<p><code>verifyBellows</code> reads <code>/.well-known/bellows</code> straight from the engine, so the operator sees your address on that one request. To keep it hidden, pass a <code>fetch</code> in its options that sends through Tor.</p>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="build-pick-an-engine.html"><span>Previous</span>Pick an engine</a>
+<a class="pager-next" rel="next" href="build-list-models.html"><span>Next</span>List models</a>
+</nav>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/BUILD.md">docs/BUILD.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

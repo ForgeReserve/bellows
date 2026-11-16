@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oblivious HTTP | Bellows docs</title>
+<title>Oblivious HTTP | Bellows developers</title>
 <meta name="description" content="Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.">
 <meta name="theme-color" content="#0B0D10">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bellows">
-<meta property="og:title" content="Oblivious HTTP | Bellows docs">
+<meta property="og:title" content="Oblivious HTTP | Bellows developers">
 <meta property="og:description" content="Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.">
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Oblivious HTTP | Bellows docs">
+<meta name="twitter:title" content="Oblivious HTTP | Bellows developers">
 <meta name="twitter:description" content="Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.">
 <meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
@@ -24,54 +24,60 @@
 <link rel="stylesheet" href="../assets/site.css">
 <script src="../assets/site.js" defer></script>
 </head>
-<body class="docs">
+<body class="developers">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
     <nav aria-label="Main">
       <ul class="nav">
-        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
-        <li><a href="../docs/build.html">Build</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
         <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
       </ul>
     </nav>
   </div>
 </header>
-<div class="wrap docs-layout">
-<nav class="docs-nav" aria-label="Docs">
-<details class="docs-menu" open>
-<summary>All docs</summary>
-<p class="nav-group">Build</p>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
 <ul>
 <li><a href="build.html">Build on Bellows</a></li>
-</ul>
-<p class="nav-group">Reference</p>
-<ul>
 <li><a href="api.html">API reference</a></li>
 <li><a href="payments.html">Payments</a></li>
-<li><a href="attestation.html">Attestation</a></li>
-<li><a href="ohttp.html" aria-current="page">Oblivious HTTP</a>
-<ul class="toc"><li><a href="#the-gateway">The gateway</a></li><li><a href="#the-client">The client</a></li><li><a href="#the-relay">The relay</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#tests">Tests</a></li><li><a href="#not-verified-locally">Not verified locally</a></li></ul></li>
-<li><a href="privacy.html">Privacy</a></li>
-<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="ohttp.html" aria-current="page">Oblivious HTTP</a></li>
 <li><a href="operators.html">Operators</a></li>
 </ul>
-<p class="nav-group">Run</p>
+<p class="side-group">Trust</p>
 <ul>
-<li><a href="operate.html">Run your own</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
 </ul>
-<p class="nav-group">On GitHub</p>
+<p class="side-group">Run your own</p>
 <ul>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+<li><a href="operate.html">Operator guide</a></li>
 </ul>
 </details>
 </nav>
-<main id="main" class="prose">
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Build on it</p>
+<article class="prose">
 <h1 id="oblivious-http">Oblivious HTTP</h1>
+<p class="summary">Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.</p>
+<nav class="on-this-page" aria-label="On this page">
+<p>On this page</p>
+<ul><li><a href="#the-gateway">The gateway</a></li><li><a href="#the-client">The client</a></li><li><a href="#the-relay">The relay</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#tests">Tests</a></li><li><a href="#not-verified-locally">Not verified locally</a></li></ul>
+</nav>
 <p>Bellows is an Oblivious HTTP gateway (<a href="https://www.rfc-editor.org/rfc/rfc9458.html">RFC 9458</a>) for its own client API. A client encrypts each API call to the attested HPKE key and sends it through a relay. The relay sees the client's address and ciphertext. Bellows sees the request and the relay's address. When a relay is run by someone other than the operator, who is asking is hidden from the operator, and what is asked is hidden from the relay.</p>
 <p>Without a relay, a client can still send encapsulated requests straight to Bellows. The content is then unreadable to anything in front of the sealed machine (a load balancer, a TLS terminator, the host), but the operator's network sees the client's address.</p>
 <p>A relay and a Bellows run by the same party hide nothing from that party.</p>
@@ -104,7 +110,7 @@
 </ul>
 <h3 id="admission">Admission<a class="anchor" href="#admission" aria-hidden="true" tabindex="-1">#</a></h3>
 <p>Encapsulated requests carry no identity, so the gateway cannot limit one client apart from another. It bounds new requests for everyone together instead: at most <code>BELLOWS_OHTTP_ADMIT_PER_SECOND</code> a second, with a burst of one second's worth. Past it a request gets a plain <code>503</code> with <code>Retry-After</code> (whole seconds), takes no place in the replay cache, and can be sent again unchanged once the bound has room. The Bellows relay passes <code>Retry-After</code> on with a <code>503</code> and exposes it to browsers; a third-party relay may drop it, so a client should not count on seeing it. Only a request that would be remembered counts: refused, stale and replayed requests use none of it.</p>
-<p>A key is kept for at most twice the skew plus one second (601 s by default). Left unset, the bound is the most the replay cache holds over that time (<code>BELLOWS_OHTTP_REPLAY_CACHE_MAX / (2 * BELLOWS_OHTTP_MAX_SKEW_SECONDS + 2)</code>, about 332 a second by default), so the cache cannot fill. A flood then competes with honest clients for each second's admissions, rather than shutting every new request out until old keys expire. A sender of more than the bound can still crowd others out while it keeps sending: the bound limits what a flood costs the gateway, not who gets through. A set value that could let the cache fill is refused at startup. Inside the app, each request still meets the same payment, rate limits and proof of work as a direct one. See <a href="operate.html#oblivious-http-under-load">Run your own</a>.</p>
+<p>A key is kept for at most twice the skew plus one second (601 s by default). Left unset, the bound is the most the replay cache holds over that time (<code>BELLOWS_OHTTP_REPLAY_CACHE_MAX / (2 * BELLOWS_OHTTP_MAX_SKEW_SECONDS + 2)</code>, about 332 a second by default), so the cache cannot fill. A flood then competes with honest clients for each second's admissions, rather than shutting every new request out until old keys expire. A sender of more than the bound can still crowd others out while it keeps sending: the bound limits what a flood costs the gateway, not who gets through. A set value that could let the cache fill is refused at startup. Inside the app, each request still meets the same payment, rate limits and proof of work as a direct one. See <a href="operate-oblivious-http-under-load.html#oblivious-http-under-load">Operator guide</a>.</p>
 <h3 id="refusals">Refusals<a class="anchor" href="#refusals" aria-hidden="true" tabindex="-1">#</a></h3>
 <p>RFC 9458 asks the gateway to answer a request it cannot open with a plain error. Bellows answers with a status and no body:</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
@@ -179,21 +185,17 @@ const res = await bellowsFetch(operator, '/v1/chat/completions', {
 <li>Interoperability with third-party OHTTP relays and clients has been tested only against ohttp-ts itself, which its authors test against the RFC 9458 and chunked OHTTP draft vectors.</li>
 <li>The admission bound has been tested in process with a simulated clock, not under real load from many addresses. Decrypting a request costs the gateway CPU before any bound applies, and the bound does not cap that.</li>
 </ul>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="payments.html"><span>Previous</span>Payments</a>
+<a class="pager-next" rel="next" href="operators.html"><span>Next</span>Operators</a>
+</nav>
 <p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OHTTP.md">docs/OHTTP.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">
-  <div class="wrap footer-inner">
-    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
-    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
-    <nav aria-label="Footer">
-      <ul>
-        <li><a href="../docs/build.html">Build on Bellows</a></li>
-        <li><a href="../docs/api.html">API reference</a></li>
-        <li><a href="../docs/threat-model.html">Threat model</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
-      </ul>
-    </nav>
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
   </div>
 </footer>
 </body>

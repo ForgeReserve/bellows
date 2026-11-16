@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2. Make the keys, offline | Operator guide | Bellows</title>
+<meta name="description" content="Make the volume key, the wallet secret and the admin token on an offline machine, and back them up.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="2. Make the keys, offline | Operator guide | Bellows">
+<meta property="og:description" content="Make the volume key, the wallet secret and the admin token on an offline machine, and back them up.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="2. Make the keys, offline | Operator guide | Bellows">
+<meta name="twitter:description" content="Make the volume key, the wallet secret and the admin token on an offline machine, and back them up.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html" class="in-section">Operator guide</a>
+<ol class="side-parts"><li><a href="operate-the-deploy-kit.html">The deploy kit</a></li><li><a href="operate-what-you-need.html">What you need</a></li><li><a href="operate-1-make-your-deploy-repository.html">1. Make your deploy repository</a></li><li><a href="operate-2-make-the-keys-offline.html" aria-current="page">2. Make the keys, offline</a></li><li><a href="operate-3-run-your-keyserver.html">3. Run your keyserver</a></li><li><a href="operate-4-release.html">4. Release</a></li><li><a href="operate-5-approve-the-release-in-your-keyserver.html">5. Approve the release in your keyserver</a></li><li><a href="operate-6-create-the-volume-and-the-instance.html">6. Create the volume and the instance</a></li><li><a href="operate-7-check-it.html">7. Check it</a></li><li><a href="operate-onion-service.html">Onion service</a></li><li><a href="operate-oblivious-http-under-load.html">Oblivious HTTP under load</a></li><li><a href="operate-updating.html">Updating</a></li><li><a href="operate-backups-and-recovery.html">Backups and recovery</a></li><li><a href="operate-rehearse-locally.html">Rehearse locally</a></li><li><a href="operate-not-verified-on-sealed-hardware.html">Not verified on sealed hardware</a></li></ol></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Run your own <span aria-hidden="true">/</span> <a href="operate.html">Operator guide</a></p>
+<article class="prose">
+<h1 id="2-make-the-keys-offline">2. Make the keys, offline</h1>
+<p class="summary">Make the volume key, the wallet secret and the admin token on an offline machine, and back them up.</p>
+
+<p>On the offline machine:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">openssl rand -base64 32     # BELLOWS_DATA_VOLUME_KEY: unlocks the encrypted volume
+openssl rand -hex 32        # BELLOWS_WALLET_SECRET: the wallet seed is derived from it
+openssl rand -hex 32        # your admin token; keep it in your password manager
+printf %s '&lt;admin token&gt;' | sha256sum     # BELLOWS_ADMIN_TOKEN_HASH</code></pre>
+<p>Generate the admin token with <code>openssl rand -hex 32</code> and nothing else. The shim in <code>tinfoil-config.yml</code> serves <code>/admin/api</code> at your public origin, because TLS ends inside the sealed machine and no proxy of yours can stand in front of it. The token is the admin API's only protection, with a budget of 10 failed logins a minute. Bellows receives only its hash, so it cannot refuse a short or guessable token. If you do not need the admin API, remove <code>/admin/api</code> and <code>/admin/api/*</code> from the shim's <code>paths</code> before the release, and leave <code>BELLOWS_ADMIN_TOKEN_HASH</code> empty.</p>
+<h2 id="back-up-the-volume-key-and-the-wallet-secret">Back up the volume key and the wallet secret<a class="anchor" href="#back-up-the-volume-key-and-the-wallet-secret" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>These two values are the only way back to the money:</p>
+<ul>
+<li><strong>The volume key</strong> opens the encrypted volume, which holds the ledger: every customer balance and the state of the gateway's eCash wallet. If it is lost, the volume cannot be opened by you, by Tinfoil or by anyone. It never changes: a new key cannot open the existing volume, and Tinfoil's secret rotation does not re-encrypt it.</li>
+<li><strong>The wallet secret</strong> derives the wallet's keys. With it, the gateway's eCash can be recovered from the mint (NUT-09 restore, <a href="payments.html">Payments</a>) even without the volume. Customer balances cannot: they live only in the ledger on the volume.</li>
+</ul>
+<p>Keep both offline before anything is written to the volume:</p>
+<ol>
+<li>Write each value on paper, twice, or save it encrypted with a passphrase on two USB drives (for example <code>age -p -o volume-key.age</code>). Keep the copies in two places.</li>
+<li>Check each copy by reading it back on the offline machine and comparing it with the original (<code>sha256sum</code>).</li>
+<li>Never put either value in Tinfoil's secret store, in a repository, in email or in chat.</li>
+</ol>
+<p>With the onion service, back up <code>BELLOWS_ONION_VOLUME_KEY</code> the same way. Losing it loses the onion address.</p>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="operate-1-make-your-deploy-repository.html"><span>Previous</span>1. Make your deploy repository</a>
+<a class="pager-next" rel="next" href="operate-3-run-your-keyserver.html"><span>Next</span>3. Run your keyserver</a>
+</nav>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OPERATE.md">docs/OPERATE.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

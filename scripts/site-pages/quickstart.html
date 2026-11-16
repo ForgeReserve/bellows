@@ -1,0 +1,38 @@
+<h1 id="quickstart">Quickstart</h1>
+<p>Every engine speaks the same API. List its models, open a balance with eCash, and send an OpenAI chat request with the balance key. Opening a balance needs a small proof of work; <a href="build-pay-for-requests.html#open-a-balance">the guide</a> has the solver.</p>
+<h2 id="with-curl">With curl</h2>
+<p>Against any Bellows. Replace <code>$SOLUTION</code> with a proof of work solution and <code>$KEY</code> with the key the topup returns.</p>
+<pre tabindex="0"><code>B=https://bellows.island-bitcoin.containers.tinfoil.dev
+curl -s $B/v1/models | jq '.data[].id'
+
+# open a balance with eCash from one of its mints
+curl -s $B/v1/wallet/topup \
+  -H 'content-type: application/json' \
+  -H "X-Bellows-Pow: $SOLUTION" \
+  -d '{"token": "cashuB..."}'
+
+curl -s $B/v1/chat/completions \
+  -H "authorization: Bearer $KEY" \
+  -H 'content-type: application/json' \
+  -d '{"model": "MODEL_ID", "messages":
+       [{"role": "user", "content": "Hello"}]}'</code></pre>
+<h2 id="with-any-openai-client">With any OpenAI client</h2>
+<p>The balance key is the API key.</p>
+<pre tabindex="0"><code>from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://bellows.island-bitcoin.containers.tinfoil.dev/v1",
+    api_key="sk-forge-...",
+)
+reply = client.chat.completions.create(
+    model="MODEL_ID",
+    messages=[{"role": "user", "content": "Hello"}],
+)
+print(reply.choices[0].message.content)</code></pre>
+<h2 id="without-a-balance">Without a balance</h2>
+<p>Pay one request at a time: send it with no key, read the <code>402</code>, and send it again with <code>X-Cashu: cashuB...</code> for the amount it asks. The unused value comes back as eCash change. <a href="build-pay-for-requests.html#pay-per-request-nut-24">Pay per request</a> in the guide shows it end to end.</p>
+<h2 id="next">Next</h2>
+<ul>
+<li><a href="build-check-which-build-it-runs.html">Check which build an engine runs</a> before you send it a token.</li>
+<li><a href="build-pick-an-engine.html">Start a local engine</a> with test mints to build against.</li>
+</ul>

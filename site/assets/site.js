@@ -1,7 +1,20 @@
-// Adds a copy button to each code block, and folds the docs menu on narrow screens. The pages work without it.
+// Follows a link to a heading that moved to another page, adds a copy button to each code block, and folds
+// the Developers menu on narrow screens. The pages work without it.
+(() => {
+  const moved = document.querySelector('[data-moved]');
+  const id = decodeURIComponent(location.hash.slice(1));
+  if (!moved || !id || document.getElementById(id)) return;
+  try {
+    const to = JSON.parse(moved.getAttribute('data-moved'))[id];
+    if (to) location.replace(`${to}#${encodeURIComponent(id)}`);
+  } catch {
+    // a malformed map: stay on this page
+  }
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
-  const menu = document.querySelector('.docs-menu');
-  if (menu && window.matchMedia('(max-width: 979px)').matches) menu.open = false;
+  const menu = document.querySelector('.side-menu');
+  if (menu && window.matchMedia('(max-width: 999px)').matches) menu.open = false;
   if (!navigator.clipboard) return;
   for (const pre of document.querySelectorAll('pre')) {
     const button = document.createElement('button');

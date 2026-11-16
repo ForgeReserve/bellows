@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Send through Oblivious HTTP | Build on Bellows | Bellows</title>
+<meta name="description" content="Send each call through a relay with bellowsFetch, so who is asking is hidden from the operator when someone else runs the relay.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Send through Oblivious HTTP | Build on Bellows | Bellows">
+<meta property="og:description" content="Send each call through a relay with bellowsFetch, so who is asking is hidden from the operator when someone else runs the relay.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Send through Oblivious HTTP | Build on Bellows | Bellows">
+<meta name="twitter:description" content="Send each call through a relay with bellowsFetch, so who is asking is hidden from the operator when someone else runs the relay.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html" class="in-section">Build on Bellows</a>
+<ol class="side-parts"><li><a href="build-pick-an-engine.html">Pick an engine</a></li><li><a href="build-check-which-build-it-runs.html">Check which build it runs</a></li><li><a href="build-list-models.html">List models</a></li><li><a href="build-pay-for-requests.html">Pay for requests</a></li><li><a href="build-send-a-chat-request.html">Send a chat request</a></li><li><a href="build-stream-an-answer.html">Stream an answer</a></li><li><a href="build-send-through-oblivious-http.html" aria-current="page">Send through Oblivious HTTP</a></li><li><a href="build-handle-errors.html">Handle errors</a></li><li><a href="build-read-the-balance-and-take-it-back.html">Read the balance and take it back</a></li><li><a href="build-use-the-client-library.html">Use the client library</a></li><li><a href="build-run-your-own-engine.html">Run your own engine</a></li><li><a href="build-how-these-examples-were-checked.html">How these examples were checked</a></li></ol></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html">Operator guide</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Build on it <span aria-hidden="true">/</span> <a href="build.html">Build on Bellows</a></p>
+<article class="prose">
+<h1 id="send-through-oblivious-http">Send through Oblivious HTTP</h1>
+<p class="summary">Send each call through a relay with bellowsFetch, so who is asking is hidden from the operator when someone else runs the relay.</p>
+
+<p>Oblivious HTTP (RFC 9458) wraps each API call for the attested key and sends it through a relay. The relay sees your address and ciphertext. The engine sees the request and the relay's address. Who is asking is hidden from the operator when you use a relay run by someone else, or Tor. A relay and a Bellows run by the same party hide nothing from that party. <a href="ohttp.html">Oblivious HTTP</a> has the details.</p>
+<p><code>bellowsFetch(operator, path, init)</code> takes the same path and <code>init</code> as <code>fetch</code> and returns the engine's answer as an ordinary <code>Response</code>, streamed answers included:</p>
+<pre tabindex="0" data-lang="ts"><code class="language-ts">import { bellowsFetch } from './client/index.ts';
+
+// bellows comes from verifyBellows (above). Use its first relay, or send straight to the engine.
+const operator = { ...bellows, relay: bellows.relays[0] ?? null };
+
+const wallet = await bellowsFetch(operator, '/v1/wallet', { headers: { authorization: `Bearer ${key}` } });
+console.log(await wallet.json());
+
+const res = await bellowsFetch(operator, '/v1/chat/completions', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+  body: JSON.stringify({ model: 'mock-echo', stream: true, messages: [{ role: 'user', content: 'Hello' }] }),
+});
+const settled = await streamChat(res, (text) =&gt; process.stdout.write(text));</code></pre>
+<ul>
+<li>A topup, a NUT-24 payment and a refund work through <code>bellowsFetch</code> the same way as a direct call. A <code>402</code>, <code>428</code> or <code>429</code> from the engine comes back as an answer.</li>
+<li><code>bellowsFetch</code> throws <code>BellowsFetchError</code> only when the request cannot be sent or the answer cannot be opened. Its <code>code</code> is one of <code>bad_path</code>, <code>bad_request</code>, <code>bad_key_config</code>, <code>network</code>, <code>relay_error</code>, <code>gateway_refused</code> or <code>bad_response</code>. On a busy <code>503</code>, <code>retryAfter</code> holds the seconds to wait.</li>
+<li>Answers stream by default (chunked OHTTP). Pass <code>{ chunked: false }</code> as the fourth argument for relays that take only plain RFC 9458 messages.</li>
+<li>The key is new on every restart of the engine. After a refusal, verify again and use the new key.</li>
+</ul>
+<p>To try a relay locally, run the one in <code>relay/</code> in front of your local engine and list it on the engine:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">BELLOWS_RELAY_TARGETS=http://127.0.0.1:8787/ohttp pnpm relay      # listens on 127.0.0.1:8788
+# and start the engine with:
+BELLOWS_RELAYS=http://127.0.0.1:8788/relay/127.0.0.1:8787</code></pre>
+<p>The relay forwards only the body and its content type and keeps no logs. <a href="https://github.com/ForgeReserve/bellows/blob/main/relay/README.md">relay/README.md</a> shows how to run it as a Node server or a Cloudflare Worker.</p>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="build-stream-an-answer.html"><span>Previous</span>Stream an answer</a>
+<a class="pager-next" rel="next" href="build-handle-errors.html"><span>Next</span>Handle errors</a>
+</nav>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/BUILD.md">docs/BUILD.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

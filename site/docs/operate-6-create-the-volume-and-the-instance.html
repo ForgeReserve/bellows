@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6. Create the volume and the instance | Operator guide | Bellows</title>
+<meta name="description" content="Create the encrypted volume and the instance on Tinfoil.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="6. Create the volume and the instance | Operator guide | Bellows">
+<meta property="og:description" content="Create the encrypted volume and the instance on Tinfoil.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="6. Create the volume and the instance | Operator guide | Bellows">
+<meta name="twitter:description" content="Create the encrypted volume and the instance on Tinfoil.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html" class="in-section">Operator guide</a>
+<ol class="side-parts"><li><a href="operate-the-deploy-kit.html">The deploy kit</a></li><li><a href="operate-what-you-need.html">What you need</a></li><li><a href="operate-1-make-your-deploy-repository.html">1. Make your deploy repository</a></li><li><a href="operate-2-make-the-keys-offline.html">2. Make the keys, offline</a></li><li><a href="operate-3-run-your-keyserver.html">3. Run your keyserver</a></li><li><a href="operate-4-release.html">4. Release</a></li><li><a href="operate-5-approve-the-release-in-your-keyserver.html">5. Approve the release in your keyserver</a></li><li><a href="operate-6-create-the-volume-and-the-instance.html" aria-current="page">6. Create the volume and the instance</a></li><li><a href="operate-7-check-it.html">7. Check it</a></li><li><a href="operate-onion-service.html">Onion service</a></li><li><a href="operate-oblivious-http-under-load.html">Oblivious HTTP under load</a></li><li><a href="operate-updating.html">Updating</a></li><li><a href="operate-backups-and-recovery.html">Backups and recovery</a></li><li><a href="operate-rehearse-locally.html">Rehearse locally</a></li><li><a href="operate-not-verified-on-sealed-hardware.html">Not verified on sealed hardware</a></li></ol></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Run your own <span aria-hidden="true">/</span> <a href="operate.html">Operator guide</a></p>
+<article class="prose">
+<h1 id="6-create-the-volume-and-the-instance">6. Create the volume and the instance</h1>
+<p class="summary">Create the encrypted volume and the instance on Tinfoil.</p>
+
+<pre tabindex="0" data-lang="sh"><code class="language-sh">tinfoil container hosts
+tinfoil volume create bellows-data --size 16GB --host &lt;host&gt;
+tinfoil container create bellows --repo &lt;owner&gt;/&lt;repo&gt; --tag v1.0.0 --volume bellows-data:data</code></pre>
+<p>Leave debug mode off. A debug instance ignores the keyserver and takes Tinfoil-managed secrets instead; never point one at a real volume or real keys. Do not create any of the values from step 2 in Tinfoil's secret store, and do not pass <code>--secret</code>.</p>
+<p>On boot, the enclave fetches the declared secrets from your keyserver, unlocks the volume at <code>/data</code>, and starts Bellows. Bellows starts only in sealed mode with its database on that mount, and logs a <code>startup</code> line naming the mode, the mount and the attester, never a secret.</p>
+<p>NOT VERIFIED: volume creation, first-boot initialization of a blank volume through <code>key-secret</code>, the volume's mount point appearing in <code>/proc/self/mountinfo</code>, and the shim's handling of streamed answers.</p>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="operate-5-approve-the-release-in-your-keyserver.html"><span>Previous</span>5. Approve the release in your keyserver</a>
+<a class="pager-next" rel="next" href="operate-7-check-it.html"><span>Next</span>7. Check it</a>
+</nav>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OPERATE.md">docs/OPERATE.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Payments | Bellows docs</title>
+<title>Payments | Bellows developers</title>
 <meta name="description" content="How Bellows takes, holds and returns eCash, and what happens when something fails halfway.">
 <meta name="theme-color" content="#0B0D10">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bellows">
-<meta property="og:title" content="Payments | Bellows docs">
+<meta property="og:title" content="Payments | Bellows developers">
 <meta property="og:description" content="How Bellows takes, holds and returns eCash, and what happens when something fails halfway.">
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Payments | Bellows docs">
+<meta name="twitter:title" content="Payments | Bellows developers">
 <meta name="twitter:description" content="How Bellows takes, holds and returns eCash, and what happens when something fails halfway.">
 <meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
@@ -24,54 +24,60 @@
 <link rel="stylesheet" href="../assets/site.css">
 <script src="../assets/site.js" defer></script>
 </head>
-<body class="docs">
+<body class="developers">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
     <nav aria-label="Main">
       <ul class="nav">
-        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
-        <li><a href="../docs/build.html">Build</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
         <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
       </ul>
     </nav>
   </div>
 </header>
-<div class="wrap docs-layout">
-<nav class="docs-nav" aria-label="Docs">
-<details class="docs-menu" open>
-<summary>All docs</summary>
-<p class="nav-group">Build</p>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
 <ul>
 <li><a href="build.html">Build on Bellows</a></li>
-</ul>
-<p class="nav-group">Reference</p>
-<ul>
 <li><a href="api.html">API reference</a></li>
-<li><a href="payments.html" aria-current="page">Payments</a>
-<ul class="toc"><li><a href="#units-and-precision">Units and precision</a></li><li><a href="#accepting-a-token">Accepting a token</a></li><li><a href="#flow-1-nut-24-per-request">Flow 1: NUT-24 per request</a></li><li><a href="#flow-2-prepaid-balance">Flow 2: prepaid balance</a></li><li><a href="#metering">Metering</a></li><li><a href="#flow-3-funding-a-balance-through-the-funding-mint">Flow 3: funding a balance through the funding mint</a></li><li><a href="#the-gateways-wallet">The gateway's wallet</a></li><li><a href="#crash-safety-1">Crash safety</a></li><li><a href="#known-limits">Known limits</a></li><li><a href="#checking-quotes-without-tripping-the-mints-rate-limit">Checking quotes without tripping the mint's rate limit</a></li></ul></li>
-<li><a href="attestation.html">Attestation</a></li>
+<li><a href="payments.html" aria-current="page">Payments</a></li>
 <li><a href="ohttp.html">Oblivious HTTP</a></li>
-<li><a href="privacy.html">Privacy</a></li>
-<li><a href="threat-model.html">Threat model</a></li>
 <li><a href="operators.html">Operators</a></li>
 </ul>
-<p class="nav-group">Run</p>
+<p class="side-group">Trust</p>
 <ul>
-<li><a href="operate.html">Run your own</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
 </ul>
-<p class="nav-group">On GitHub</p>
+<p class="side-group">Run your own</p>
 <ul>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+<li><a href="operate.html">Operator guide</a></li>
 </ul>
 </details>
 </nav>
-<main id="main" class="prose">
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Build on it</p>
+<article class="prose">
 <h1 id="payments">Payments</h1>
+<p class="summary">How Bellows takes, holds and returns eCash, and what happens when something fails halfway.</p>
+<nav class="on-this-page" aria-label="On this page">
+<p>On this page</p>
+<ul><li><a href="#units-and-precision">Units and precision</a></li><li><a href="#accepting-a-token">Accepting a token</a></li><li><a href="#flow-1-nut-24-per-request">Flow 1: NUT-24 per request</a></li><li><a href="#flow-2-prepaid-balance">Flow 2: prepaid balance</a></li><li><a href="#metering">Metering</a></li><li><a href="#flow-3-funding-a-balance-through-the-funding-mint">Flow 3: funding a balance through the funding mint</a></li><li><a href="#the-gateways-wallet">The gateway's wallet</a></li><li><a href="#crash-safety-1">Crash safety</a></li><li><a href="#known-limits">Known limits</a></li><li><a href="#checking-quotes-without-tripping-the-mints-rate-limit">Checking quotes without tripping the mint's rate limit</a></li></ul>
+</nav>
 <p>This document describes how Bellows takes, holds and returns eCash, and what happens when something fails halfway.</p>
 <h2 id="units-and-precision">Units and precision<a class="anchor" href="#units-and-precision" aria-hidden="true" tabindex="-1">#</a></h2>
 <p>A token's unit is <code>usd</code> (amounts are cents) or <code>sat</code>. Internally every amount is tracked in <strong>msub</strong>, a thousandth of the unit: milli-cents for <code>usd</code>, millisatoshi for <code>sat</code>. Prices are set in USD per million tokens and computed in nano-USD, then rounded up once into msub.</p>
@@ -236,21 +242,17 @@
 <li>All quote checks share a budget of <code>BELLOWS_MINT_QUOTE_CHECKS_PER_MIN</code> (default 12).</li>
 <li>A 429 from the mint pauses every quote check for 60 s.</li>
 </ul>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="api.html"><span>Previous</span>API reference</a>
+<a class="pager-next" rel="next" href="ohttp.html"><span>Next</span>Oblivious HTTP</a>
+</nav>
 <p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/PAYMENTS.md">docs/PAYMENTS.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">
-  <div class="wrap footer-inner">
-    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
-    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
-    <nav aria-label="Footer">
-      <ul>
-        <li><a href="../docs/build.html">Build on Bellows</a></li>
-        <li><a href="../docs/api.html">API reference</a></li>
-        <li><a href="../docs/threat-model.html">Threat model</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
-      </ul>
-    </nav>
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
   </div>
 </footer>
 </body>
