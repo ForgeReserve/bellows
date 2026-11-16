@@ -93,7 +93,7 @@
           <p class="more"><a href="docs/ohttp.html">How Oblivious HTTP works</a></p>
         </article>
       </div>
-      <p class="note">Parts of this depend on sealed hardware and on Tinfoil's platform behaving as documented. <a href="docs/operate.html#not-verified-on-sealed-hardware">Run your own</a> lists the steps that have not yet been run on sealed hardware. A Bellows run outside the deploy kit, on your own server, does not seal anything: its operator can read requests in memory and its database.</p>
+      <p class="note">Releases 0.1.0 to 0.1.2 were built and measured by the public release workflows, and the reference instance runs 0.1.2 sealed on Tinfoil Containers. A paid request, an Oblivious HTTP round trip and reading a balance back after a restart are covered by the test suite and local runs, and have not yet been run on sealed hardware. <a href="docs/operate.html#not-verified-on-sealed-hardware">Run your own</a> lists every step not yet checked there. A Bellows run outside the deploy kit, on your own server, does not seal anything: its operator can read requests in memory and its database.</p>
     </div>
   </section>
 
@@ -266,7 +266,7 @@ print(reply.choices[0].message.content)</code></pre>
       <div class="instance">
         <div>
           <h2 id="instance-title">Reference instance</h2>
-          <p>A Bellows runs on Tinfoil Containers at this address. It takes real eCash. Check its build before you send it anything.</p>
+          <p>Release 0.1.2 runs sealed on Tinfoil Containers at this address. It takes real eCash. Check its build before you send it anything.</p>
           <code class="addr">https://bellows.<wbr>island-bitcoin.<wbr>containers.<wbr>tinfoil.dev</code>
         </div>
         <div class="actions">

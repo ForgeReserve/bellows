@@ -57,8 +57,10 @@ describe('site', () => {
     const problems: string[] = [];
     for (const page of pages) {
       const html = read(page);
-      for (const { url } of references(html)) {
+      for (const { url, tag } of references(html)) {
         if (isExternal(url) || url === '') continue;
+        // The 404 page is served at any missing path, so it resolves its links from the root with <base href="/">.
+        if (rel(page) === '404.html' && tag === 'base' && url === '/') continue;
         if (url.startsWith('/')) {
           problems.push(`${rel(page)}: ${url} is root-absolute; links must be relative`);
           continue;
@@ -116,8 +118,15 @@ describe('site', () => {
     }
   });
 
+  it('has a 404 page that resolves its links from the root, and asks Workers to serve it', () => {
+    const html = read(join(SITE, '404.html'));
+    expect(html).toContain('<base href="/">');
+    expect(html).not.toMatch(/href="#/);
+    expect(read(join(SITE, 'wrangler.jsonc'))).toMatch(/"not_found_handling": "404-page"/);
+  });
+
   it('has no em dash in the pages written for the site', () => {
-    for (const p of [join(SITE, 'index.html'), join(ROOT, 'docs/BUILD.md')]) expect(read(p).includes('\u2014'), p).toBe(false);
+    for (const p of [join(SITE, 'index.html'), join(SITE, '404.html'), join(ROOT, 'docs/BUILD.md')]) expect(read(p).includes('\u2014'), p).toBe(false);
   });
 });
 

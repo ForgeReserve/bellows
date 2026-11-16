@@ -73,7 +73,7 @@
 <main id="main" class="prose">
 <h1 id="operating-a-bellows">Operating a Bellows</h1>
 <p>This page runs a Bellows on Tinfoil Containers, step by step, so that its operator cannot read the requests, the answers, the balances or the keys. What each party can still see is in <a href="threat-model.html">Threat model</a>.</p>
-<p><strong>NOT VERIFIED</strong> marks every step that needs real sealed hardware. Those steps follow Tinfoil's public documentation and the deploy kit in this repository, and have not yet been run on Tinfoil. Everything else here has been run locally. &quot;Not verified on sealed hardware&quot; at the end lists the open points.</p>
+<p><strong>NOT VERIFIED</strong> marks every step that needs real sealed hardware and has not been checked there one by one. Those steps follow Tinfoil's public documentation and the deploy kit in this repository. The release workflows have run on GitHub (<a href="#4-release">4. Release</a>), and the reference instance runs release 0.1.2 this way. Everything else here has been run locally. &quot;Not verified on sealed hardware&quot; at the end lists the open points.</p>
 <h2 id="the-deploy-kit">The deploy kit<a class="anchor" href="#the-deploy-kit" aria-hidden="true" tabindex="-1">#</a></h2>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
 <thead><tr><th scope="col">File</th><th scope="col">What it is</th></tr></thead>
@@ -178,7 +178,7 @@ git commit -am &quot;builds: approve v&lt;version&gt;&quot; &amp;&amp; git push 
 gh pr create --title &quot;builds: approve v&lt;version&gt;&quot; --fill</code></pre>
 <p>Review it as above before merging.</p></li>
 </ul>
-<p>NOT VERIFIED: the workflows have not run on GitHub; Tinfoil's measure action has not measured this config; the image build has not been checked for reproducibility.</p>
+<p>The workflows have run on GitHub for releases 0.1.0, 0.1.1 and 0.1.2, and Tinfoil's measure action measured each one. The measurements in <code>builds.json</code> match the <code>tinfoil-deployment.json</code> of each GitHub release. For 0.1.0 the publish run failed at its last step, opening the pull request, and the entry was added from the published measurement. NOT VERIFIED: the image build has not been checked for reproducibility.</p>
 <h2 id="5-approve-the-release-in-your-keyserver">5. Approve the release in your keyserver<a class="anchor" href="#5-approve-the-release-in-your-keyserver" aria-hidden="true" tabindex="-1">#</a></h2>
 <p>Add a workload entry to your policy for the new tag, with your repository, the tag and your instance's domain, and restart the keyserver. Approve only a release whose build is in the public <code>builds.json</code>. Keep the entry of the previous release while it may still need to boot (a rollback).</p>
 <p>Sign your operator announcement now that the measurement is known, and put it in the keyserver store as <code>BELLOWS_OPERATOR_ANNOUNCEMENT</code>:</p>
@@ -248,7 +248,8 @@ docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
 <li>The keyserver releasing secrets to a Bellows enclave, as environment variables, and refusing a debug enclave.</li>
 <li>Volume creation and unlock at boot through <code>key-secret</code>, first-boot initialization of a blank disk, the mount's owner (<code>1000:1000</code>), and the mount appearing in <code>/proc/self/mountinfo</code> so that sealed mode accepts it.</li>
 <li>The attestation socket in a Bellows container and the document it returns (<a href="attestation.html#not-verified-locally">Attestation</a>).</li>
-<li>The release workflows on GitHub, Tinfoil's measure action on this config, the measurement form in <code>builds.json</code> matching what an app's <code>authenticate</code> returns, and reproducible image builds.</li>
+<li>The measurement form in <code>builds.json</code> matching what an app's <code>authenticate</code> returns, and reproducible image builds. The release workflows and Tinfoil's measure action have run (<a href="#4-release">4. Release</a>).</li>
+<li>On the reference instance: a paid request, an Oblivious HTTP round trip, and reading a balance back after a restart. The test suite and local runs cover each of them.</li>
 <li>Tinfoil's dashboard and CLI accepting these workflows in place of the template's, and the <code>version</code> input they send.</li>
 <li>The egress allowlist in practice: hostnames re-resolved by the platform, Nostr relays over WebSocket, and enclave hosts a client names beyond the ones listed (they are blocked unless you add them).</li>
 <li>Streamed answers and the admin API through the shim.</li>

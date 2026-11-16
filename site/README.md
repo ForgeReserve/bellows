@@ -5,6 +5,7 @@ The landing page and docs for Bellows, as plain static files. No build step need
 | Path | What it is |
 | - | - |
 | `index.html` | The landing page, written by hand |
+| `404.html` | The page for a missing path, written by hand |
 | `assets/site.css`, `assets/site.js` | Styles, and a small script that adds copy buttons and folds the docs menu on small screens. Pages work without the script |
 | `assets/logo.svg`, `icon.svg`, `icon.png`, `social-preview.png` | Copies of the brand files in `docs/brand/`, made by the generator |
 | `docs/*.html` | The docs, generated from `docs/*.md` |
@@ -42,5 +43,7 @@ npx wrangler deploy
 ```
 
 `wrangler.jsonc` names the Worker `bellows-site` and serves this directory as static assets. It has no routes and no account id: add a custom domain or route in the Cloudflare dashboard or in your own copy of the file.
+
+It sets `"not_found_handling": "404-page"`: a request that matches no file gets the nearest `404.html` with a `404 Not Found` status. Without that setting, Workers static assets answers a missing path with a plain `404 Not Found`. Only `site/404.html` exists, so every missing path gets it, at the address that was asked for. That is why the page carries `<base href="/">`: its links resolve from the root of the domain wherever it is served. If the site ever moves under a path, change that one tag.
 
 All links are relative, so the site works at the root of any domain. Link previews: `og:image` and `twitter:image` are relative paths (`assets/social-preview.png`). Some services that build link previews need an absolute URL; once the domain is chosen, make those two tags absolute in `index.html` and in the page template in `scripts/build-site.ts`.
