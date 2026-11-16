@@ -14,7 +14,7 @@
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
-<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An AI gateway its operator cannot read.">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: A sealed AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="What Bellows is | Bellows developers">
 <meta name="twitter:description" content="What Bellows is, and what a sealed deployment hides from its operator, with the limits of each.">
@@ -78,26 +78,26 @@
 <p>On this page</p>
 <ul><li><a href="#what-a-sealed-bellows-does-for-you">What a sealed Bellows does for you</a></li><li><a href="#what-has-run-on-sealed-hardware">What has run on sealed hardware</a></li></ul>
 </nav>
-<p>Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request and forwards the request to AI models. Point any OpenAI client at it and pay with no account. Anyone can run one, under the MIT licence.</p>
+<p>Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request and forwards the request to AI models. Point any OpenAI client at it and pay as you would with cash. Anyone can run one, under the MIT licence.</p>
 <h2 id="what-a-sealed-bellows-does-for-you">What a sealed Bellows does for you</h2>
 <p>A sealed deployment runs on Tinfoil Containers with the deploy kit in the repository. Each property below comes from a mechanism you can read and check. Each card says what stays visible.</p>
 <div class="grid">
   <article class="card">
     <h3><span class="dot gold" aria-hidden="true"></span>You can check the build</h3>
     <p>At boot Bellows makes a key pair in memory and serves a hardware attestation that binds the key to the build it runs.</p>
-    <p class="how">Before it sends anything, a client checks that attestation and finds the build in the public <code>builds.json</code>. If the check fails, it sends nothing.</p>
+    <p class="how">Before it sends anything, a client checks that attestation and finds the build in the public <code>builds.json</code>. It sends only when the check passes.</p>
     <p class="limit"><strong>Limit.</strong> Whoever controls <code>builds.json</code> decides which builds clients trust. The operator approves releases in their own keyserver, the known weak point of version 1.</p>
     <p class="more"><a href="attestation.html">How attestation works</a></p>
   </article>
   <article class="card">
-    <h3><span class="dot white" aria-hidden="true"></span>The operator cannot read the words</h3>
+    <h3><span class="dot white" aria-hidden="true"></span>Requests stay sealed</h3>
     <p>Requests, answers, balances, the wallet seed and the supplier keys exist in plaintext only inside the confidential VM.</p>
     <p class="how">Clients encrypt each call to the attested key. The database sits on an encrypted volume whose key a keyserver releases only to an approved build.</p>
-    <p class="limit"><strong>Limit.</strong> The operator still sees aggregate totals, logs that hold no client data, and traffic timing and volume. A model's supplier sees the prompts of plaintext models.</p>
+    <p class="limit"><strong>Limit.</strong> The operator still sees aggregate totals, logs of operations, and traffic timing and volume. A model's supplier sees the prompts of plaintext models.</p>
     <p class="more"><a href="threat-model.html">What each party can see</a></p>
   </article>
   <article class="card">
-    <h3><span class="dot gold" aria-hidden="true"></span>Pay with eCash, no account</h3>
+    <h3><span class="dot gold" aria-hidden="true"></span>Pay with eCash</h3>
     <p>Pay each request with a Cashu token in a header and get the unused value back as change. Or top up a balance and use its key like an API key.</p>
     <p class="how">Prices are set per million tokens. Balances stay in <code>usd</code> or <code>sat</code>, and you can withdraw what is left as eCash at any time.</p>
     <p class="limit"><strong>Limit.</strong> Every request on one balance key is linkable to the others. The mint sees its own swaps.</p>
@@ -107,7 +107,7 @@
     <h3><span class="dot teal" aria-hidden="true"></span>A relay hides who is asking</h3>
     <p>Send each call through an Oblivious HTTP relay. The relay sees your address and ciphertext. Bellows sees the request and the relay's address.</p>
     <p class="how">Who is asking is hidden from the operator when you use a relay run by someone else, or Tor. Answers still stream.</p>
-    <p class="limit"><strong>Limit.</strong> A relay and a Bellows run by the same party hide nothing from that party. Without a relay or Tor, the operator's network sees client addresses.</p>
+    <p class="limit"><strong>Limit.</strong> A relay and a Bellows run by the same party see both halves. On a direct connection, the operator's network sees client addresses.</p>
     <p class="more"><a href="ohttp.html">How Oblivious HTTP works</a></p>
   </article>
 </div>

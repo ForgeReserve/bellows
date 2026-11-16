@@ -2,7 +2,7 @@
 <p>Release 0.1.2 runs sealed on Tinfoil Containers at this address. It takes real eCash. Check its build before you send it anything.</p>
 <p><code class="addr">https://bellows.<wbr>island-bitcoin.<wbr>containers.<wbr>tinfoil.dev</code></p>
 <h2 id="what-it-answers">What it answers</h2>
-<p>Its public routes need no payment:</p>
+<p>Its public routes are free to read:</p>
 <pre tabindex="0"><code>B=https://bellows.island-bitcoin.containers.tinfoil.dev
 curl -s $B/healthz                 # liveness and the BTC/USD rate in use
 curl -s $B/v1/models | jq '{units, mints, ids: [.data[].id]}'

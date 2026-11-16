@@ -14,7 +14,7 @@
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
-<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An AI gateway its operator cannot read.">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: A sealed AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Payments | Bellows developers">
 <meta name="twitter:description" content="How Bellows takes, holds and returns eCash, and what happens when something fails halfway.">
@@ -82,7 +82,7 @@
 <h2 id="units-and-precision">Units and precision<a class="anchor" href="#units-and-precision" aria-hidden="true" tabindex="-1">#</a></h2>
 <p>A token's unit is <code>usd</code> (amounts are cents) or <code>sat</code>. Internally every amount is tracked in <strong>msub</strong>, a thousandth of the unit: milli-cents for <code>usd</code>, millisatoshi for <code>sat</code>. Prices are set in USD per million tokens and computed in nano-USD, then rounded up once into msub.</p>
 <ul>
-<li>Balances keep sub-cent precision. A request that costs 0.164 cents takes 164 msub from the balance; a hundred of them take 16.4 cents, not a dollar.</li>
+<li>Balances keep sub-cent precision. A request that costs 0.164 cents takes 164 msub from the balance; a hundred of them take 16.4 cents.</li>
 <li>NUT-24 payments are whole tokens, so a per-request charge rounds up to a whole cent or sat. The rest comes back as change.</li>
 <li>Withdrawals are whole units. A sub-unit remainder stays on the balance.</li>
 <li>Sat prices use the median BTC/USD rate from at least <code>BELLOWS_RATE_MIN_SOURCES</code> sources, cached for <code>BELLOWS_RATE_TTL_SECONDS</code>. If sources fail, the last good rate is used until it is <code>BELLOWS_RATE_MAX_STALE_SECONDS</code> old; after that, sat requests get HTTP 503 and USD keeps working. Within one request, reservation and settlement use the same rate.</li>
@@ -226,7 +226,7 @@
 <p><code>test/e2e/p2pk.e2e.test.ts</code> checks locked NUT-24 change, refunds and other-mint change and refunds: the token's proofs all carry the key, a swap at the mint without a witness is refused, a plain wallet and the gateway's own wallet cannot redeem it, and the key holder receives exactly the amount. It crashes a locked refund after the swap and recovers it by replay, by restore of the stored blinded messages, and with both disabled (row stays owed, no second payout) followed by a restart that settles it once.</p>
 <h2 id="known-limits">Known limits<a class="anchor" href="#known-limits" aria-hidden="true" tabindex="-1">#</a></h2>
 <ul>
-<li>One gateway process per database. In-process locks prevent concurrent use of the same token or payout; SQLite transactions guard balances. Two processes on one database are unsafe, not merely unsupported: each treats a receive the other has in flight as dead and can forget it after the mint swap, losing the received eCash. The late charge for a released reservation (see Reservations) is a backstop for this rule being broken by accident, not a way around it.</li>
+<li>One gateway process per database. In-process locks prevent concurrent use of the same token or payout; SQLite transactions guard balances. Two processes on one database are unsafe: each treats a receive the other has in flight as dead and can forget it after the mint swap, losing the received eCash. The late charge for a released reservation (see Reservations) is a backstop for this rule being broken by accident, not a way around it.</li>
 <li>The NUT-13 seed is derived from the wallet secret (<code>BELLOWS_WALLET_SECRET</code> in the secrets source) and never stored. A database from an earlier version that stored its seed keeps using that seed, so for such a database the seed sits in the database. With the wallet secret and no database, the gateway's eCash can be found again at the mint with NUT-09 restore (<code>test/e2e/sealed-state.e2e.test.ts</code> does this), but the ledger (who is owed what) is in the database only. Losing the wallet secret and the database loses the wallet.</li>
 <li>Payouts come from one mint. With several trusted mints, a refund needs one mint to hold enough.</li>
 <li>Sub-unit balance remainders cannot be withdrawn.</li>
