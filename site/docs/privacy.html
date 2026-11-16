@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy | Bellows docs</title>
+<meta name="description" content="What the gateway can see, per model tier, and what it never stores or logs.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Privacy | Bellows docs">
+<meta property="og:description" content="What the gateway can see, per model tier, and what it never stores or logs.">
+<meta property="og:image" content="../assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Privacy | Bellows docs">
+<meta name="twitter:description" content="What the gateway can see, per model tier, and what it never stores or logs.">
+<meta name="twitter:image" content="../assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="docs">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
+        <li><a href="../docs/build.html">Build</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap docs-layout">
+<nav class="docs-nav" aria-label="Docs">
+<details class="docs-menu" open>
+<summary>All docs</summary>
+<p class="nav-group">Build</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+</ul>
+<p class="nav-group">Reference</p>
+<ul>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="privacy.html" aria-current="page">Privacy</a>
+<ul class="toc"><li><a href="#never-stored-or-logged-any-tier">Never stored or logged, any tier</a></li><li><a href="#per-tier">Per tier</a></li><li><a href="#funding">Funding</a></li><li><a href="#encrypted-pass-through-tinfoil-ehbp">Encrypted pass-through (Tinfoil EHBP)</a></li><li><a href="#client-apps">Client apps</a></li></ul></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="nav-group">Run</p>
+<ul>
+<li><a href="operate.html">Run your own</a></li>
+</ul>
+<p class="nav-group">On GitHub</p>
+<ul>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="prose">
+<h1 id="privacy">Privacy</h1>
+<p>What the gateway can see depends on the tier and on whether the client encrypts.</p>
+<h2 id="never-stored-or-logged-any-tier">Never stored or logged, any tier<a class="anchor" href="#never-stored-or-logged-any-tier" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li>Prompt and completion content. Logs hold only request id, model, supplier, token counts, how usage was measured, cost, status and latency. The database keeps daily aggregates per model and supplier (<code>usage_daily</code>), never a row per settled request.</li>
+<li>Client network addresses, user agents, referrers and forwarded-for values. Bellows never reads them, so they reach no log, database row or error. Rate limits key on the balance key or on one shared budget, and opening a new balance takes proof of work instead of a per-address limit.</li>
+<li>Balance keys (only a SHA-256 is stored) and invite codes (same).</li>
+<li>P2PK lock keys (<code>X-Cashu-Pubkey</code>, <code>pubkey</code>) are not logged. They are public keys, stored with the in-flight request, payout or funding they lock (<code>requests.lock_pubkey</code> until the request settles, <code>outgoing.lock_pubkey</code>, <code>fundings.f_lock_pubkey</code>) so a payout made after a crash is still locked, and returned to the payer as <code>locked_to</code>.</li>
+</ul>
+<p>Streams are read in memory as they pass, to count tokens when the supplier does not report usage. Only counters are kept.</p>
+<h2 id="per-tier">Per tier<a class="anchor" href="#per-tier" aria-hidden="true" tabindex="-1">#</a></h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col"></th><th scope="col">Standard (for example Token Factory)</th><th scope="col">Enclave, plaintext</th><th scope="col">Enclave, encrypted (EHBP)</th></tr></thead>
+<tbody>
+<tr><td><code>X-Forge-Privacy</code> header</td><td><code>standard</code></td><td><code>enclave-plaintext</code></td><td><code>enclave-encrypted</code></td></tr>
+<tr><td>Gateway sees prompt and reply</td><td>Yes, in memory while relaying</td><td>Yes, in memory while relaying</td><td>No: bodies are HPKE ciphertext end to end</td></tr>
+<tr><td>Supplier sees prompt and reply</td><td>Yes</td><td>Only inside an attested enclave</td><td>Only inside an attested enclave</td></tr>
+<tr><td>Gateway sees</td><td>Model, sizes, usage, timing</td><td>Same</td><td>Model name, body size, max output tokens, frame count, timing, usage numbers reported by Tinfoil</td></tr>
+<tr><td>How usage is measured</td><td>Upstream <code>usage</code></td><td>Upstream <code>usage</code></td><td><code>X-Tinfoil-Usage-Metrics</code> response header (non-streaming) or HTTP trailer (streaming); else flat schedule</td></tr>
+</tbody>
+</table></div>
+<p>Payment links: with a balance key, every request on that key is linkable to the others. A P2PK lock key is a stable identifier: reusing one key links the payouts locked to it, at the gateway and at the mint, which sees the key in the locked proofs when they are redeemed. Use a fresh key per payout (cashu.me warns when a key was used before) if that matters. With NUT-24, requests are not linked by the gateway, but the mint knows its own swaps. Bellows reads no client address, but the host it runs on, its network and anything in front of it, such as a reverse proxy, still see client addresses. Client addresses are hidden from the operator when you use an Oblivious HTTP relay run by someone else, or Tor (<a href="ohttp.html">Oblivious HTTP</a>). A VPN moves the address to the VPN provider.</p>
+<p>The operator API and CLI show totals and counts only: no listing of balances, fundings or requests. Once a balance has been funded it is no longer linked to the invite that opened it.</p>
+<h2 id="funding">Funding<a class="anchor" href="#funding" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li>Lightning and on-chain funding go through the funding mint (<code>BELLOWS_FUND_MINT</code>). The mint sees the quote, the invoice or address and when it is paid; the gateway's mint requests are not linked to the balance key on the mint's side. The gateway stores the quote id, invoice or address, and amounts with the balance id, never the key.</li>
+<li>On-chain status comes from the mint only, unless <code>BELLOWS_ESPLORA_URL</code> is set; then the gateway asks that Esplora server about the deposit address (point it at your own node to keep addresses private).</li>
+<li>eCash from another mint: the gateway contacts that mint from its own IP address to swap and melt the token. That mint learns the funding mint's invoice it paid. The change or refund token handed back is fresh eCash from that mint.</li>
+</ul>
+<h2 id="encrypted-pass-through-tinfoil-ehbp">Encrypted pass-through (Tinfoil EHBP)<a class="anchor" href="#encrypted-pass-through-tinfoil-ehbp" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Tinfoil's Encrypted HTTP Body Protocol encrypts request and response bodies with HPKE to a key held inside an attested enclave, and leaves headers readable. Bellows follows Tinfoil's proxy guide (docs.tinfoil.sh/guides/proxy-server):</p>
+<ul>
+<li>A request carrying <code>Ehbp-Encapsulated-Key</code> is treated as encrypted. The gateway never parses its body.</li>
+<li>It needs <code>X-Tinfoil-Model</code> to price and route. The enclave rejects a body whose model does not match that header.</li>
+<li>The gateway sets <code>X-Tinfoil-Max-Output-Tokens</code> (client value, capped per model) and <code>X-Tinfoil-Completion-Count: 1</code>; the enclave enforces both, so the worst-case price holds.</li>
+<li>It forwards the body byte for byte with <code>Content-Type</code>, <code>Accept</code> and <code>Ehbp-Encapsulated-Key</code>, replaces the client's credentials with the gateway's Tinfoil key, and adds <code>X-Tinfoil-Request-Usage-Metrics: true</code>.</li>
+<li><code>X-Tinfoil-Enclave-Url</code> from the client is allowed only for <code>https</code> hosts under <code>tinfoil.sh</code> without credentials.</li>
+<li>The response is streamed back unchanged with <code>Ehbp-Response-Nonce</code>. Usage arrives as <code>X-Tinfoil-Usage-Metrics</code> (<code>prompt=..,completion=..</code>), as a header or as a trailer after a stream; the gateway settles on it.</li>
+<li>If the client disconnects, the gateway counts the EHBP frames it relayed (each length-prefixed frame is visible without decryption) as the output estimate.</li>
+<li>NUT-24 change cannot be put into an encrypted stream; it is at <code>GET /v1/change/{request_id}</code> (the <code>X-Forge-Change-Url</code> header).</li>
+</ul>
+<p>Verified so far: the e2e suite runs these flows against a fake enclave (header and trailer usage, untouched bytes, allowlist). Before this engine was extracted from the Forge AI app, a browser client using Tinfoil's <code>tinfoil</code> SDK (1.4.0) verified the live Tinfoil attestation and sent an EHBP request through this encrypted path. A full round trip against a real Tinfoil enclave needs a <code>TINFOIL_API_KEY</code> and has not been run.</p>
+<h2 id="client-apps">Client apps<a class="anchor" href="#client-apps" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Bellows serves no web page. A client app (a chat app, an agent, a script) runs on the user's device and talks to the API. What it stores, and what it sends, is up to that app.</p>
+<p>File attachments are the client's job too. An app reads a file on the device and sends its text inside the message, for example as a <code>&lt;file name=&quot;report.pdf&quot; pages=&quot;12&quot;&gt;...&lt;/file&gt;</code> block. To Bellows that is message content like any other: relayed in memory (or, encrypted, never readable), never logged or stored. <code>test/e2e/files-privacy.e2e.test.ts</code> checks the logs and the database for file text on both the plaintext and the encrypted path.</p>
+<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/PRIVACY.md">docs/PRIVACY.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
+    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="../docs/build.html">Build on Bellows</a></li>
+        <li><a href="../docs/api.html">API reference</a></li>
+        <li><a href="../docs/threat-model.html">Threat model</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

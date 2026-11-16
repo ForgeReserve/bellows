@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oblivious HTTP | Bellows docs</title>
+<meta name="description" content="Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Oblivious HTTP | Bellows docs">
+<meta property="og:description" content="Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.">
+<meta property="og:image" content="../assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Oblivious HTTP | Bellows docs">
+<meta name="twitter:description" content="Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.">
+<meta name="twitter:image" content="../assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="docs">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
+        <li><a href="../docs/build.html">Build</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap docs-layout">
+<nav class="docs-nav" aria-label="Docs">
+<details class="docs-menu" open>
+<summary>All docs</summary>
+<p class="nav-group">Build</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+</ul>
+<p class="nav-group">Reference</p>
+<ul>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="ohttp.html" aria-current="page">Oblivious HTTP</a>
+<ul class="toc"><li><a href="#the-gateway">The gateway</a></li><li><a href="#the-client">The client</a></li><li><a href="#the-relay">The relay</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#tests">Tests</a></li><li><a href="#not-verified-locally">Not verified locally</a></li></ul></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="nav-group">Run</p>
+<ul>
+<li><a href="operate.html">Run your own</a></li>
+</ul>
+<p class="nav-group">On GitHub</p>
+<ul>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="prose">
+<h1 id="oblivious-http">Oblivious HTTP</h1>
+<p>Bellows is an Oblivious HTTP gateway (<a href="https://www.rfc-editor.org/rfc/rfc9458.html">RFC 9458</a>) for its own client API. A client encrypts each API call to the attested HPKE key and sends it through a relay. The relay sees the client's address and ciphertext. Bellows sees the request and the relay's address. When a relay is run by someone other than the operator, who is asking is hidden from the operator, and what is asked is hidden from the relay.</p>
+<p>Without a relay, a client can still send encapsulated requests straight to Bellows. The content is then unreadable to anything in front of the sealed machine (a load balancer, a TLS terminator, the host), but the operator's network sees the client's address.</p>
+<p>A relay and a Bellows run by the same party hide nothing from that party.</p>
+<h2 id="the-gateway">The gateway<a class="anchor" href="#the-gateway" aria-hidden="true" tabindex="-1">#</a></h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Route</th><th scope="col">What it does</th></tr></thead>
+<tbody>
+<tr><td><code>GET /ohttp-keys</code></td><td>The key configuration as <code>application/ohttp-keys</code> (RFC 9458 section 3.2). It is the HPKE key that <code>/.well-known/bellows</code> attests.</td></tr>
+<tr><td><code>POST /ohttp</code></td><td>Takes <code>message/ohttp-req</code> (RFC 9458) or <code>message/ohttp-chunked-req</code> (<a href="https://datatracker.ietf.org/doc/html/draft-ietf-ohai-chunked-ohttp-08">chunked OHTTP, draft 08</a>) and answers with <code>message/ohttp-res</code> or <code>message/ohttp-chunked-res</code>.</td></tr>
+</tbody>
+</table></div>
+<p>A client must take the key from the attested statement (<code>verifyBellows</code>), not from <code>/ohttp-keys</code>. Anyone in front of the sealed machine can change an unattested key. <code>/ohttp-keys</code> is there for standard OHTTP tooling, and a client that reads it should check that it matches the attested key.</p>
+<p>The key suite is DHKEM(X25519, HKDF-SHA256), HKDF-SHA256 and AES-128-GCM. The key pair is made at boot, lives only in memory and is new on every restart. A client that gets a refusal after a restart verifies again and uses the new key.</p>
+<h3 id="what-an-encapsulated-request-may-do">What an encapsulated request may do<a class="anchor" href="#what-an-encapsulated-request-may-do" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The inner request runs through the same app as a direct request, so it is priced, paid, rate limited and gated by proof of work exactly the same way. It may name these paths, with <code>GET</code> or <code>POST</code>:</p>
+<ul>
+<li>every path under <code>/v1/</code></li>
+<li><code>/healthz</code>, <code>/.well-known/bellows</code>, <code>/.well-known/hpke-keys</code> and <code>/attestation</code></li>
+</ul>
+<p>Anything else (the operator API, <code>/ohttp</code> itself) gets an encapsulated <code>404</code> with code <code>not_found</code>. Another method gets <code>405</code>.</p>
+<p>The inner request keeps its own headers (<code>Authorization</code>, <code>X-Cashu</code>, <code>Content-Type</code> and the rest). Hop headers (<code>Host</code>, <code>Connection</code>, <code>Content-Length</code>, <code>Transfer-Encoding</code> and similar) are dropped. Nothing from the outer request reaches the app: not its headers, not its address.</p>
+<h3 id="replays">Replays<a class="anchor" href="#replays" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>RFC 9458 leaves replay protection to the gateway (section 6.5). Bellows refuses a replayed request before it runs:</p>
+<ul>
+<li>Every encapsulated request carries the time it was made, in <code>Bellows-Date</code> (the client library sets it; browsers do not let a page set <code>Date</code>) or in <code>Date</code>. A request without one gets an encapsulated <code>400</code> with code <code>date_required</code>.</li>
+<li>A date more than <code>BELLOWS_OHTTP_MAX_SKEW_SECONDS</code> (default 300) from the gateway's clock gets an encapsulated <code>400</code> with code <code>stale_request</code> and the gateway's time in <code>Bellows-Date</code>. The request does not run, so a client can resend it dated by that clock. The client library does this once.</li>
+<li>The encapsulated key of each request (new for every request) is remembered until the request's date leaves the window. The same encapsulated key again is a replay: plain <code>400</code>, and the request does not run. This holds for a topup too: replaying a captured topup credits nothing.</li>
+<li>Only a request that will run is remembered. The date, the method and the path are checked first, and a request refused for any of them (<code>date_required</code>, <code>stale_request</code>, <code>405</code>, <code>404</code>) is answered without taking a place in the replay cache, so requests that run nothing cannot fill it. Replaying a request refused for its method, path or a missing date gets the same refusal and runs nothing. A request refused as stale because it is dated ahead of this clock is refused only until its date enters the window; after that it can run once.</li>
+<li>At most <code>BELLOWS_OHTTP_REPLAY_CACHE_MAX</code> keys are remembered (default 200,000, a few tens of megabytes). When that many are live, new requests get <code>503</code> until older ones expire. The admission bound below keeps that from happening. Memory is the only state: a restart forgets the keys, and a restart also makes a new HPKE key, so a request captured before a restart cannot be opened after it.</li>
+</ul>
+<h3 id="admission">Admission<a class="anchor" href="#admission" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>Encapsulated requests carry no identity, so the gateway cannot limit one client apart from another. It bounds new requests for everyone together instead: at most <code>BELLOWS_OHTTP_ADMIT_PER_SECOND</code> a second, with a burst of one second's worth. Past it a request gets a plain <code>503</code> with <code>Retry-After</code> (whole seconds), takes no place in the replay cache, and can be sent again unchanged once the bound has room. The Bellows relay passes <code>Retry-After</code> on with a <code>503</code> and exposes it to browsers; a third-party relay may drop it, so a client should not count on seeing it. Only a request that would be remembered counts: refused, stale and replayed requests use none of it.</p>
+<p>A key is kept for at most twice the skew plus one second (601 s by default). Left unset, the bound is the most the replay cache holds over that time (<code>BELLOWS_OHTTP_REPLAY_CACHE_MAX / (2 * BELLOWS_OHTTP_MAX_SKEW_SECONDS + 2)</code>, about 332 a second by default), so the cache cannot fill. A flood then competes with honest clients for each second's admissions, rather than shutting every new request out until old keys expire. A sender of more than the bound can still crowd others out while it keeps sending: the bound limits what a flood costs the gateway, not who gets through. A set value that could let the cache fill is refused at startup. Inside the app, each request still meets the same payment, rate limits and proof of work as a direct one. See <a href="operate.html#oblivious-http-under-load">Run your own</a>.</p>
+<h3 id="refusals">Refusals<a class="anchor" href="#refusals" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>RFC 9458 asks the gateway to answer a request it cannot open with a plain error. Bellows answers with a status and no body:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Status</th><th scope="col">Why</th></tr></thead>
+<tbody>
+<tr><td><code>415</code></td><td>Not an OHTTP content type</td></tr>
+<tr><td><code>400</code></td><td>Not decryptable, tampered, cut short, wrong key, malformed, or a replay</td></tr>
+<tr><td><code>413</code></td><td>The request is over <code>BELLOWS_OHTTP_MAX_MESSAGE_BYTES</code></td></tr>
+<tr><td><code>500</code></td><td>The answer could not be sealed (a plain answer over <code>BELLOWS_OHTTP_MAX_MESSAGE_BYTES</code>). The request ran. The log line <code>ohttp_answer_failed</code> carries the reason only</td></tr>
+<tr><td><code>503</code></td><td>Past the admission bound (<code>Retry-After</code> says when to send again), or the replay cache is full</td></tr>
+</tbody>
+</table></div>
+<p>Each refusal writes one log line, <code>ohttp_refused</code>, with the reason only.</p>
+<h3 id="streaming">Streaming<a class="anchor" href="#streaming" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>Chunked OHTTP streams answers. Bellows seals each piece of the answer as the app writes it (pieces that are ready together are sealed together, never more than 16 KiB in one chunk), so a streamed chat answer reaches the client as it is written. The final chunk is empty, and the padding of the Binary HTTP message goes at its end.</p>
+<p>The cryptography is <a href="https://github.com/thibmeu/ohttp-ts">ohttp-ts</a> (MIT): HPKE, the request decryption and the per-chunk sealing with its nonces. Bellows writes the chunk framing itself (a length before each sealed chunk, 0 before the last), because the library's own answer stream seals 16 KiB at a time and holds each chunk until the next one exists. A short chat answer would then arrive only when it ended.</p>
+<p>What a streamed answer shows to the relay and the network: the size and timing of each sealed chunk, which follow the tokens the model writes. A direct HTTPS stream shows the same to the network. The total length is padded (at least 1 KiB, then within about 12%). Plain RFC 9458 answers (<code>chunked: false</code> in the client) arrive whole, padded the same way.</p>
+<p>Requests are not streamed: the client and the relay send each encapsulated request as one body, because browsers and mobile runtimes do not all stream request bodies.</p>
+<h3 id="size-limits">Size limits<a class="anchor" href="#size-limits" aria-hidden="true" tabindex="-1">#</a></h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">What</th><th scope="col">Limit</th></tr></thead>
+<tbody>
+<tr><td>An encapsulated request, chunked or plain</td><td><code>BELLOWS_OHTTP_MAX_MESSAGE_BYTES</code> of Binary HTTP. The gateway reads at most that plus framing room and answers <code>413</code> past it. Anyone can send one, so this is the gateway's memory bound</td></tr>
+<tr><td>A plain RFC 9458 answer</td><td><code>BELLOWS_OHTTP_MAX_MESSAGE_BYTES</code>. It is buffered whole on both sides. The client's plain-mode default is the same 8 MiB, so it opens every plain answer a gateway with the default sends</td></tr>
+<tr><td>A chunked answer</td><td>1 GiB, the chunked OHTTP default of ohttp-ts and of the client. The answer is Bellows' own, so the request limit does not apply to it, and a long stream is not cut short</td></tr>
+</tbody>
+</table></div>
+<p>A plain answer the client cannot open has already run and been charged. Its request id and change URL are inside the answer. Keep the client's <code>maxMessageBytes</code> at least the gateway's <code>BELLOWS_OHTTP_MAX_MESSAGE_BYTES</code>.</p>
+<h2 id="the-client">The client<a class="anchor" href="#the-client" aria-hidden="true" tabindex="-1">#</a></h2>
+<pre tabindex="0" data-lang="ts"><code class="language-ts">import { bellowsFetch, verifyBellows } from './client/index.ts';
+
+const bellows = await verifyBellows('https://bellows.example', { approvedBuilds, verifier });
+const operator = { ...bellows, relay: 'https://relay.example/relay/bellows.example' };
+
+const res = await bellowsFetch(operator, '/v1/chat/completions', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+  body: JSON.stringify({ model, messages, stream: true }),
+});
+// res is the Bellows' answer: status, headers and a body that streams.</code></pre>
+<p><code>bellowsFetch(operator, path, init, options)</code>:</p>
+<ul>
+<li><code>operator.origin</code> and <code>operator.keyConfig</code> come from <code>verifyBellows</code>. It reads <code>/.well-known/bellows</code> directly from the Bellows, not through the relay, so the operator sees the client's address on that request. To keep it hidden, pass a <code>fetch</code> in the <code>verifyBellows</code> options that sends through Tor. <code>operator.relay</code> is the relay URL that forwards to this Bellows. Without one the request goes straight to <code>&lt;origin&gt;/ohttp</code>.</li>
+<li><code>options.relay</code> overrides <code>operator.relay</code>; <code>null</code> sends straight to the Bellows.</li>
+<li><code>options.chunked</code> (default <code>true</code>) picks chunked OHTTP. <code>false</code> sends plain RFC 9458 messages, which some third-party relays require.</li>
+<li><code>options.maxMessageBytes</code> is the largest Binary HTTP message the client sends or opens. The default is 8 MiB in plain mode (<code>DEFAULT_MAX_MESSAGE_BYTES</code>, the gateway's default) and 1 GiB in chunked mode (<code>DEFAULT_MAX_CHUNKED_ANSWER_BYTES</code>). In plain mode it must be at least the gateway's <code>BELLOWS_OHTTP_MAX_MESSAGE_BYTES</code>.</li>
+<li>It throws <code>BellowsFetchError</code> when the request cannot be sent or the answer cannot be opened. <code>code</code> is one of <code>bad_path</code>, <code>bad_request</code>, <code>bad_key_config</code>, <code>network</code>, <code>relay_error</code> (the relay refused, with its reason), <code>gateway_refused</code> (the gateway refused: see <a href="#refusals">Refusals</a>) and <code>bad_response</code>. On a busy <code>503</code> that carried <code>Retry-After</code>, <code>retryAfter</code> holds its seconds. An answer from Bellows with an error status (<code>402</code>, <code>429</code> and so on) is returned like any other answer.</li>
+</ul>
+<p>The client uses Web APIs only (fetch, WebCrypto, streams) and runs in browsers and in Node. Its only dependencies are <code>ohttp-ts</code> and <code>hpke</code>, which use no Node-only module either; a test checks both.</p>
+<h2 id="the-relay">The relay<a class="anchor" href="#the-relay" aria-hidden="true" tabindex="-1">#</a></h2>
+<p><code>relay/</code> is a small standalone relay: <a href="https://github.com/ForgeReserve/bellows/blob/main/relay/README.md">relay/README.md</a>.</p>
+<h2 id="configuration">Configuration<a class="anchor" href="#configuration" aria-hidden="true" tabindex="-1">#</a></h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Variable</th><th scope="col">Default</th><th scope="col">Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>BELLOWS_RELAYS</code></td><td>none</td><td>Relay URLs that forward to this Bellows (each the full URL a client posts to), published in <code>/.well-known/bellows</code></td></tr>
+<tr><td><code>BELLOWS_OHTTP_MAX_SKEW_SECONDS</code></td><td><code>300</code></td><td>How far a request's date may be from the gateway's clock</td></tr>
+<tr><td><code>BELLOWS_OHTTP_REPLAY_CACHE_MAX</code></td><td><code>200000</code></td><td>Most encapsulated keys remembered at once</td></tr>
+<tr><td><code>BELLOWS_OHTTP_ADMIT_PER_SECOND</code></td><td>the most the cache holds (about 332)</td><td>New encapsulated requests admitted per second, for all clients together. See <a href="#admission">Admission</a></td></tr>
+<tr><td><code>BELLOWS_OHTTP_MAX_MESSAGE_BYTES</code></td><td><code>8388608</code></td><td>Largest Binary HTTP request, and largest plain (not chunked) answer, padding included. Chunked answers are bounded at 1 GiB. See <a href="#size-limits">Size limits</a></td></tr>
+</tbody>
+</table></div>
+<h2 id="tests">Tests<a class="anchor" href="#tests" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li><code>test/unit/ohttp.test.ts</code>: the key, round trips in both modes, streaming piece by piece, the size limits (a plain answer over 1 MiB, a long chunked answer past a small request limit, <code>413</code> on an oversized request, <code>500</code> on an answer that cannot be sealed), tampered, replayed, stale, undated and misdirected requests, the replay cache (which a request refused for its date, method or path never enters, so refused requests cannot fill it), the admission bound (a flood longer than a key lifetime never fills the cache at the default), and that the app receives none of the outer request.</li>
+<li><code>test/unit/relay.test.ts</code>: the relay's allowlist, what it forwards and returns, its refusals, that it writes nothing, the Worker entry point, and the Node server with the gateway seeing the relay's address only.</li>
+<li><code>test/e2e/ohttp.e2e.test.ts</code>: client, relay and Bellows against the local test mints. It funds a balance, chats plain and streamed, pays one request with eCash, and refunds, all through the relay. It checks that the relay's bytes hold none of the content, that the Bellows never receives the client's address or headers, and that a replayed topup and a tampered request are refused.</li>
+</ul>
+<h2 id="not-verified-locally">Not verified locally<a class="anchor" href="#not-verified-locally" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li>The relay as a Cloudflare Worker has been run only in Node, through its <code>fetch</code> export, not on Cloudflare. In particular, which headers Cloudflare adds to a Worker's outgoing requests has not been checked. Bellows reads no client address or forwarding header in any case.</li>
+<li>Interoperability with third-party OHTTP relays and clients has been tested only against ohttp-ts itself, which its authors test against the RFC 9458 and chunked OHTTP draft vectors.</li>
+<li>The admission bound has been tested in process with a simulated clock, not under real load from many addresses. Decrypting a request costs the gateway CPU before any bound applies, and the bound does not cap that.</li>
+</ul>
+<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OHTTP.md">docs/OHTTP.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
+    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="../docs/build.html">Build on Bellows</a></li>
+        <li><a href="../docs/api.html">API reference</a></li>
+        <li><a href="../docs/threat-model.html">Threat model</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Threat model | Bellows docs</title>
+<meta name="description" content="What each party can see and do in a sealed deployment, what the design assumes and where it is weak.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Threat model | Bellows docs">
+<meta property="og:description" content="What each party can see and do in a sealed deployment, what the design assumes and where it is weak.">
+<meta property="og:image" content="../assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Threat model | Bellows docs">
+<meta name="twitter:description" content="What each party can see and do in a sealed deployment, what the design assumes and where it is weak.">
+<meta name="twitter:image" content="../assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="docs">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
+        <li><a href="../docs/build.html">Build</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap docs-layout">
+<nav class="docs-nav" aria-label="Docs">
+<details class="docs-menu" open>
+<summary>All docs</summary>
+<p class="nav-group">Build</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+</ul>
+<p class="nav-group">Reference</p>
+<ul>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html" aria-current="page">Threat model</a>
+<ul class="toc"><li><a href="#three-things-to-hide-three-mechanisms">Three things to hide, three mechanisms</a></li><li><a href="#what-each-party-can-see">What each party can see</a></li><li><a href="#what-the-operator-can-do">What the operator can do</a></li><li><a href="#what-the-design-assumes">What the design assumes</a></li><li><a href="#what-the-deploy-kit-enforces">What the deploy kit enforces</a></li><li><a href="#what-it-does-not-cover">What it does not cover</a></li></ul></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="nav-group">Run</p>
+<ul>
+<li><a href="operate.html">Run your own</a></li>
+</ul>
+<p class="nav-group">On GitHub</p>
+<ul>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="prose">
+<h1 id="threat-model">Threat model</h1>
+<p>Bellows aims to be operator-blind: the person who runs one learns nothing worth taking from it. This page says what each party can see and do in a sealed deployment (<a href="operate.html">Run your own</a>), what the design assumes, and where it is weak. It follows the wording rule in <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">DESIGN.md</a>: &quot;the operator cannot read&quot; is said only of the words and of money and state; who is asking is &quot;hidden from the operator when you use a relay or Tor&quot;.</p>
+<p>Parts of this depend on sealed hardware and on Tinfoil's platform behaving as documented. Those parts have not yet been run on real sealed hardware; <a href="operate.html#not-verified-on-sealed-hardware">Run your own</a> lists them.</p>
+<h2 id="three-things-to-hide-three-mechanisms">Three things to hide, three mechanisms<a class="anchor" href="#three-things-to-hide-three-mechanisms" aria-hidden="true" tabindex="-1">#</a></h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">What</th><th scope="col">Hidden from the operator by</th></tr></thead>
+<tbody>
+<tr><td>The words: requests and answers</td><td>Bellows runs in a confidential VM. Clients check a hardware attestation of the build, then encrypt to a key that exists only inside it (Oblivious HTTP, <a href="ohttp.html">Oblivious HTTP</a>)</td></tr>
+<tr><td>Money and state: balances, the wallet seed, supplier keys, the admin token</td><td>The database is on an encrypted volume, and the keys are released by a keyserver only to an approved build, after it proves what it is</td></tr>
+<tr><td>Who is asking: address and timing</td><td>A relay run by someone else, or Tor. The relay sees an address and no content; Bellows sees content and no address</td></tr>
+</tbody>
+</table></div>
+<h2 id="what-each-party-can-see">What each party can see<a class="anchor" href="#what-each-party-can-see" aria-hidden="true" tabindex="-1">#</a></h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Party</th><th scope="col">Sees</th><th scope="col">Does not see</th></tr></thead>
+<tbody>
+<tr><td><strong>Client</strong></td><td>Its own requests, answers and balance</td><td>Other clients</td></tr>
+<tr><td><strong>Operator</strong> (runs the deployment and the keyserver)</td><td>Aggregates from the admin API (revenue, totals owed, counts, supplier costs, health), the instance's logs, which hold no client data (<a href="privacy.html">Privacy</a>), traffic volume and timing at the host. Without a relay or Tor, client network addresses</td><td>The words, per-customer balances, the wallet seed, supplier keys. The operator cannot read these: they exist in plaintext only inside the sealed machine. Client addresses are hidden from the operator when clients use a relay or Tor</td></tr>
+<tr><td><strong>Relay operator</strong></td><td>The client's network address, timing and the size of encrypted messages</td><td>The words, which are encrypted to Bellows' attested key</td></tr>
+<tr><td><strong>Hosting platform</strong> (Tinfoil)</td><td>What the operator's host sees: timing, volume, addresses without a relay, encrypted disk blocks and which blocks are read and written</td><td>The words and the state, provided the hardware and the attested runtime hold. Secrets come from the operator's keyserver, not from Tinfoil's secret store</td></tr>
+<tr><td><strong>Hardware vendor</strong> (AMD or Intel)</td><td>Nothing by default</td><td></td></tr>
+<tr><td><strong>AI supplier</strong></td><td>The prompts and answers of plaintext models, with Bellows as the caller. For private models, nothing: the body is encrypted end to end to the model's own enclave and Bellows passes it through unread (<a href="privacy.html">Privacy</a>)</td><td>Who the client is</td></tr>
+<tr><td><strong>Mint</strong></td><td>The gateway's eCash operations, and the client's own when the client deals with the mint</td><td>Which client a gateway operation is for</td></tr>
+<tr><td><strong>Nostr relays</strong></td><td>Published operator announcements, and the discovery queries Bellows makes for mint reviews</td><td>Clients</td></tr>
+<tr><td><strong>Network observer</strong></td><td>Encrypted traffic between the parties above</td><td>The words</td></tr>
+</tbody>
+</table></div>
+<h2 id="what-the-operator-can-do">What the operator can do<a class="anchor" href="#what-the-operator-can-do" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li><strong>Stop the service or destroy its data.</strong> Deleting the volume loses the ledger. The wallet secret, kept offline, restores the gateway's eCash from the mint; customer balances held only in the ledger are lost. Clients keep balances small and move them between operators (<a href="operators.html">Operators</a>).</li>
+<li><strong>Change prices, mints or suppliers.</strong> Only by releasing a new build, whose config is public and measured. A price not marked as checked against the supplier's rate card is not served unless the measured config sets <code>BELLOWS_SERVE_UNVERIFIED_PRICES=true</code>, which anyone can read there; such models show <code>pricing.verified: false</code> in <code>/v1/models</code>.</li>
+<li><strong>See timing and volume</strong> at the host, and client addresses unless clients use a relay or Tor.</li>
+<li><strong>Run the relay too.</strong> A relay and a Bellows run by the same party hide nothing from that party.</li>
+</ul>
+<h3 id="the-operator-approves-releases">The operator approves releases<a class="anchor" href="#the-operator-approves-releases" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The operator runs the keyserver and writes its policy. An operator who approves a malicious build of their own in that policy can make it receive the volume key and the wallet secret, and so read the state. Clients detect such a build: it is not in the public <code>builds.json</code>, so they refuse to send it anything. The state already on the volume is exposed all the same. This is the known weak point of version 1. A later version moves approval to a key the day-to-day operator does not hold.</p>
+<h3 id="rollback">Rollback<a class="anchor" href="#rollback" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The encrypted volume detects a changed block but not an old one. Whoever controls the disk can put back an earlier copy of the volume, and the enclave does not notice. A rolled-back ledger can owe customers what they have already spent, or forget payments. Version 1 documents this and does not solve it.</p>
+<h3 id="access-patterns">Access patterns<a class="anchor" href="#access-patterns" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The disk encryption hides contents, not which blocks are read and written, or when. A privileged observer of the host can learn something about activity from that.</p>
+<h2 id="what-the-design-assumes">What the design assumes<a class="anchor" href="#what-the-design-assumes" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li><strong>The hardware</strong> (AMD SEV-SNP or Intel TDX) keeps the VM's memory from the host and signs true measurements.</li>
+<li><strong>The platform's attested runtime</strong> (Tinfoil's CVM image, measured and published) does what its documentation says: it runs only the measured containers, gives the attestation socket only to the container that asks for it in the config, takes secrets only from the configured keyserver, and refuses debug mode for private secrets.</li>
+<li><strong>The keyserver</strong> releases secrets only after verifying a fresh attestation of an approved release served at the pinned domain.</li>
+<li><strong>The approved-builds list.</strong> Whoever controls the public <code>builds.json</code> decides which builds clients trust. Each entry is a public, reviewed change.</li>
+<li><strong>The code.</strong> The build that is measured is the code in its public repository at that tag. Clients rely on reviewers having read it.</li>
+</ul>
+<h2 id="what-the-deploy-kit-enforces">What the deploy kit enforces<a class="anchor" href="#what-the-deploy-kit-enforces" aria-hidden="true" tabindex="-1">#</a></h2>
+<p><code>pnpm deploy:check</code> refuses a config that would break one of these assumptions from the inside: a second container with attestation access (it could attest a statement with its own key), a second container with secrets or with access to Bellows' volume (the tor sidecar has open egress), a container without a read-only root file system, admin access to the enclave, open ports, secrets in the measured file or in Tinfoil's secret store, a database off the encrypted volume, a volume without a keyserver-released key, unmeasured settings, or open egress for Bellows. See <a href="operate.html#the-deploy-kit">Run your own</a>.</p>
+<h2 id="what-it-does-not-cover">What it does not cover<a class="anchor" href="#what-it-does-not-cover" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li>A client whose own device is compromised.</li>
+<li>Traffic analysis by a party that sees both sides of a relay or of Tor.</li>
+<li>Denial of service by the operator, the platform or the network.</li>
+<li>A flood of anonymous requests. Oblivious HTTP requests carry no identity, so they share one admission bound: a sender above it crowds out other OHTTP clients while it keeps sending, though it cannot fill the replay cache or shut new requests out after it stops (<a href="ohttp.html#admission">Oblivious HTTP</a>).</li>
+<li>The AI supplier's handling of plaintext models.</li>
+</ul>
+<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/THREAT-MODEL.md">docs/THREAT-MODEL.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
+    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="../docs/build.html">Build on Bellows</a></li>
+        <li><a href="../docs/api.html">API reference</a></li>
+        <li><a href="../docs/threat-model.html">Threat model</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,9 @@
+// The Bellows site as a Cloudflare Workers static-assets project: static files only, no Worker code.
+// Deploy from this directory with `npx wrangler deploy`. Add routes or a custom domain in your own copy.
+{
+  "name": "bellows-site",
+  "compatibility_date": "2026-11-13",
+  "assets": {
+    "directory": "."
+  }
+}

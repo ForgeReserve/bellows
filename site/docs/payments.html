@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payments | Bellows docs</title>
+<meta name="description" content="How Bellows takes, holds and returns eCash, and what happens when something fails halfway.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Payments | Bellows docs">
+<meta property="og:description" content="How Bellows takes, holds and returns eCash, and what happens when something fails halfway.">
+<meta property="og:image" content="../assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Payments | Bellows docs">
+<meta name="twitter:description" content="How Bellows takes, holds and returns eCash, and what happens when something fails halfway.">
+<meta name="twitter:image" content="../assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="docs">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
+        <li><a href="../docs/build.html">Build</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap docs-layout">
+<nav class="docs-nav" aria-label="Docs">
+<details class="docs-menu" open>
+<summary>All docs</summary>
+<p class="nav-group">Build</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+</ul>
+<p class="nav-group">Reference</p>
+<ul>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html" aria-current="page">Payments</a>
+<ul class="toc"><li><a href="#units-and-precision">Units and precision</a></li><li><a href="#accepting-a-token">Accepting a token</a></li><li><a href="#flow-1-nut-24-per-request">Flow 1: NUT-24 per request</a></li><li><a href="#flow-2-prepaid-balance">Flow 2: prepaid balance</a></li><li><a href="#metering">Metering</a></li><li><a href="#flow-3-funding-a-balance-through-the-funding-mint">Flow 3: funding a balance through the funding mint</a></li><li><a href="#the-gateways-wallet">The gateway's wallet</a></li><li><a href="#crash-safety-1">Crash safety</a></li><li><a href="#known-limits">Known limits</a></li><li><a href="#checking-quotes-without-tripping-the-mints-rate-limit">Checking quotes without tripping the mint's rate limit</a></li></ul></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="nav-group">Run</p>
+<ul>
+<li><a href="operate.html">Run your own</a></li>
+</ul>
+<p class="nav-group">On GitHub</p>
+<ul>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="prose">
+<h1 id="payments">Payments</h1>
+<p>This document describes how Bellows takes, holds and returns eCash, and what happens when something fails halfway.</p>
+<h2 id="units-and-precision">Units and precision<a class="anchor" href="#units-and-precision" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>A token's unit is <code>usd</code> (amounts are cents) or <code>sat</code>. Internally every amount is tracked in <strong>msub</strong>, a thousandth of the unit: milli-cents for <code>usd</code>, millisatoshi for <code>sat</code>. Prices are set in USD per million tokens and computed in nano-USD, then rounded up once into msub.</p>
+<ul>
+<li>Balances keep sub-cent precision. A request that costs 0.164 cents takes 164 msub from the balance; a hundred of them take 16.4 cents, not a dollar.</li>
+<li>NUT-24 payments are whole tokens, so a per-request charge rounds up to a whole cent or sat. The rest comes back as change.</li>
+<li>Withdrawals are whole units. A sub-unit remainder stays on the balance.</li>
+<li>Sat prices use the median BTC/USD rate from at least <code>BELLOWS_RATE_MIN_SOURCES</code> sources, cached for <code>BELLOWS_RATE_TTL_SECONDS</code>. If sources fail, the last good rate is used until it is <code>BELLOWS_RATE_MAX_STALE_SECONDS</code> old; after that, sat requests get HTTP 503 and USD keeps working. Within one request, reservation and settlement use the same rate.</li>
+</ul>
+<h2 id="accepting-a-token">Accepting a token<a class="anchor" href="#accepting-a-token" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Every token is checked before the mint is contacted: it must be <code>cashuB</code>, under <code>BELLOWS_MAX_TOKEN_BYTES</code>, from a trusted mint (URL compared after normalization), in an accepted unit, with proofs from that mint's keysets for that unit, and worth enough after input fees. Failures are HTTP 400 with <code>untrusted_mint</code>, <code>wrong_unit</code>, <code>insufficient_amount</code> or <code>invalid_token</code>, and the token is left untouched.</p>
+<p>The token is then swapped at the mint into new proofs that only the gateway knows. A token the mint reports as spent is <code>token_spent</code> (400).</p>
+<h2 id="flow-1-nut-24-per-request">Flow 1: NUT-24 per request<a class="anchor" href="#flow-1-nut-24-per-request" aria-hidden="true" tabindex="-1">#</a></h2>
+<ol>
+<li>Client sends the request with no credentials.</li>
+<li>The gateway prices the worst case: input tokens estimated as <code>body bytes / BELLOWS_BYTES_PER_TOKEN</code> (default 2, deliberately high) plus <code>max_tokens</code> at the output price. It answers <code>402</code> with <code>X-Cashu: creqA...</code>, a NUT-18 request with <code>a</code> (amount), <code>u</code> (unit), <code>m</code> (trusted mints), <code>s: true</code> and an id. Sat quotes carry <code>BELLOWS_SAT_PRICE_BUFFER</code> headroom.</li>
+<li>Client retries with <code>X-Cashu: cashuB...</code> (and <code>X-Forge-Invite</code> when <code>BELLOWS_INVITE_ONLY=true</code>).</li>
+<li>The gateway re-prices, checks the token covers it, swaps it, calls the supplier, and charges <code>ceil(actual cost)</code> capped at what was paid.</li>
+<li>Change, if any, is issued as a new token from the same mint: in the <code>X-Cashu-Change</code> response header for non-streaming responses, in the final <code>event: forge</code> of a stream, and always at <code>GET /v1/change/{request_id}</code>.</li>
+</ol>
+<p>NUT-24 does not specify change. Bellows's choice (header, final stream event, re-fetch URL) is documented here and in the README. Upstream failures charge nothing and return everything.</p>
+<h2 id="flow-2-prepaid-balance">Flow 2: prepaid balance<a class="anchor" href="#flow-2-prepaid-balance" aria-hidden="true" tabindex="-1">#</a></h2>
+<ol>
+<li><code>POST /v1/wallet/topup</code> with a token (and, when <code>BELLOWS_INVITE_ONLY=true</code>, an invite for a new balance). The gateway returns a new <code>sk-forge-...</code> key, or credits the key in <code>Authorization</code>. A client may also choose its own key (<code>sk-forge-</code> plus 24 to 64 URL-safe characters) so that a lost response never loses the key.</li>
+<li>Each request reserves its worst-case cost against the balance (<code>available = balance - active reservations</code>), runs, then settles: it charges the actual cost (capped at the reservation) and releases the rest. Settlement is idempotent.</li>
+<li><code>POST /v1/wallet/refund</code> debits whole units and issues a token. <code>GET /v1/wallet/refunds</code> re-delivers every token issued to the key.</li>
+</ol>
+<p>Only a SHA-256 of each key is stored.</p>
+<h2 id="metering">Metering<a class="anchor" href="#metering" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li>Plaintext requests: the gateway asks the supplier for usage (<code>stream_options.include_usage</code> on streams) and settles on it. If the client did not ask for usage, the usage-only chunk is removed from the stream it sees.</li>
+<li>No usage reported: input is estimated as <code>body bytes / 4</code> and output from the stream (at least one token per content chunk, or characters / 4 if larger). Non-streaming responses without usage are charged at <code>max_tokens</code>.</li>
+<li>Client disconnects mid-stream: the gateway aborts the upstream call and settles on what was produced so far, using upstream usage if it arrived, else the estimate above.</li>
+<li>Encrypted pass-through: see PRIVACY.md. Usage comes from Tinfoil's <code>X-Tinfoil-Usage-Metrics</code> header or trailer; without it the supplier's flat schedule (if configured) or the reservation is charged.</li>
+<li><code>pricing: &quot;flat&quot;</code> suppliers always charge the flat schedule: a request-size bucket plus declared max output tokens.</li>
+</ul>
+<h2 id="flow-3-funding-a-balance-through-the-funding-mint">Flow 3: funding a balance through the funding mint<a class="anchor" href="#flow-3-funding-a-balance-through-the-funding-mint" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>For users who do not hold eCash from the funding mint yet. In every method the gateway mints eCash at the funding mint into its own wallet with deterministic (NUT-13) outputs and credits the balance with exactly the minted amount, in the same SQLite transaction that stores the proofs. A new balance needs an invite while invite-only; it is created (and the invite bound to it) when the first quote is made, and released again, with the invite reopened, if that funding expires or fails before anything is credited.</p>
+<h3 id="lightning">Lightning<a class="anchor" href="#lightning" aria-hidden="true" tabindex="-1">#</a></h3>
+<ol>
+<li><code>POST /v1/wallet/fund/lightning {amount, unit}</code>: the gateway asks the funding mint (<code>BELLOWS_FUND_MINT</code>) for a NUT-04 bolt11 mint quote in the balance unit, stores it (<code>fundings</code> row, <code>state=pending</code>) and only then returns the invoice.</li>
+<li>A poller (every 3 s for the first 10 minutes, then every 30 s) and every status request ask the mint for the quote state.</li>
+<li>On <code>PAID</code>: prepare the mint with deterministic outputs, store the outputs and the counter range (<code>state=minting</code>), call <code>POST /v1/mint/bolt11</code>.</li>
+<li>One transaction: proofs stored, balance credited <code>amount</code>, <code>state=done</code>.</li>
+<li>Unpaid a minute past the quote's expiry: <code>state=expired</code>.</li>
+</ol>
+<h3 id="on-chain-nut-30">On-chain (NUT-30)<a class="anchor" href="#on-chain-nut-30" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>A funding mint running a Nutshell branch with NUT-30 advertises <code>onchain</code> (sat) in NUT-04. The shapes used here come from that branch's source (<code>cashu/payment/onchain.py</code>, <code>cashu/core/models/mint_quote.py</code>): <code>POST /v1/mint/quote/onchain {unit, pubkey}</code> returns a reusable address with <code>amount_paid</code> and <code>amount_issued</code> and no expiry; <code>POST /v1/mint/onchain {quote, outputs, signature}</code> mints. The quote is locked (NUT-20) to a key the gateway generates per funding, so only the gateway can mint it.</p>
+<ol>
+<li><code>POST /v1/wallet/fund/onchain</code>: quote created and stored, address returned.</li>
+<li>The poller checks the quote every minute. Whenever <code>amount_paid &gt; amount_issued</code>, it mints the difference (same steps 3 and 4 as Lightning, signed for the quote key) and credits it. The address stays watched for <code>BELLOWS_ONCHAIN_WATCH_DAYS</code>, so later deposits are credited too.</li>
+<li>The mint decides when a deposit counts as paid (typically after its deposit wallet sees the confirmations it is configured for). <code>BELLOWS_ONCHAIN_CONFIRMATIONS</code> is only what users are told. With <code>BELLOWS_ESPLORA_URL</code> set the status also shows unconfirmed and confirmed amounts seen on chain.</li>
+</ol>
+<p><code>BELLOWS_ONCHAIN_ENABLED</code> is <code>false</code> by default: the flow is tested against a mock that follows those shapes (<code>test/e2e/onchain-mock.ts</code>), not against the live mint. Turn it on after one small live deposit.</p>
+<h3 id="ecash-from-another-mint">eCash from another mint<a class="anchor" href="#ecash-from-another-mint" aria-hidden="true" tabindex="-1">#</a></h3>
+<ol>
+<li><code>POST /v1/wallet/fund/foreign/quote {token, unit}</code>. Policy first: foreign funding enabled, the mint is not one of ours (<code>use_topup</code>), is accepted by <code>BELLOWS_FOREIGN_POLICY</code> (<code>discovered</code>: the operator list, meaning <code>BELLOWS_FOREIGN_ALLOW</code> and mints added through the admin API, or the NIP-87 discovered list; <code>allowlist</code>: the operator list only; <code>any</code>: every mint, or <code>BELLOWS_FOREIGN_ALLOW</code> when set) and is not in <code>BELLOWS_FOREIGN_DENY</code> (<code>mint_not_allowed</code>, with a pointer to <code>GET /v1/wallet/fund/mints</code>), is <code>https</code> and resolves to public addresses only (SSRF guard), and the token is at most <code>BELLOWS_FOREIGN_MAX_SAT</code> / <code>_USD</code>. Then pricing: the gateway creates a bolt11 mint quote at the funding mint for a credit and a melt quote for that invoice at the token's mint, shrinking the credit until the melt amount, its fee reserve and both input fees fit the token. Nothing is spent. The response shows the token amount, the exact credit and the most the token's mint can keep (<code>fee_max</code>).
+<ul>
+<li><strong>Unlisted mints.</strong> Under <code>discovered</code> and <code>allowlist</code> with <code>BELLOWS_FOREIGN_UNLISTED=true</code>, a mint that is not accepted (and not denied, and not one of the gateway's own) passes the URL safety check and then answers 409 <code>mint_unlisted</code> with <code>{unlisted: {mint, max: {sat, usd}}}</code>. The same request with <code>accept_unlisted: true</code> goes ahead once the mint passes the live probe discovery uses (cached 10 minutes, a failure 1 minute; a failure answers <code>mint_check_failed</code>). The token is then capped at <code>BELLOWS_FOREIGN_UNLISTED_MAX_SAT</code> / <code>_USD</code> (cents) as well as the other-mint cap (<code>amount_too_large</code>), and the funding row records <code>f_unlisted = 1</code>. With <code>BELLOWS_FOREIGN_UNLISTED=false</code> such a mint gets <code>mint_not_allowed</code>. Policy <code>any</code> never asks. <code>GET /v1/wallet/fund/methods</code> shows <code>foreign.unlisted: {enabled, max: {sat, usd}}</code>.</li>
+<li><strong>Every contact with another mint is vetted.</strong> The wallet runs the URL safety check (https, public addresses only, unless <code>BELLOWS_FOREIGN_ALLOW_INSECURE</code>) each time it loads the wallet of a mint outside <code>BELLOWS_TRUSTED_MINTS</code> and <code>BELLOWS_FUND_MINT</code>, cached or not: quote, confirm, melt, refunds, change and recovery. A refusal answers <code>mint_not_allowed</code> (a host name that does not resolve answers <code>mint_unavailable</code>, 503); a step that already holds the eCash stays where it is and the poller retries it, as it would for a mint that cannot be reached. No Cashu request follows a redirect (cashu-ts <code>redirect: &quot;error&quot;</code> for the whole process, set in <code>src/cashu/wallet.ts</code>), so discovery, keysets, keys, swap, melt and the checks only go to the vetted host name; a DNS answer can still change between the check and the request (see <code>checkForeignMintUrl</code> in <code>src/funding.ts</code>), so run the gateway with egress limited to public addresses where that matters.</li>
+</ul></li>
+<li><code>POST /v1/wallet/fund/foreign/confirm {id, token}</code>: the token (checked to be the quoted one by the hash of its secrets) is received at its own mint through the normal receive path (<code>incoming</code> row, NUT-19/NUT-09 recoverable). The new proofs are stored <code>reserved</code> for this funding and never used for payouts.</li>
+<li>Melt: deterministic NUT-08 blank outputs and the counter range are stored before <code>POST /v1/melt/bolt11</code>. If the melt quote expired meanwhile, a new one is made for the same invoice; if it no longer fits, the held eCash goes back to the user as a token from their mint (<code>refund_token</code>, <code>state=refunded</code>).</li>
+<li>Melt paid: the unused fee reserve comes back as change signatures, which are returned to the user as <code>change_token</code>. The funding then continues as a Lightning funding whose invoice is already paid: mint at the funding mint, credit <code>credit</code>.</li>
+</ol>
+<p>The balance unit and the token unit may differ (a sat token can fund a usd balance); the quote uses the mint's own conversion through the funding mint's invoice.</p>
+<h3 id="crash-safety">Crash safety<a class="anchor" href="#crash-safety" aria-hidden="true" tabindex="-1">#</a></h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">State</th><th scope="col">What is stored</th><th scope="col">If the process dies here</th></tr></thead>
+<tbody>
+<tr><td><code>pending</code></td><td>quote id and invoice/address, before the client sees them</td><td>The poller resumes the quote on restart</td></tr>
+<tr><td><code>minting</code></td><td>outputs (serialized) and counter range, before <code>POST /v1/mint/...</code></td><td>Replay the identical mint (NUT-19, cached for bolt11 by Nutshell); else restore the counter range (NUT-09); else, if the quote is still mintable, mint with the same outputs. Credited once</td></tr>
+<tr><td><code>quoted</code></td><td>the plan, not the token</td><td>Nothing spent; the client keeps the token. Expires with the quotes</td></tr>
+<tr><td><code>receiving</code></td><td>the <code>incoming</code> row</td><td><code>prepared</code>: replayed or restored now or at startup; <code>new</code>: back to <code>quoted</code>; rejected: <code>failed</code></td></tr>
+<tr><td><code>melting</code></td><td>blank outputs and counter range, before <code>POST /v1/melt/bolt11</code></td><td>Melt quote <code>PAID</code>: change from the quote's signatures or from restore, then mint. <code>UNPAID</code> with inputs unspent: retry once, then refund. <code>PENDING</code>: wait</td></tr>
+</tbody>
+</table></div>
+<p>Finalizing a mint runs in one transaction that checks the funding is still <code>minting</code> with the same stored outputs, so two pollers, a status request and a restart can race and the balance is credited once. The e2e suite injects faults after the mint, after the foreign swap and after the melt, restarts on the same database (with and without NUT-19 replay) and checks the credit is exact and single.</p>
+<h3 id="not-yet-fedimint">Not yet: Fedimint<a class="anchor" href="#not-yet-fedimint" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>Fedimint notes need a Fedimint client to reissue them in their federation and pay out to Lightning. The cashucard.org fund kit does this with <code>fedimint-receiver</code>, a separate Rust service. Bellows does not run one, so Fedimint is not offered. Adding it would mean deploying that receiver beside the gateway and treating it like a foreign mint: reissue, pay the funding mint's bolt11 quote from the federation, mint and credit.</p>
+<h2 id="the-gateways-wallet">The gateway's wallet<a class="anchor" href="#the-gateways-wallet" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Received proofs are stored in the <code>proofs</code> table with state <code>unspent</code>, <code>reserved</code> (selected for a payout in progress) or <code>spent</code>. The database is the wallet: back it up, and protect it like a hot wallet.</p>
+<p>Payouts (change, refunds, revenue export) select proofs, and if no exact set exists, swap them into a send part and a kept part. All outputs are deterministic (NUT-13) from the gateway seed, with counters stored in SQLite, except the send part of a locked payout (below). Kept outputs are always deterministic.</p>
+<h3 id="locked-payouts-nut-11-p2pk">Locked payouts (NUT-11 P2PK)<a class="anchor" href="#locked-payouts-nut-11-p2pk" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>A deterministic token can be re-derived from the gateway seed, so until the customer redeems it the gateway could spend it. A customer who gives a public key (<code>X-Cashu-Pubkey</code> on a NUT-24 request, <code>pubkey</code> on a refund or other-mint funding) gets a token whose send outputs are P2PK-locked to that key: secret <code>[&quot;P2PK&quot;, {nonce, data: &lt;key&gt;}]</code>, plain lock, no locktime and no refund keys (a refund key held by the gateway would bring back exactly the spending power the lock removes). The mint refuses to spend those proofs without a signature from the key, so the gateway cannot spend them at all.</p>
+<ul>
+<li>The key is stored with the payout (<code>outgoing.lock_pubkey</code>, and <code>requests.lock_pubkey</code> / <code>fundings.f_lock_pubkey</code> so change owed after a crash is still locked). It is not logged.</li>
+<li>A locked payout always swaps, even when an exact set of the gateway's proofs exists.</li>
+<li>Other-mint change and refunds are proofs at the token's mint, not the gateway's. With a key, those proofs are moved to a &quot;pinned&quot; payout (<code>outgoing.pinned = 1</code>) that swaps exactly them into locked outputs at that mint. The token's mint charges its input fee for that swap, so the locked token is worth slightly less than the unlocked one would be. If the fee would take the whole value, the proofs are handed over unlocked.</li>
+<li>Locked secrets are random, so NUT-13 restore by counter cannot find them. Recovery uses the stored preview instead (next section).</li>
+</ul>
+<p><code>pnpm admin revenue:export</code> sweeps eCash that is not backing customer balances or owed payouts into a token you can redeem elsewhere.</p>
+<h2 id="crash-safety-1">Crash safety<a class="anchor" href="#crash-safety-1" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Two mechanisms make every mint operation recoverable:</p>
+<ul>
+<li><strong>NUT-19 replay.</strong> The serialized swap request (inputs and blinded outputs) is stored before the swap is sent. Replaying the identical request to a mint with a response cache returns the same signatures.</li>
+<li><strong>NUT-09 restore.</strong> Outputs are derived from the seed and a counter range that is persisted before the request leaves. If the replay is not cached, the gateway asks the mint to restore signatures for that counter range.</li>
+</ul>
+<h3 id="receiving-topup-or-nut-24-payment">Receiving (topup or NUT-24 payment)<a class="anchor" href="#receiving-topup-or-nut-24-payment" aria-hidden="true" tabindex="-1">#</a></h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Step</th><th scope="col">State written</th><th scope="col">If the process dies here</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>incoming</code> row, <code>status=new</code>, keyed by a hash of the token's secrets (UNIQUE)</td><td>Nothing reached the mint. The row is deleted at startup; the client's token is still valid</td></tr>
+<tr><td>2</td><td>counters reserved, swap preview stored, <code>status=prepared</code></td><td>Startup recovery replays or restores; see below</td></tr>
+<tr><td>3</td><td>swap sent to the mint</td><td>Same as 2</td></tr>
+<tr><td>4</td><td>one transaction: proofs stored, <code>status=done</code>, balance credited (or the NUT-24 request marked paid and running)</td><td>Done exactly once</td></tr>
+</tbody>
+</table></div>
+<p>Recovery of a <code>prepared</code> row: (a) replay the stored swap; (b) else restore the counter range and, if signatures come back, finalize with them; (c) else, if the input proofs are still unspent, perform the swap; (d) else the token was spent elsewhere and the row is rejected. Finalizing runs in one transaction that checks the row is not already <code>done</code>, so a topup is credited once even if recovery and a client retry race.</p>
+<p>A second submission of the same token never reaches the mint twice: it finds the row. For a topup to the same key it returns <code>replay: true</code> with the current balance; anything else is <code>token_spent</code>. When a topup's outcome is unknown (mint timeout), the gateway keeps the new balance and returns its key with HTTP 503 <code>topup_pending</code>; retrying with that key and the same token completes it.</p>
+<p>A NUT-24 request interrupted after payment (process died during the upstream call) is marked aborted at startup, and its full payment is owed back as change at <code>GET /v1/change/{request_id}</code>.</p>
+<p>A NUT-24 request whose receive had an unknown outcome (the mint timed out, or the write after the swap failed) answers with an error and its request id, and the payment is settled in the same process, with no restart:</p>
+<ul>
+<li><strong>Retry with the same token.</strong> The retry recovers the receive (replay, restore or swap, as above). If the mint took the token, the retry takes the payment over from the failed request, once, and is served as any paid request: it is charged what it uses and the rest comes back as change on the retry's own request id. The failed request is counted as failed and keeps nothing. A third attempt with the token is <code>token_spent</code>.</li>
+<li><strong>Or fetch <code>GET /v1/change/{request_id}</code> of the failed request.</strong> That runs the same recovery and owes the whole payment back as change. Until the mint answers, it is <code>409 not_settled</code> with <code>Retry-After</code>; if the mint refused the token, or the token never reached the mint (it is still the client's to spend), <code>404</code>.</li>
+</ul>
+<p>Whichever comes first wins: the payment serves one request or comes back as change, never both. A request is marked running in the same transaction that pays it, so a payment that recovery finishes later (request marked paid) always belongs to a request no handler serves any more.</p>
+<p>A paid request whose handler ends without settling never stays running. An upstream answer whose body breaks after its headers settles like any upstream failure: nothing charged, all of the payment back as change in the answer. Any other error that escapes the handler, or a settlement write that fails at the end of a stream, marks the request paid (no handler serves it) in the same process, so <code>GET /v1/change/{request_id}</code> returns the whole payment, or a retry with the same token takes it over, once.</p>
+<h3 id="paying-out-change-refund-export">Paying out (change, refund, export)<a class="anchor" href="#paying-out-change-refund-export" aria-hidden="true" tabindex="-1">#</a></h3>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Step</th><th scope="col">State written</th><th scope="col">If the process dies here</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>balance debited and <code>outgoing</code> row <code>status=owed</code> in one transaction (refunds)</td><td>The payout is owed; it is issued on the next refund call or change fetch</td></tr>
+<tr><td>2</td><td>proofs marked <code>reserved</code> for this row, <code>status=reserved</code></td><td>Nothing reached the mint. Startup returns the proofs and sets <code>status=owed</code></td></tr>
+<tr><td>3</td><td>counters reserved, swap preview stored, <code>status=prepared</code></td><td>Replay or restore, as for receiving. Restored proofs are split into send and keep by matching the stored send-output secrets</td></tr>
+<tr><td>4</td><td>one transaction: inputs <code>spent</code>, kept proofs stored, token stored, <code>status=done</code></td><td>Done; the token is re-deliverable</td></tr>
+</tbody>
+</table></div>
+<p>If the mint rejects a payout because the gateway's own proofs are already spent (a restored backup, for example), those proofs are marked spent and the payout goes back to <code>owed</code>.</p>
+<h3 id="locked-payouts-recovery">Locked payouts: recovery<a class="anchor" href="#locked-payouts-recovery" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>The full swap preview, including the locked outputs' secrets and blinding factors, is stored (<code>status=prepared</code>) before the swap is sent. Recovery of a locked row:</p>
+<ol>
+<li><strong>Replay</strong> the stored request (NUT-19). Nutshell mints, the test mints among them (Nutshell 0.22.1), cache <code>POST /v1/swap</code> for 7 days (<code>nuts.19.ttl = 604800</code>), so the same signatures come back and the stored secrets turn them into the same locked proofs.</li>
+<li>If the mint refuses the replay, <strong>restore by blinded message</strong> (NUT-09): the stored blinded messages of every output are sent to <code>/v1/restore</code>. The mint returns the signatures it made for exactly those outputs. All signed: build the proofs from the stored secrets, finalize once. None signed: the swap never happened with these outputs, so the row is re-owed as an unlocked payout would be.</li>
+<li>If neither works (no cache entry and restore refused or unsupported, or a partial answer), the outcome is <strong>unknown</strong>. The row stays <code>prepared</code>, counts as owed in <code>revenue:show</code>, gets <code>error = &quot;outcome unknown: ...&quot;</code> and the API answers <code>503 payout_unknown</code>. It is never re-owed and never paid a second time; every later issue attempt and every startup tries steps 1 and 2 again. If the mint never answers, an operator resolves it by hand from the stored preview.</li>
+</ol>
+<p>Restoring by counter range (the unlocked path) is never used for a locked row: it would find only the kept outputs and hand over an empty token.</p>
+<h3 id="reservations">Reservations<a class="anchor" href="#reservations" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>A request holds its reservation until it settles. The process serving it keeps, in memory, which reservations its running requests hold, and the sweep never releases one of those, however long the request streams.</p>
+<p>At startup every active reservation is released without charge (nothing is in flight in a fresh process). A periodic sweep releases, without charge, active reservations older than <code>BELLOWS_STALE_RESERVATION_SECONDS</code> that no running request holds: those left by an earlier process on the same file, and those of a request that ended in an error before it settled. A request whose upstream fails (including a body that breaks after the headers) settles at once with no charge, so its reservation is released then, not by the sweep. It logs <code>stale_reservations_released</code> with how many it released. A crash mid-request therefore costs the gateway the upstream bill for that request, never the user.</p>
+<p>Only a second process on the same database can release a reservation this process is still serving, and that is not a supported deployment (see Known limits). If it happens anyway (an overlapping restart on the same file, say), the request still pays what it used: <code>min(actual, reserved)</code>, capped at what the balance covers once its other reservations are held. Whatever the balance cannot cover is the shortfall. It is added to <code>shortfall_msub</code> in the day's <code>usage_daily</code> row and logged as <code>settled_after_release</code> with the amounts owed, charged and short, never the balance id. The shortfall is the gateway's loss; the balance never goes below zero.</p>
+<p>A request that never ends (an upstream that stops sending without closing the stream) keeps its reservation until the client disconnects or the process restarts; only that balance's available amount is affected.</p>
+<h3 id="what-these-tests-prove">What these tests prove<a class="anchor" href="#what-these-tests-prove" aria-hidden="true" tabindex="-1">#</a></h3>
+<p><code>test/unit/stale-reservation.test.ts</code> runs the sweep against a balance-paid stream that is still running: the reservation stays held and the stream pays for what it used. It also releases the reservation from a second ledger on the same database mid-stream and checks the stream is still charged in full, then with the balance spent meanwhile, checks the late charge is capped, the shortfall lands in <code>usage_daily</code> and the log carries no balance id. A request whose upstream body read fails is settled with no charge and its reservation released at once; one that ends in an error before it settles, or whose stream settlement write fails, leaves its reservation to the sweep without a restart. <code>test/unit/ledger.test.ts</code> covers the same rules on the ledger alone.</p>
+<p><code>test/e2e/recovery.e2e.test.ts</code> injects a fault after the mint swap and before the database write, restarts the gateway on the same database, and checks the balance is credited exactly once (through replay and through restore), that a retry is idempotent, that an interrupted refund is recovered by restore and the token redeems at the mint, and that an interrupted NUT-24 request owes full change. Without a restart, it fails a NUT-24 request after the mint swap and checks that a retry with the same token is served once with correct change (and once more when the retry's upstream fails, with all of it as change), that a third attempt is <code>token_spent</code>, and that fetching the failed request's change instead returns the whole payment once. It also breaks a paid request's upstream body after the headers (all change in the answer), throws inside the handler after payment, and fails a stream's settlement write, and checks each time that <code>GET /v1/change/{request_id}</code> returns the whole payment once, with no restart. <code>test/unit/nut24-recovery.test.ts</code> covers the change fetch while the mint does not answer: <code>409</code> with <code>Retry-After</code>, the payment still recoverable, and change owed once.</p>
+<p><code>test/e2e/p2pk.e2e.test.ts</code> checks locked NUT-24 change, refunds and other-mint change and refunds: the token's proofs all carry the key, a swap at the mint without a witness is refused, a plain wallet and the gateway's own wallet cannot redeem it, and the key holder receives exactly the amount. It crashes a locked refund after the swap and recovers it by replay, by restore of the stored blinded messages, and with both disabled (row stays owed, no second payout) followed by a restart that settles it once.</p>
+<h2 id="known-limits">Known limits<a class="anchor" href="#known-limits" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li>One gateway process per database. In-process locks prevent concurrent use of the same token or payout; SQLite transactions guard balances. Two processes on one database are unsafe, not merely unsupported: each treats a receive the other has in flight as dead and can forget it after the mint swap, losing the received eCash. The late charge for a released reservation (see Reservations) is a backstop for this rule being broken by accident, not a way around it.</li>
+<li>The NUT-13 seed is derived from the wallet secret (<code>BELLOWS_WALLET_SECRET</code> in the secrets source) and never stored. A database from an earlier version that stored its seed keeps using that seed, so for such a database the seed sits in the database. With the wallet secret and no database, the gateway's eCash can be found again at the mint with NUT-09 restore (<code>test/e2e/sealed-state.e2e.test.ts</code> does this), but the ledger (who is owed what) is in the database only. Losing the wallet secret and the database loses the wallet.</li>
+<li>Payouts come from one mint. With several trusted mints, a refund needs one mint to hold enough.</li>
+<li>Sub-unit balance remainders cannot be withdrawn.</li>
+<li>Other-mint funding trusts the token's mint for as long as the melt takes. A mint that takes the token and never pays leaves the funding in <code>melting</code>; the token's value is then lost to the user, as it would be with any wallet melting at that mint.</li>
+<li>A foreign mint's address is checked against private ranges when quoted, but DNS can change between that check and later requests (rebinding). The gateway sends such a mint only Cashu API calls.</li>
+<li>An on-chain address that receives a deposit after its watch window is not credited automatically. The quote stays at the mint; an operator can extend <code>expires_at</code> in <code>fundings</code> and set <code>state</code> back to <code>pending</code>.</li>
+</ul>
+<h2 id="checking-quotes-without-tripping-the-mints-rate-limit">Checking quotes without tripping the mint's rate limit<a class="anchor" href="#checking-quotes-without-tripping-the-mints-rate-limit" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Every funding's quote checks come from the gateway's one IP, and Nutshell allows 20 transaction requests a minute per IP. So:</p>
+<ul>
+<li>An unpaid Lightning quote is checked every 5 s for its first 2 minutes, then every 15 s to 10 minutes, every minute to an hour, and every 5 minutes after that.</li>
+<li>The status endpoint advances a pending quote only when it is due, however fast a browser polls.</li>
+<li>All quote checks share a budget of <code>BELLOWS_MINT_QUOTE_CHECKS_PER_MIN</code> (default 12).</li>
+<li>A 429 from the mint pauses every quote check for 60 s.</li>
+</ul>
+<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/PAYMENTS.md">docs/PAYMENTS.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
+    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="../docs/build.html">Build on Bellows</a></li>
+        <li><a href="../docs/api.html">API reference</a></li>
+        <li><a href="../docs/threat-model.html">Threat model</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attested identity | Bellows docs</title>
+<meta name="description" content="How a client checks which build a Bellows runs before it sends anything.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Attested identity | Bellows docs">
+<meta property="og:description" content="How a client checks which build a Bellows runs before it sends anything.">
+<meta property="og:image" content="../assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Attested identity | Bellows docs">
+<meta name="twitter:description" content="How a client checks which build a Bellows runs before it sends anything.">
+<meta name="twitter:image" content="../assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="docs">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
+        <li><a href="../docs/build.html">Build</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap docs-layout">
+<nav class="docs-nav" aria-label="Docs">
+<details class="docs-menu" open>
+<summary>All docs</summary>
+<p class="nav-group">Build</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+</ul>
+<p class="nav-group">Reference</p>
+<ul>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="attestation.html" aria-current="page">Attestation</a>
+<ul class="toc"><li><a href="#what-a-bellows-serves">What a Bellows serves</a></li><li><a href="#attesters">Attesters</a></li><li><a href="#approved-builds">Approved builds</a></li><li><a href="#the-client-library">The client library</a></li><li><a href="#not-verified-locally">Not verified locally</a></li></ul></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="nav-group">Run</p>
+<ul>
+<li><a href="operate.html">Run your own</a></li>
+</ul>
+<p class="nav-group">On GitHub</p>
+<ul>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
+<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="prose">
+<h1 id="attested-identity">Attested identity</h1>
+<p>A client checks which build a Bellows runs before it sends anything. This page describes what a Bellows serves for that check, how the check works, and which parts have not been exercised on real sealed hardware.</p>
+<h2 id="what-a-bellows-serves">What a Bellows serves<a class="anchor" href="#what-a-bellows-serves" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>At boot Bellows makes an HPKE key pair (DHKEM(X25519, HKDF-SHA256)) in memory. The private key never leaves memory and is new on every boot. Bellows then writes a statement and asks its attester for a hardware attestation that binds the statement's hash. <code>GET /.well-known/bellows</code> returns:</p>
+<pre tabindex="0" data-lang="json"><code class="language-json">{
+  &quot;format&quot;: &quot;bellows-identity/v1&quot;,
+  &quot;statement&quot;: &quot;&lt;base64 of the statement JSON bytes&gt;&quot;,
+  &quot;attestation&quot;: { &quot;format&quot;: &quot;&lt;attestation format URI&gt;&quot;, &quot;...&quot;: &quot;...&quot; }
+}</code></pre>
+<p>The statement, after base64 decoding:</p>
+<pre tabindex="0" data-lang="json"><code class="language-json">{
+  &quot;version&quot;: &quot;0.1.0&quot;,
+  &quot;measurement&quot;: { &quot;type&quot;: &quot;&lt;format URI&gt;&quot;, &quot;registers&quot;: [&quot;&lt;lowercase hex&gt;&quot;] },
+  &quot;hpke&quot;: { &quot;key_config&quot;: &quot;&lt;base64, RFC 9458 key configuration&gt;&quot; },
+  &quot;relays&quot;: [&quot;https://relay.example/relay/bellows.example&quot;],
+  &quot;operator&quot;: null
+}</code></pre>
+<ul>
+<li><code>version</code> is the Bellows release.</li>
+<li><code>measurement</code> is the build the server claims to be, or <code>null</code>. A client never trusts this claim. It trusts only the measurement the attestation proves, and it refuses a claim that differs.</li>
+<li><code>hpke.key_config</code> is one key configuration in the encoding of RFC 9458, section 3.1: key id, KEM <code>0x0020</code>, the 32-byte public key, and the cipher suites (HKDF-SHA256 with AES-128-GCM).</li>
+<li><code>relays</code> lists the Oblivious HTTP relays for this Bellows (<code>BELLOWS_RELAYS</code>), each the full URL a client posts encapsulated requests to (<a href="ohttp.html">Oblivious HTTP</a>).</li>
+<li><code>operator</code> is the operator's signed announcement (a Nostr event, <a href="operators.html">Operators</a>) from <code>BELLOWS_OPERATOR_ANNOUNCEMENT_FILE</code>, or <code>null</code>. Startup checks that it is signed and matches the configuration. Because the attestation covers it, a client can check that the Bellows it verified belongs to the operator who announced it.</li>
+</ul>
+<p>The attestation binds</p>
+<pre tabindex="0"><code>binding = SHA-256( &quot;bellows-identity/v1&quot; || 0x00 || statement bytes )</code></pre>
+<p>The statement travels as base64, so client and server hash the same bytes and nothing is re-serialized. Anyone between the client and the sealed machine who changes the key, a relay or the announcement breaks the binding.</p>
+<p>The document is made at boot and again every <code>BELLOWS_ATTEST_REFRESH_MINUTES</code> (default 360), because platform collateral ages. While a refresh fails, the last good document is served. Until the first attestation succeeds, the endpoint answers <code>503 not_attested</code> with <code>Retry-After</code>.</p>
+<h2 id="attesters">Attesters<a class="anchor" href="#attesters" aria-hidden="true" tabindex="-1">#</a></h2>
+<p><code>BELLOWS_ATTESTER</code> picks one. The default is <code>dev</code> in development mode and <code>tinfoil</code> in sealed mode. Sealed mode refuses <code>dev</code>.</p>
+<h3 id="dev">dev<a class="anchor" href="#dev" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>A signed stand-in for development and tests. It is marked with the format <code>urn:bellows:attestation:dev:v1</code> and a warning that it proves nothing. It signs a payload (<code>report_data</code>, <code>measurement</code>, <code>issued_at</code>) with an ECDSA P-256 key made in memory. Its measurement has the type <code>urn:bellows:measurement:dev:v1</code> and one register, <code>BELLOWS_DEV_MEASUREMENT</code> or a fixed default. Anyone can make one, so clients refuse it unless they opt into development mode.</p>
+<h3 id="tinfoil">tinfoil<a class="anchor" href="#tinfoil" aria-hidden="true" tabindex="-1">#</a></h3>
+<p>For Tinfoil Containers. Set <code>attestation: true</code> on the Bellows container in <code>tinfoil-config.yml</code>; the enclave then gives the container the socket <code>/tinfoil/attestation.sock</code> (<code>BELLOWS_TINFOIL_ATTESTATION_SOCKET</code>). Bellows asks it for</p>
+<pre tabindex="0"><code>GET /.well-known/tinfoil-attestation?nonce=&lt;binding as 64 hex characters&gt;</code></pre>
+<p>and serves the V3 document it returns (format <code>https://tinfoil.sh/predicate/attestation/v3</code>) as the attestation. In that document the CPU quote's REPORT_DATA is</p>
+<pre tabindex="0"><code>SHA-256( &quot;https://tinfoil.sh/report-data/v1&quot; || nonce || SHA-256(crypto_material) || SHA-256(device_evidence) ) || 32 zero bytes</code></pre>
+<p>so the hardware binds the Bellows statement through the nonce. Before serving a document, Bellows makes the same binding checks a client makes. On Tinfoil, leave <code>BELLOWS_BUILD_MEASUREMENT</code> unset: the measurement covers <code>tinfoil-config.yml</code> itself, so the config cannot carry it, and the statement's claim is <code>null</code>. Clients rely on the measurement the attestation proves, never on the claim.</p>
+<p>Only the Bellows container may have <code>attestation: true</code> in <code>tinfoil-config.yml</code>. Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key. Tinfoil's runtime policy says the same: fetching a quote does not identify the requesting container. A Tor sidecar or any other container in the enclave runs without attestation access. <code>pnpm deploy:check</code> refuses a config that breaks this rule, and <code>test/unit/deploy.test.ts</code> checks it on <code>tinfoil-config.yml</code> and on both templates in <code>deploy/</code> (<a href="operate.html">Run your own</a>). Only the Bellows container may receive secrets or mount its volume.</p>
+<h2 id="approved-builds">Approved builds<a class="anchor" href="#approved-builds" aria-hidden="true" tabindex="-1">#</a></h2>
+<p><code>builds.json</code> at the repository root lists each approved release:</p>
+<pre tabindex="0" data-lang="json"><code class="language-json">{
+  &quot;format&quot;: &quot;bellows-builds/v1&quot;,
+  &quot;builds&quot;: [
+    {
+      &quot;version&quot;: &quot;1.0.0&quot;,
+      &quot;image&quot;: &quot;ghcr.io/example/bellows@sha256:&lt;64 hex&gt;&quot;,
+      &quot;measurement&quot;: { &quot;type&quot;: &quot;&lt;format URI&gt;&quot;, &quot;registers&quot;: [&quot;&lt;lowercase hex&gt;&quot;] },
+      &quot;released&quot;: &quot;2026-12-01&quot;,
+      &quot;deployment&quot;: &quot;example/bellows-deploy@v1.0.0&quot;
+    }
+  ]
+}</code></pre>
+<p><code>notes</code> and <code>deployment</code> are optional. A Tinfoil measurement covers the whole measured <code>tinfoil-config.yml</code>, and each operator's config differs (its keyserver, its mints), so one release can have one approved build per operator deployment. <code>deployment</code> names the measured config as <code>owner/repo@tag</code>, the same repository and tag the operator's keyserver policy pins. The checker refuses unknown members, an image not pinned by digest, malformed registers, a version listed twice for the same deployment, a malformed deployment and one measurement under two builds. Run it with <code>pnpm builds:check [path]</code>. The list is empty until the first release is built and measured on the platform.</p>
+<p>A Tinfoil build's measurement has the type <code>https://tinfoil.sh/predicate/snp-tdx-multiplatform/v1</code> (<code>TINFOIL_RELEASE_MEASUREMENT_TYPE</code> in <code>client/</code>) and three registers: the SEV-SNP launch measurement, then TDX RTMR1 and RTMR2, as Tinfoil's measure action publishes them in <code>tinfoil-deployment.json</code>. The release workflow writes the entry (<code>pnpm builds:add</code>) and proposes it in a pull request (<a href="operate.html#4-release">Run your own</a>). An app's <code>authenticate</code> should return the measurement of the release it authenticated in this form.</p>
+<h2 id="the-client-library">The client library<a class="anchor" href="#the-client-library" aria-hidden="true" tabindex="-1">#</a></h2>
+<p><code>client/</code> is TypeScript that runs in browsers and in Node. It uses Web APIs only (fetch, WebCrypto, TextEncoder) and typechecks without Node types (<code>client/tsconfig.json</code>).</p>
+<pre tabindex="0" data-lang="ts"><code class="language-ts">import { tinfoilVerifier, verifyBellows } from './client/index.ts';
+
+const bellows = await verifyBellows('https://bellows.example', {
+  approvedBuilds: buildsJson,
+  verifier: tinfoilVerifier({ authenticate }),
+});
+// bellows.keyConfig is the attested HPKE key. If verifyBellows throws, send nothing.</code></pre>
+<p><code>verifyBellows</code> fetches <code>/.well-known/bellows</code> and then:</p>
+<ol>
+<li>refuses a development stand-in unless <code>allowDevelopment</code> is set;</li>
+<li>picks the verifier for the attestation format and has it check that the attestation is authentic and binds the statement;</li>
+<li>finds the proved measurement in the approved builds;</li>
+<li>refuses a statement whose claimed measurement or version differs from the approved build;</li>
+<li>returns the key configuration, the build, the relays and the operator announcement.</li>
+</ol>
+<p>Every refusal is a <code>BellowsVerifyError</code> with a stable <code>code</code>.</p>
+<p>Hardware verification is supplied by the app. <code>tinfoilVerifier</code> checks the document's format, that its nonce is the binding, both endorsed section hashes, and REPORT_DATA. It then calls the app's <code>authenticate</code>, which must check the SEV-SNP report or TDX quote (vendor certificate chain, collateral, provenance) and return the measurement it proves together with the REPORT_DATA read from the authenticated quote. <code>tinfoilVerifier</code> refuses the document unless that REPORT_DATA equals the recomputed value. The <code>challenge.report_data</code> field in the JSON is not authenticated, so the comparison uses the quote's own field. <code>devVerifier</code> checks the stand-in's signature and binding, and can pin its signing keys with <code>trustedKeys</code>.</p>
+<h2 id="not-verified-locally">Not verified locally<a class="anchor" href="#not-verified-locally" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>These parts follow the platform's public documentation and have not been run on real sealed hardware:</p>
+<ul>
+<li>The Tinfoil attestation socket, its request and its responses. Tinfoil marks fresh attestation from containers as beta. Tests use a stand-in socket and a stand-in quote.</li>
+<li>The V3 document shape beyond the fields described above. The binding checks follow Tinfoil's documentation and the document parser in its open-source Go verifier; the REPORT_DATA derivation is checked against a test vector published with that verifier.</li>
+<li>Hardware quote verification and the measurement it yields. The client leaves this to the app's <code>authenticate</code>; no implementation ships here.</li>
+<li>The form of a Tinfoil measurement in <code>builds.json</code> (above) matching what an app's <code>authenticate</code> returns for a real enclave, and the release workflow that computes it, which has not run on GitHub.</li>
+<li>How long Tinfoil's collateral stays valid, and so the right refresh interval.</li>
+<li>Tinfoil's measured <code>attested-keys</code>: a key declared in <code>tinfoil-config.yml</code>, made once per enclave boot, and endorsed in every quote as a <code>crypto_material</code> entry with the format <code>https://tinfoil.sh/key/spki/v1</code>. This is the platform's own key binding. Bellows binds its HPKE key through the nonce today. Moving the HPKE key into an attested key is a possible later hardening.</li>
+</ul>
+<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/ATTESTATION.md">docs/ATTESTATION.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
+    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="../docs/build.html">Build on Bellows</a></li>
+        <li><a href="../docs/api.html">API reference</a></li>
+        <li><a href="../docs/threat-model.html">Threat model</a></li>
+        <li><a href="../docs/operate.html">Run your own</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
