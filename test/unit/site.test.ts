@@ -21,6 +21,8 @@ function files(dir: string): string[] {
 const pages = files(SITE).filter((p) => p.endsWith('.html'));
 const rel = (p: string) => relative(SITE, p).split('\\').join('/');
 const read = (p: string) => readFileSync(p, 'utf8');
+/** The link-preview image, absolute because some preview services need that (site/README.md). */
+const PREVIEW = 'https://bellows.forgereserve.org/assets/social-preview.png';
 const isExternal = (url: string) => /^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith('//');
 
 function ids(html: string): Set<string> {
@@ -90,6 +92,7 @@ describe('site', () => {
       for (const { attr, url, tag } of references(html)) {
         if (!isExternal(url)) continue;
         if (tag === 'a') continue; // plain links may go anywhere
+        if (tag === 'meta' && url === PREVIEW) continue; // the page does not load it: link previews read it
         problems.push(`${rel(page)}: <${tag} ${attr}="${url}">`);
       }
       for (const m of html.matchAll(/url\(\s*['"]?([^'")]+)/g)) if (isExternal(m[1]!) && !m[1]!.startsWith('data:')) problems.push(`${rel(page)}: url(${m[1]})`);

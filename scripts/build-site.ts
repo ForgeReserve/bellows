@@ -290,14 +290,14 @@ function head(opts: { title: string; description: string; prefix: string; path: 
 <meta property="og:site_name" content="Bellows">
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(description)}">
-<meta property="og:image" content="${prefix}assets/social-preview.png">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${escapeHtml(title)}">
 <meta name="twitter:description" content="${escapeHtml(description)}">
-<meta name="twitter:image" content="${prefix}assets/social-preview.png">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <link rel="icon" href="${prefix}assets/logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="${prefix}assets/icon.png">
 <link rel="stylesheet" href="${prefix}assets/site.css">
