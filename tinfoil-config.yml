@@ -52,7 +52,7 @@ volumes:
 
 containers:
   - name: bellows
-    image: "ghcr.io/example/bellows@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/forgereserve/bellows@sha256:b7e26a57d5ee903d769045d1e708dc7a6eb3cbd5a0ccf5805e91ed6846ee3aff"
     user: "1000:1000"
     attestation: true
     read_only: true
