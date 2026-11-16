@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pay for requests | Build on Bellows | Bellows</title>
+<meta name="description" content="Open a balance with eCash or Lightning, or pay each request with a token in a header.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Pay for requests | Build on Bellows | Bellows">
+<meta property="og:description" content="Open a balance with eCash or Lightning, or pay each request with a token in a header.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Pay for requests | Build on Bellows | Bellows">
+<meta name="twitter:description" content="Open a balance with eCash or Lightning, or pay each request with a token in a header.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html" class="in-section">Build on Bellows</a>
+<ol class="side-parts"><li><a href="build-pick-an-engine.html">Pick an engine</a></li><li><a href="build-check-which-build-it-runs.html">Check which build it runs</a></li><li><a href="build-list-models.html">List models</a></li><li><a href="build-pay-for-requests.html" aria-current="page">Pay for requests</a></li><li><a href="build-send-a-chat-request.html">Send a chat request</a></li><li><a href="build-stream-an-answer.html">Stream an answer</a></li><li><a href="build-send-through-oblivious-http.html">Send through Oblivious HTTP</a></li><li><a href="build-handle-errors.html">Handle errors</a></li><li><a href="build-read-the-balance-and-take-it-back.html">Read the balance and take it back</a></li><li><a href="build-use-the-client-library.html">Use the client library</a></li><li><a href="build-run-your-own-engine.html">Run your own engine</a></li><li><a href="build-how-these-examples-were-checked.html">How these examples were checked</a></li></ol></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html">Operator guide</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Build on it <span aria-hidden="true">/</span> <a href="build.html">Build on Bellows</a></p>
+<article class="prose">
+<h1 id="pay-for-requests">Pay for requests</h1>
+<p class="summary">Open a balance with eCash or Lightning, or pay each request with a token in a header.</p>
+<nav class="on-this-page" aria-label="On this page">
+<p>On this page</p>
+<ul><li><a href="#open-a-balance">Open a balance</a></li><li><a href="#fund-a-balance-with-lightning">Fund a balance with Lightning</a></li><li><a href="#pay-per-request-nut-24">Pay per request (NUT-24)</a></li></ul>
+</nav>
+<p>There are two ways to pay. Both use eCash from one of the <code>mints</code> in <code>/v1/models</code>.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">Way</th><th scope="col">Send</th><th scope="col">Good for</th></tr></thead>
+<tbody>
+<tr><td>Prepaid balance</td><td><code>Authorization: Bearer sk-forge-...</code></td><td>Apps and chats that make many requests</td></tr>
+<tr><td>Per request (NUT-24)</td><td><code>X-Cashu: cashuB...</code></td><td>Agents and scripts that want no account and no key</td></tr>
+</tbody>
+</table></div>
+<p>A balance key links every request made with it to the others. A per-request payment is not linked to other requests by the engine. <a href="privacy.html">Privacy</a> has the details.</p>
+<h2 id="open-a-balance">Open a balance<a class="anchor" href="#open-a-balance" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Send a token to <code>POST /v1/wallet/topup</code>. Opening a new balance needs a small proof of work: the first answer is <code>428 pow_required</code> with a challenge. Find a nonce so that SHA-256 of <code>&lt;challenge&gt;:&lt;nonce&gt;</code> starts with <code>bits</code> zero bits, then send the same request again with <code>X-Bellows-Pow: &lt;challenge&gt;:&lt;nonce&gt;</code>. <code>GET /v1/pow</code> hands out a challenge ahead of time. A challenge is good for 5 minutes and one request.</p>
+<p>With curl and a small Python solver:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">pow_solve() {
+  python3 -c 'import hashlib, itertools, sys
+c, bits = sys.argv[1], int(sys.argv[2])
+for i in itertools.count():
+    n = format(i, &quot;x&quot;)
+    h = int.from_bytes(hashlib.sha256(f&quot;{c}:{n}&quot;.encode()).digest(), &quot;big&quot;)
+    if h &gt;&gt; (256 - bits) == 0:
+        print(f&quot;{c}:{n}&quot;)
+        break' &quot;$1&quot; &quot;$2&quot;
+}
+
+TOKEN=cashuB...     # eCash from one of the engine's mints
+POW=$(curl -s $B/v1/pow)
+SOLUTION=$(pow_solve &quot;$(jq -r .challenge &lt;&lt;&lt;&quot;$POW&quot;)&quot; &quot;$(jq -r .bits &lt;&lt;&lt;&quot;$POW&quot;)&quot;)
+TOPUP=$(curl -s $B/v1/wallet/topup -H 'content-type: application/json' \
+  -H &quot;X-Bellows-Pow: $SOLUTION&quot; -d &quot;{\&quot;token\&quot;: \&quot;$TOKEN\&quot;}&quot;)
+KEY=$(jq -r .key &lt;&lt;&lt;&quot;$TOPUP&quot;)
+echo &quot;$TOPUP&quot; | jq '{unit, credited, balance_msub}'</code></pre>
+<p>The answer holds <code>key</code> once. Keep it: it is the balance. To make sure a lost answer never loses the key, choose the key yourself and send it as the bearer key on the topup: <code>sk-forge-</code> followed by 24 to 64 characters from <code>A-Z a-z 0-9 _ -</code>, for example <code>&quot;sk-forge-$(openssl rand -hex 16)&quot;</code>. The answer then has <code>key: null</code>, and the balance is under your key. Sending the same token again is safe: the answer has <code>replay: true</code> and <code>credited: 0</code>.</p>
+<p>In JavaScript, with <code>solvePow</code> from the client library:</p>
+<pre tabindex="0" data-lang="ts"><code class="language-ts">import { solvePow } from './client/index.ts';
+
+async function topup(base: string, token: string) {
+  const send = (headers: Record&lt;string, string&gt; = {}) =&gt;
+    fetch(`${base}/v1/wallet/topup`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: JSON.stringify({ token }),
+    });
+  let res = await send();
+  if (res.status === 428) {
+    const { pow } = await res.json();
+    res = await send({ 'X-Bellows-Pow': await solvePow(pow.challenge, pow.bits) });
+  }
+  const body = await res.json();
+  if (!res.ok) throw new Error(`${res.status} ${body.error.code}: ${body.error.message}`);
+  return body; // { key, account_id, unit, credited, balance_msub, ... }
+}
+
+const { key } = await topup('http://localhost:8787', 'cashuB...');</code></pre>
+<p>In Python, with <code>requests</code>:</p>
+<pre tabindex="0" data-lang="python"><code class="language-python">import hashlib, itertools
+import requests
+
+BELLOWS = &quot;http://localhost:8787&quot;
+
+def solve_pow(challenge, bits):
+    for i in itertools.count():
+        nonce = format(i, &quot;x&quot;)
+        digest = hashlib.sha256(f&quot;{challenge}:{nonce}&quot;.encode()).digest()
+        if int.from_bytes(digest, &quot;big&quot;) &gt;&gt; (256 - bits) == 0:
+            return f&quot;{challenge}:{nonce}&quot;
+
+def topup(token, key=None):
+    headers = {&quot;authorization&quot;: f&quot;Bearer {key}&quot;} if key else {}
+    res = requests.post(f&quot;{BELLOWS}/v1/wallet/topup&quot;, json={&quot;token&quot;: token}, headers=headers)
+    if res.status_code == 428:
+        pow_ = res.json()[&quot;pow&quot;]
+        headers[&quot;X-Bellows-Pow&quot;] = solve_pow(pow_[&quot;challenge&quot;], pow_[&quot;bits&quot;])
+        res = requests.post(f&quot;{BELLOWS}/v1/wallet/topup&quot;, json={&quot;token&quot;: token}, headers=headers)
+    body = res.json()
+    if not res.ok:
+        raise RuntimeError(f&quot;{res.status_code} {body['error']['code']}: {body['error']['message']}&quot;)
+    return body
+
+key = topup(&quot;cashuB...&quot;)[&quot;key&quot;]</code></pre>
+<p>A balance has one unit, set by its first topup. A token in another unit gets <code>400 wrong_unit</code>.</p>
+<h2 id="fund-a-balance-with-lightning">Fund a balance with Lightning<a class="anchor" href="#fund-a-balance-with-lightning" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>A user who holds no eCash from the engine's mints can pay a Lightning invoice instead. The engine mints eCash at its funding mint and credits the exact amount.</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s $B/v1/wallet/fund/methods | jq '{lightning, onchain: .onchain.enabled}'
+
+KEY=&quot;sk-forge-$(openssl rand -hex 16)&quot;
+POW=$(curl -s $B/v1/pow)
+SOLUTION=$(pow_solve &quot;$(jq -r .challenge &lt;&lt;&lt;&quot;$POW&quot;)&quot; &quot;$(jq -r .bits &lt;&lt;&lt;&quot;$POW&quot;)&quot;)
+FUNDING=$(curl -s $B/v1/wallet/fund/lightning -H 'content-type: application/json' \
+  -H &quot;authorization: Bearer $KEY&quot; -H &quot;X-Bellows-Pow: $SOLUTION&quot; -d '{&quot;amount&quot;: 500, &quot;unit&quot;: &quot;sat&quot;}')
+jq '{id, state, request}' &lt;&lt;&lt;&quot;$FUNDING&quot;      # request is the bolt11 invoice to pay
+ID=$(jq -r .id &lt;&lt;&lt;&quot;$FUNDING&quot;)
+
+curl -s $B/v1/wallet/fund/$ID -H &quot;authorization: Bearer $KEY&quot; | jq '{state, credited}'</code></pre>
+<p>Poll the funding until <code>state</code> is <code>done</code> (or <code>expired</code>). Polling also moves it forward. Other funding methods (a bitcoin deposit, eCash from another mint) are in <a href="api.html#funding-a-balance">API reference</a>.</p>
+<h2 id="pay-per-request-nut-24">Pay per request (NUT-24)<a class="anchor" href="#pay-per-request-nut-24" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Send a chat request with no credentials. The answer is <code>402</code> with a NUT-18 payment request in <code>X-Cashu</code> and the amount in the body:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s -i $B/v1/chat/completions -H 'content-type: application/json' \
+  -d '{&quot;model&quot;: &quot;mock-echo&quot;, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}]}'
+# HTTP/1.1 402 Payment Required
+# x-cashu: creqA...
+# {&quot;error&quot;:{...,&quot;code&quot;:&quot;payment_required&quot;},&quot;payment_request&quot;:&quot;creqA...&quot;,&quot;amount&quot;:7,&quot;unit&quot;:&quot;usd&quot;,&quot;mints&quot;:[&quot;http://127.0.0.1:3338&quot;]}</code></pre>
+<p>Pay <code>amount</code> in <code>unit</code> at one of <code>mints</code>: send the same request again with <code>X-Cashu: cashuB...</code>. The amount is the request's maximum cost. The engine charges what the request used and returns the rest as eCash change: in the <code>X-Cashu-Change</code> header, in the final <code>event: forge</code> of a stream, and at <code>GET /v1/change/{request_id}</code> (the <code>X-Forge-Change-Url</code> header). Add <code>X-Cashu-Pubkey: 02...</code> to lock the change to your wallet key, so that only the holder of the private key can redeem it.</p>
+<p><code>examples/agent-pays.ts</code> does all of this with cashu-ts. Against a local engine it can mint its own test eCash:</p>
+<pre tabindex="0" data-lang="sh"><code class="language-sh">BELLOWS_URL=http://localhost:8787 DEMO_FAKE_MINT=1 pnpm demo:agent &quot;What is eCash?&quot;
+# 402 Payment Required: 7 cents (usd) from one of http://127.0.0.1:3338
+# Answer: ...
+# Charged: 1 cents
+# Change returned: 6 cents; ...</code></pre>
+<p>Set <code>CASHU_PUBKEY=generate</code> to lock the change to a fresh key for the run. Against a real engine, set <code>CASHU_TOKEN=cashuB...</code> to spend real eCash.</p>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="build-list-models.html"><span>Previous</span>List models</a>
+<a class="pager-next" rel="next" href="build-send-a-chat-request.html"><span>Next</span>Send a chat request</a>
+</nav>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/BUILD.md">docs/BUILD.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

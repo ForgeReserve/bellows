@@ -4,20 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bellows | An open AI gateway, paid with eCash</title>
-<meta name="description" content="Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request. A sealed deployment runs in a confidential VM that its operator cannot read.">
+<meta name="description" content="Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request. For developers who want AI in their apps with no accounts, and for anyone who wants to run one.">
 <meta name="theme-color" content="#0B0D10">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bellows">
 <meta property="og:title" content="Bellows | An open AI gateway, paid with eCash">
-<meta property="og:description" content="An open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request. Check its build, pay without an account, and send through a relay.">
+<meta property="og:description" content="Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request. For developers who want AI in their apps with no accounts, and for anyone who wants to run one.">
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Bellows | An open AI gateway, paid with eCash">
-<meta name="twitter:description" content="An open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request. Check its build, pay without an account, and send through a relay.">
+<meta name="twitter:description" content="Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request. For developers who want AI in their apps with no accounts, and for anyone who wants to run one.">
 <meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon.png">
@@ -28,301 +28,54 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="index.html" aria-current="page"><img src="assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <a class="brand" href="index.html" aria-label="Bellows home"><img src="assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
     <nav aria-label="Main">
       <ul class="nav">
-        <li><a href="docs/index.html">Docs</a></li>
-        <li><a href="docs/build.html">Build</a></li>
-        <li><a href="docs/operate.html">Run your own</a></li>
+        <li><a href="docs/index.html">Developers</a></li>
         <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
       </ul>
     </nav>
   </div>
 </header>
-
-<main id="main">
-  <div class="hero">
-    <div class="wrap hero-grid">
-      <div>
-        <p class="eyebrow">Open source, MIT licensed</p>
-        <h1>An open AI gateway, <span class="accent">paid with eCash.</span></h1>
-        <p class="lead">Bellows is an OpenAI-compatible AI gateway that takes Cashu eCash per request and forwards the request to AI models. Point any OpenAI client at it and pay with no account. Anyone can run one.</p>
-        <div class="actions">
-          <a class="button primary" href="docs/build.html">Build on it</a>
-          <a class="button secondary" href="docs/operate.html">Run your own</a>
-          <a class="button secondary" href="https://github.com/ForgeReserve/bellows">GitHub</a>
-        </div>
+<main id="main" data-moved="{&quot;guarantees&quot;:&quot;docs/overview.html&quot;,&quot;flow&quot;:&quot;docs/how-it-works.html&quot;,&quot;quickstart&quot;:&quot;docs/quickstart.html&quot;,&quot;reference-instance&quot;:&quot;docs/reference-instance.html&quot;,&quot;get-started&quot;:&quot;docs/index.html&quot;}">
+<div class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <h1>An open AI gateway, <span class="accent">paid with eCash.</span></h1>
+      <p class="lead">Bellows is an OpenAI-compatible AI gateway that takes Cashu eCash per request. It is for developers who want AI models in their apps and agents with no accounts, and for anyone who wants to run a gateway of their own.</p>
+      <div class="actions">
+        <a class="button primary" href="docs/index.html">Developers</a>
+        <a class="button secondary" href="https://github.com/ForgeReserve/bellows">GitHub</a>
       </div>
-      <div class="hero-mark">
-        <img src="assets/logo.svg" alt="The Bellows logo: a gold ring and a teal ring around a white lock" width="320" height="320">
-      </div>
+    </div>
+    <div class="hero-mark">
+      <img src="assets/logo.svg" alt="The Bellows logo: a gold ring and a teal ring around a white lock" width="280" height="280">
     </div>
   </div>
-
-  <section id="guarantees" aria-labelledby="guarantees-title">
-    <div class="wrap">
-      <h2 id="guarantees-title">What a sealed Bellows does for you</h2>
-      <p class="section-lead">A sealed deployment runs on Tinfoil Containers with the deploy kit in the repository. Each property below comes from a mechanism you can read and check. Each card says what stays visible.</p>
-      <div class="grid two">
-        <article class="card">
-          <h3><span class="dot gold" aria-hidden="true"></span>You can check the build</h3>
-          <p>At boot Bellows makes a key pair in memory and serves a hardware attestation that binds the key to the build it runs.</p>
-          <p class="how">Before it sends anything, a client checks that attestation and finds the build in the public <code>builds.json</code>. If the check fails, it sends nothing.</p>
-          <p class="limit"><strong>Limit.</strong> Whoever controls <code>builds.json</code> decides which builds clients trust. The operator approves releases in their own keyserver, the known weak point of version 1.</p>
-          <p class="more"><a href="docs/attestation.html">How attestation works</a></p>
-        </article>
-        <article class="card">
-          <h3><span class="dot white" aria-hidden="true"></span>The operator cannot read the words</h3>
-          <p>Requests, answers, balances, the wallet seed and the supplier keys exist in plaintext only inside the confidential VM.</p>
-          <p class="how">Clients encrypt each call to the attested key. The database sits on an encrypted volume whose key a keyserver releases only to an approved build.</p>
-          <p class="limit"><strong>Limit.</strong> The operator still sees aggregate totals, logs that hold no client data, and traffic timing and volume. A model's supplier sees the prompts of plaintext models.</p>
-          <p class="more"><a href="docs/threat-model.html">What each party can see</a></p>
-        </article>
-        <article class="card">
-          <h3><span class="dot gold" aria-hidden="true"></span>Pay with eCash, no account</h3>
-          <p>Pay each request with a Cashu token in a header and get the unused value back as change. Or top up a balance and use its key like an API key.</p>
-          <p class="how">Prices are set per million tokens. Balances stay in <code>usd</code> or <code>sat</code>, and you can withdraw what is left as eCash at any time.</p>
-          <p class="limit"><strong>Limit.</strong> Every request on one balance key is linkable to the others. The mint sees its own swaps.</p>
-          <p class="more"><a href="docs/payments.html">How payments work</a></p>
-        </article>
-        <article class="card">
-          <h3><span class="dot teal" aria-hidden="true"></span>A relay hides who is asking</h3>
-          <p>Send each call through an Oblivious HTTP relay. The relay sees your address and ciphertext. Bellows sees the request and the relay's address.</p>
-          <p class="how">Who is asking is hidden from the operator when you use a relay run by someone else, or Tor. Answers still stream.</p>
-          <p class="limit"><strong>Limit.</strong> A relay and a Bellows run by the same party hide nothing from that party. Without a relay or Tor, the operator's network sees client addresses.</p>
-          <p class="more"><a href="docs/ohttp.html">How Oblivious HTTP works</a></p>
-        </article>
-      </div>
-      <p class="note">Releases 0.1.0 to 0.1.2 were built and measured by the public release workflows, and the reference instance runs 0.1.2 sealed on Tinfoil Containers. A paid request, an Oblivious HTTP round trip and reading a balance back after a restart are covered by the test suite and local runs, and have not yet been run on sealed hardware. <a href="docs/operate.html#not-verified-on-sealed-hardware">Run your own</a> lists every step not yet checked there. A Bellows run outside the deploy kit, on your own server, does not seal anything: its operator can read requests in memory and its database.</p>
-    </div>
-  </section>
-
-  <section id="flow" aria-labelledby="flow-title">
-    <div class="wrap">
-      <h2 id="flow-title">How a request flows</h2>
-      <p class="section-lead">One chat request from an app, through a relay, to a sealed Bellows and on to the model.</p>
-      <figure class="flow">
-        <svg class="wide" viewBox="0 0 1040 400" role="img" aria-labelledby="flow-wide-title flow-wide-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
-          <title id="flow-wide-title">Request flow</title>
-          <desc id="flow-wide-desc">The app checks the attested identity of Bellows against builds.json, sends its request encrypted to the attested key through a relay, and Bellows takes eCash from a mint and calls the AI model.</desc>
-          <defs>
-            <marker id="arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3FCFB4"/></marker>
-            <marker id="arrow-gold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#E2B552"/></marker>
-            <marker id="arrow-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8E9097"/></marker>
-          </defs>
-          <!-- attestation check -->
-          <path d="M700 150 V70 H115 V164" fill="none" stroke="#E2B552" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#arrow-gold)"/>
-          <text x="382" y="58" fill="#E2B552" font-size="16" text-anchor="middle">1. check the attestation against builds.json</text>
-          <!-- nodes -->
-          <rect x="20" y="168" width="190" height="104" rx="14" fill="#12151A" stroke="#262B33" stroke-width="2"/>
-          <text x="115" y="212" fill="#F5F5F7" font-size="20" font-weight="700" text-anchor="middle">Your app</text>
-          <text x="115" y="240" fill="#8E9097" font-size="15" text-anchor="middle">chat app, agent, script</text>
-
-          <rect x="300" y="168" width="190" height="104" rx="14" fill="#12151A" stroke="#262B33" stroke-width="2"/>
-          <text x="395" y="212" fill="#F5F5F7" font-size="20" font-weight="700" text-anchor="middle">Relay</text>
-          <text x="395" y="240" fill="#8E9097" font-size="15" text-anchor="middle">run by someone else</text>
-
-          <rect x="560" y="150" width="190" height="140" rx="16" fill="#12151A" stroke="#3FCFB4" stroke-width="2"/>
-          <g transform="translate(626 160) scale(0.5)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"><circle cx="60" cy="60" r="52" stroke="#E2B552"/><circle cx="60" cy="60" r="39" stroke="#3FCFB4"/><rect x="45" y="56" width="30" height="24" rx="5" stroke="#F5F5F7"/><path d="M50 56v-7a10 10 0 0 1 20 0v7" stroke="#F5F5F7"/></g>
-          <text x="655" y="246" fill="#F5F5F7" font-size="20" font-weight="700" text-anchor="middle">Bellows</text>
-          <text x="655" y="272" fill="#8E9097" font-size="15" text-anchor="middle">confidential VM</text>
-
-          <rect x="830" y="168" width="190" height="104" rx="14" fill="#12151A" stroke="#262B33" stroke-width="2"/>
-          <text x="925" y="212" fill="#F5F5F7" font-size="20" font-weight="700" text-anchor="middle">AI model</text>
-          <text x="925" y="240" fill="#8E9097" font-size="15" text-anchor="middle">enclave or standard</text>
-
-          <rect x="830" y="40" width="190" height="72" rx="14" fill="#12151A" stroke="#E2B552" stroke-width="2"/>
-          <text x="925" y="72" fill="#F5F5F7" font-size="18" font-weight="700" text-anchor="middle">Cashu mint</text>
-          <text x="925" y="96" fill="#8E9097" font-size="15" text-anchor="middle">eCash</text>
-          <path d="M830 76 H780 V150" fill="none" stroke="#E2B552" stroke-width="2" marker-start="url(#arrow-gold)" marker-end="url(#arrow-gold)"/>
-          <text x="772" y="132" fill="#E2B552" font-size="15" text-anchor="end">4. swap</text>
-
-          <!-- request path -->
-          <path d="M210 220 H296" stroke="#3FCFB4" stroke-width="2.5" marker-end="url(#arrow-teal)"/>
-          <text x="253" y="205" fill="#3FCFB4" font-size="15" text-anchor="middle">2. sealed</text>
-          <path d="M490 220 H556" stroke="#3FCFB4" stroke-width="2.5" marker-end="url(#arrow-teal)"/>
-          <text x="523" y="205" fill="#3FCFB4" font-size="15" text-anchor="middle">3. sealed</text>
-          <path d="M750 220 H826" stroke="#8E9097" stroke-width="2.5" marker-end="url(#arrow-grey)"/>
-          <text x="788" y="205" fill="#8E9097" font-size="15" text-anchor="middle">5. call</text>
-
-          <!-- who sees what -->
-          <text x="395" y="312" fill="#FF6A55" font-size="15" text-anchor="middle">sees your address</text>
-          <text x="395" y="334" fill="#8E9097" font-size="15" text-anchor="middle">and ciphertext only</text>
-          <text x="655" y="320" fill="#FF6A55" font-size="15" text-anchor="middle">sees the relay's address</text>
-          <text x="655" y="342" fill="#8E9097" font-size="15" text-anchor="middle">and the request, inside the VM</text>
-          <text x="115" y="312" fill="#8E9097" font-size="15" text-anchor="middle">holds the balance key</text>
-          <text x="115" y="334" fill="#8E9097" font-size="15" text-anchor="middle">or the eCash</text>
-          <text x="520" y="388" fill="#8E9097" font-size="14" text-anchor="middle">The answer comes back the same way, sealed chunk by chunk as the model writes it.</text>
-        </svg>
-        <svg class="narrow" viewBox="0 0 360 720" role="img" aria-labelledby="flow-narrow-title flow-narrow-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
-          <title id="flow-narrow-title">Request flow</title>
-          <desc id="flow-narrow-desc">The app checks the attested identity of Bellows against builds.json, sends its request encrypted to the attested key through a relay, and Bellows takes eCash from a mint and calls the AI model.</desc>
-          <defs>
-            <marker id="n-arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3FCFB4"/></marker>
-            <marker id="n-arrow-gold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#E2B552"/></marker>
-            <marker id="n-arrow-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#8E9097"/></marker>
-          </defs>
-          <rect x="10" y="10" width="200" height="84" rx="14" fill="#12151A" stroke="#262B33" stroke-width="2"/>
-          <text x="110" y="46" fill="#F5F5F7" font-size="19" font-weight="700" text-anchor="middle">Your app</text>
-          <text x="110" y="72" fill="#8E9097" font-size="14" text-anchor="middle">chat app, agent, script</text>
-
-          <path d="M110 94 V196" stroke="#3FCFB4" stroke-width="2.5" marker-end="url(#n-arrow-teal)"/>
-          <text x="124" y="140" fill="#3FCFB4" font-size="14">2. sealed</text>
-
-          <rect x="10" y="200" width="200" height="84" rx="14" fill="#12151A" stroke="#262B33" stroke-width="2"/>
-          <text x="110" y="236" fill="#F5F5F7" font-size="19" font-weight="700" text-anchor="middle">Relay</text>
-          <text x="110" y="262" fill="#8E9097" font-size="14" text-anchor="middle">run by someone else</text>
-          <text x="222" y="236" fill="#FF6A55" font-size="14">sees your</text>
-          <text x="222" y="254" fill="#FF6A55" font-size="14">address and</text>
-          <text x="222" y="272" fill="#8E9097" font-size="14">ciphertext only</text>
-
-          <path d="M110 284 V376" stroke="#3FCFB4" stroke-width="2.5" marker-end="url(#n-arrow-teal)"/>
-          <text x="124" y="334" fill="#3FCFB4" font-size="14">3. sealed</text>
-
-          <rect x="10" y="380" width="200" height="124" rx="16" fill="#12151A" stroke="#3FCFB4" stroke-width="2"/>
-          <g transform="translate(86 390) scale(0.4)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"><circle cx="60" cy="60" r="52" stroke="#E2B552"/><circle cx="60" cy="60" r="39" stroke="#3FCFB4"/><rect x="45" y="56" width="30" height="24" rx="5" stroke="#F5F5F7"/><path d="M50 56v-7a10 10 0 0 1 20 0v7" stroke="#F5F5F7"/></g>
-          <text x="110" y="462" fill="#F5F5F7" font-size="19" font-weight="700" text-anchor="middle">Bellows</text>
-          <text x="110" y="486" fill="#8E9097" font-size="14" text-anchor="middle">confidential VM</text>
-
-          <rect x="240" y="400" width="110" height="84" rx="14" fill="#12151A" stroke="#E2B552" stroke-width="2"/>
-          <text x="295" y="436" fill="#F5F5F7" font-size="16" font-weight="700" text-anchor="middle">Cashu</text>
-          <text x="295" y="458" fill="#F5F5F7" font-size="16" font-weight="700" text-anchor="middle">mint</text>
-          <path d="M214 442 H236" stroke="#E2B552" stroke-width="2" marker-start="url(#n-arrow-gold)" marker-end="url(#n-arrow-gold)"/>
-          <text x="295" y="508" fill="#E2B552" font-size="14" text-anchor="middle">4. swap</text>
-
-          <text x="110" y="526" fill="#FF6A55" font-size="14" text-anchor="middle">sees the relay's address</text>
-          <text x="110" y="544" fill="#8E9097" font-size="14" text-anchor="middle">and the request, inside the VM</text>
-
-          <path d="M110 552 V620" stroke="#8E9097" stroke-width="2.5" marker-end="url(#n-arrow-grey)"/>
-          <text x="124" y="592" fill="#8E9097" font-size="14">5. call</text>
-
-          <rect x="10" y="624" width="200" height="84" rx="14" fill="#12151A" stroke="#262B33" stroke-width="2"/>
-          <text x="110" y="660" fill="#F5F5F7" font-size="19" font-weight="700" text-anchor="middle">AI model</text>
-          <text x="110" y="686" fill="#8E9097" font-size="14" text-anchor="middle">enclave or standard</text>
-
-          <path d="M190 380 V360 H340 V52 H218" fill="none" stroke="#E2B552" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#n-arrow-gold)"/>
-          <text x="226" y="114" fill="#E2B552" font-size="14">1. check the</text>
-          <text x="226" y="132" fill="#E2B552" font-size="14">attestation</text>
-          <text x="226" y="150" fill="#E2B552" font-size="14">against</text>
-          <text x="226" y="168" fill="#E2B552" font-size="14">builds.json</text>
-        </svg>
-        <figcaption>Teal: encrypted to the key Bellows attested. Gold: the attestation check and eCash. Red: what a party can see about you.</figcaption>
-      </figure>
-      <ol class="steps">
-        <li>Your app reads the engine's attested identity and checks the hardware attestation and the build against <code>builds.json</code>. If the check fails, it sends nothing.</li>
-        <li>It encrypts the API call to the attested key with Oblivious HTTP and posts it to a relay.</li>
-        <li>The relay forwards the ciphertext. It sees your address and cannot read the request.</li>
-        <li>Inside the confidential VM, Bellows opens the request and takes payment: a balance key, or a Cashu token it swaps at the mint.</li>
-        <li>Bellows calls the model, charges what the request used and streams the answer back the same way.</li>
-      </ol>
-    </div>
-  </section>
-
-  <section id="quickstart" aria-labelledby="quickstart-title">
-    <div class="wrap">
-      <h2 id="quickstart-title">Quickstart</h2>
-      <p class="section-lead">Every engine speaks the same API. List its models, open a balance with eCash, and send an OpenAI chat request with the balance key. Opening a balance needs a small proof of work; <a href="docs/build.html#open-a-balance">the guide</a> has the solver.</p>
-      <div class="grid two quick">
-        <div class="card">
-          <h3>Use a running engine</h3>
-          <p>With curl, against any Bellows.</p>
-<pre tabindex="0"><code>B=https://bellows.island-bitcoin.containers.tinfoil.dev
-curl -s $B/v1/models | jq '.data[].id'
-
-# open a balance with eCash from one of its mints
-curl -s $B/v1/wallet/topup \
-  -H 'content-type: application/json' \
-  -H "X-Bellows-Pow: $SOLUTION" \
-  -d '{"token": "cashuB..."}'
-
-curl -s $B/v1/chat/completions \
-  -H "authorization: Bearer $KEY" \
-  -H 'content-type: application/json' \
-  -d '{"model": "MODEL_ID", "messages":
-       [{"role": "user", "content": "Hello"}]}'</code></pre>
-        </div>
-        <div class="card">
-          <h3>Or any OpenAI client</h3>
-          <p>The balance key is the API key.</p>
-<pre tabindex="0"><code>from openai import OpenAI
-
-client = OpenAI(
-    base_url="https://bellows.island-bitcoin.containers.tinfoil.dev/v1",
-    api_key="sk-forge-...",
-)
-reply = client.chat.completions.create(
-    model="MODEL_ID",
-    messages=[{"role": "user", "content": "Hello"}],
-)
-print(reply.choices[0].message.content)</code></pre>
-          <p class="how" style="margin-top:12px">No balance? Pay one request at a time: send it with no key, read the <code>402</code>, and send it again with <code>X-Cashu: cashuB...</code>.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section id="reference-instance" aria-labelledby="instance-title">
-    <div class="wrap">
-      <div class="instance">
-        <div>
-          <h2 id="instance-title">Reference instance</h2>
-          <p>Release 0.1.2 runs sealed on Tinfoil Containers at this address. It takes real eCash. Check its build before you send it anything.</p>
-          <code class="addr">https://bellows.<wbr>island-bitcoin.<wbr>containers.<wbr>tinfoil.dev</code>
-        </div>
-        <div class="actions">
-          <a class="button secondary" href="docs/build.html#check-which-build-it-runs">Check its build</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section id="get-started" aria-labelledby="get-started-title">
-    <div class="wrap">
-      <h2 id="get-started-title">Get started</h2>
-      <div class="grid two">
-        <div class="card cta">
-          <h3>Build on it</h3>
-          <ul>
-            <li>Verify an engine with the client library</li>
-            <li>Pay per request, or from a prepaid balance</li>
-            <li>Stream answers, plain or through a relay</li>
-            <li>Examples in curl, JavaScript and Python</li>
-          </ul>
-          <div class="actions">
-            <a class="button primary" href="docs/build.html">Read the guide</a>
-            <a class="button secondary" href="docs/api.html">API reference</a>
-          </div>
-        </div>
-        <div class="card cta">
-          <h3>Run your own</h3>
-          <ul>
-            <li>Try it locally with test mints in a few minutes</li>
-            <li>Deploy it sealed on Tinfoil Containers with the deploy kit</li>
-            <li>Publish a signed operator announcement on Nostr</li>
-            <li>Read what each party can see before you start</li>
-          </ul>
-          <div class="actions">
-            <a class="button primary" href="docs/operate.html">Operator guide</a>
-            <a class="button secondary" href="https://github.com/ForgeReserve/bellows">Source on GitHub</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
+</div>
+<div class="wrap">
+  <ul class="points">
+    <li>
+      <h2><span class="dot gold" aria-hidden="true"></span>Pay with eCash</h2>
+      <p>Pay each request with a Cashu token, or top up a balance and use its key like an API key.</p>
+      <a href="docs/payments.html">How payments work</a>
+    </li>
+    <li>
+      <h2><span class="dot teal" aria-hidden="true"></span>Sealed and checkable</h2>
+      <p>On a sealed deployment the operator cannot read your prompts, and your app checks the build before it sends anything.</p>
+      <a href="docs/overview.html">What it hides, and its limits</a>
+    </li>
+    <li>
+      <h2><span class="dot white" aria-hidden="true"></span>Run your own</h2>
+      <p>MIT licensed. Anyone can run a Bellows, and apps can move a balance between operators.</p>
+      <a href="docs/operate.html">Operator guide</a>
+    </li>
+  </ul>
+</div>
 </main>
-
 <footer class="site-footer">
-  <div class="wrap footer-inner">
-    <div class="footer-brand"><img src="assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
-    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
-    <nav aria-label="Footer">
-      <ul>
-        <li><a href="docs/build.html">Build on Bellows</a></li>
-        <li><a href="docs/api.html">API reference</a></li>
-        <li><a href="docs/threat-model.html">Threat model</a></li>
-        <li><a href="docs/operate.html">Run your own</a></li>
-      </ul>
-    </nav>
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
   </div>
 </footer>
 </body>

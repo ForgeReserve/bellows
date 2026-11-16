@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bellows API | Bellows docs</title>
+<title>Bellows API | Bellows developers</title>
 <meta name="description" content="The client API, the operator API and the discovery format, with every path, header, field and error code.">
 <meta name="theme-color" content="#0B0D10">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bellows">
-<meta property="og:title" content="Bellows API | Bellows docs">
+<meta property="og:title" content="Bellows API | Bellows developers">
 <meta property="og:description" content="The client API, the operator API and the discovery format, with every path, header, field and error code.">
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Bellows API | Bellows docs">
+<meta name="twitter:title" content="Bellows API | Bellows developers">
 <meta name="twitter:description" content="The client API, the operator API and the discovery format, with every path, header, field and error code.">
 <meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
@@ -24,54 +24,60 @@
 <link rel="stylesheet" href="../assets/site.css">
 <script src="../assets/site.js" defer></script>
 </head>
-<body class="docs">
+<body class="developers">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
     <nav aria-label="Main">
       <ul class="nav">
-        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
-        <li><a href="../docs/build.html">Build</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
         <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
       </ul>
     </nav>
   </div>
 </header>
-<div class="wrap docs-layout">
-<nav class="docs-nav" aria-label="Docs">
-<details class="docs-menu" open>
-<summary>All docs</summary>
-<p class="nav-group">Build</p>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
 <ul>
 <li><a href="build.html">Build on Bellows</a></li>
-</ul>
-<p class="nav-group">Reference</p>
-<ul>
-<li><a href="api.html" aria-current="page">API reference</a>
-<ul class="toc"><li><a href="#conventions">Conventions</a></li><li><a href="#reaching-a-bellows">Reaching a Bellows</a></li><li><a href="#client-api">Client API</a></li><li><a href="#operator-api">Operator API</a></li><li><a href="#discovery-format">Discovery format</a></li><li><a href="#moving-an-existing-client-to-a-bellows">Moving an existing client to a Bellows</a></li></ul></li>
+<li><a href="api.html" aria-current="page">API reference</a></li>
 <li><a href="payments.html">Payments</a></li>
-<li><a href="attestation.html">Attestation</a></li>
 <li><a href="ohttp.html">Oblivious HTTP</a></li>
-<li><a href="privacy.html">Privacy</a></li>
-<li><a href="threat-model.html">Threat model</a></li>
 <li><a href="operators.html">Operators</a></li>
 </ul>
-<p class="nav-group">Run</p>
+<p class="side-group">Trust</p>
 <ul>
-<li><a href="operate.html">Run your own</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
 </ul>
-<p class="nav-group">On GitHub</p>
+<p class="side-group">Run your own</p>
 <ul>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+<li><a href="operate.html">Operator guide</a></li>
 </ul>
 </details>
 </nav>
-<main id="main" class="prose">
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Build on it</p>
+<article class="prose">
 <h1 id="bellows-api">Bellows API</h1>
+<p class="summary">The client API, the operator API and the discovery format, with every path, header, field and error code.</p>
+<nav class="on-this-page" aria-label="On this page">
+<p>On this page</p>
+<ul><li><a href="#conventions">Conventions</a></li><li><a href="#reaching-a-bellows">Reaching a Bellows</a></li><li><a href="#client-api">Client API</a></li><li><a href="#operator-api">Operator API</a></li><li><a href="#discovery-format">Discovery format</a></li><li><a href="#moving-an-existing-client-to-a-bellows">Moving an existing client to a Bellows</a></li></ul>
+</nav>
 <p>This is the reference for building on a Bellows without reading its code. It has three parts:</p>
 <ul>
 <li><strong>The client API</strong>: what an app or an agent calls to pay for and use AI models.</li>
@@ -436,21 +442,17 @@ data: {&quot;request_id&quot;:&quot;req_...&quot;,&quot;unit&quot;:&quot;usd&quo
 <li><strong>Oblivious HTTP, optional.</strong> Verify the Bellows with <code>verifyBellows</code> and send each call with <code>bellowsFetch(operator, path, init)</code> in place of <code>fetch(path, init)</code>. Paths, headers, bodies and answers stay the same, streaming included.</li>
 <li><strong>Encrypted chat.</strong> Point the EHBP client's base URL at <code>&lt;Bellows origin&gt;/v1/</code>. Sending EHBP through Oblivious HTTP needs an EHBP client that takes a custom <code>fetch</code>.</li>
 </ul>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="build-how-these-examples-were-checked.html"><span>Previous</span>How these examples were checked</a>
+<a class="pager-next" rel="next" href="payments.html"><span>Next</span>Payments</a>
+</nav>
 <p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/API.md">docs/API.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">
-  <div class="wrap footer-inner">
-    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
-    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
-    <nav aria-label="Footer">
-      <ul>
-        <li><a href="../docs/build.html">Build on Bellows</a></li>
-        <li><a href="../docs/api.html">API reference</a></li>
-        <li><a href="../docs/threat-model.html">Threat model</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
-      </ul>
-    </nav>
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
   </div>
 </footer>
 </body>

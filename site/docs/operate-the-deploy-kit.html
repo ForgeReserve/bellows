@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The deploy kit | Operator guide | Bellows</title>
+<meta name="description" content="The files that make a sealed deployment, and the rules pnpm deploy:check enforces.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="The deploy kit | Operator guide | Bellows">
+<meta property="og:description" content="The files that make a sealed deployment, and the rules pnpm deploy:check enforces.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The deploy kit | Operator guide | Bellows">
+<meta name="twitter:description" content="The files that make a sealed deployment, and the rules pnpm deploy:check enforces.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html" class="in-section">Operator guide</a>
+<ol class="side-parts"><li><a href="operate-the-deploy-kit.html" aria-current="page">The deploy kit</a></li><li><a href="operate-what-you-need.html">What you need</a></li><li><a href="operate-1-make-your-deploy-repository.html">1. Make your deploy repository</a></li><li><a href="operate-2-make-the-keys-offline.html">2. Make the keys, offline</a></li><li><a href="operate-3-run-your-keyserver.html">3. Run your keyserver</a></li><li><a href="operate-4-release.html">4. Release</a></li><li><a href="operate-5-approve-the-release-in-your-keyserver.html">5. Approve the release in your keyserver</a></li><li><a href="operate-6-create-the-volume-and-the-instance.html">6. Create the volume and the instance</a></li><li><a href="operate-7-check-it.html">7. Check it</a></li><li><a href="operate-onion-service.html">Onion service</a></li><li><a href="operate-oblivious-http-under-load.html">Oblivious HTTP under load</a></li><li><a href="operate-updating.html">Updating</a></li><li><a href="operate-backups-and-recovery.html">Backups and recovery</a></li><li><a href="operate-rehearse-locally.html">Rehearse locally</a></li><li><a href="operate-not-verified-on-sealed-hardware.html">Not verified on sealed hardware</a></li></ol></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Run your own <span aria-hidden="true">/</span> <a href="operate.html">Operator guide</a></p>
+<article class="prose">
+<h1 id="the-deploy-kit">The deploy kit</h1>
+<p class="summary">The files that make a sealed deployment, and the rules pnpm deploy:check enforces.</p>
+
+<div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
+<thead><tr><th scope="col">File</th><th scope="col">What it is</th></tr></thead>
+<tbody>
+<tr><td><code>tinfoil-config.yml</code></td><td>Your deployment, the file Tinfoil measures: the Bellows container, its encrypted volume, its egress allowlist, the secrets it asks your keyserver for, and the paths it serves. It starts as a copy of <code>deploy/tinfoil-config.example.yml</code></td></tr>
+<tr><td><code>deploy/tinfoil-config.example.yml</code></td><td>The template for <code>tinfoil-config.yml</code>. Leave it as it is; the tests check the templates</td></tr>
+<tr><td><code>deploy/tinfoil-config.onion.example.yml</code></td><td>The template with a Tor onion service as a sidecar (<a href="operate-onion-service.html#onion-service">Onion service</a>)</td></tr>
+<tr><td><code>Dockerfile</code></td><td>The Bellows image: base pinned by digest, non-root, read-only root file system, no package manager</td></tr>
+<tr><td><code>deploy/tor/</code></td><td>The Tor sidecar image</td></tr>
+<tr><td><code>deploy/keyserver/policy.example.yaml</code>, <code>store.example.json</code></td><td>Example policy and file store for your keyserver</td></tr>
+<tr><td><code>.github/workflows/tinfoil-release.yml</code>, <code>tinfoil-release-publish.yml</code></td><td>The release: build and push the images, pin their digests, tag, measure, and propose the build for <code>builds.json</code></td></tr>
+<tr><td><code>pnpm deploy:check [--release]</code></td><td>Checks a config against the rules below</td></tr>
+<tr><td><code>pnpm deploy:pin</code>, <code>pnpm builds:add</code></td><td>The release workflow's steps, for running by hand</td></tr>
+</tbody>
+</table></div>
+<p>The rules <code>pnpm deploy:check</code> enforces, and why:</p>
+<ul>
+<li><strong>Only the <code>bellows</code> container has <code>attestation: true</code>.</strong> Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key (<a href="attestation.html">Attestation</a>). A Tor sidecar or any other container runs without it.</li>
+<li><strong>Secrets come from your keyserver, and only Bellows gets them.</strong> <code>keyserver-url</code> is required. Secrets are never <code>env</code> values and never Tinfoil-managed secrets, which Tinfoil's infrastructure can read. No container other than <code>bellows</code> lists <code>secrets</code>.</li>
+<li><strong>The database is on the encrypted volume.</strong> Bellows runs sealed (<code>BELLOWS_MODE=sealed</code>), the database path is under a mount listed in <code>BELLOWS_SEALED_MOUNTS</code>, that mount is a persistent volume, and every volume has a <code>key-secret</code> so it unlocks at boot with a key only your keyserver releases. A volume belongs to one container: no other container mounts Bellows' volume.</li>
+<li><strong>Every setting is measured.</strong> Every <code>env</code> entry is a literal in the measured file. A bare name, whose value would come from an unmeasured instance variable, is refused.</li>
+<li><strong>Nobody gets in.</strong> No <code>cvm_admin</code>, no <code>ports</code>, no <code>cvm-network</code>, no capabilities, no root user, and <code>read_only: true</code> on every container, so no writable root file system.</li>
+<li><strong>Bellows reaches only what it needs.</strong> Its egress network is an allowlist: your mints, the suppliers in <code>config/models.json</code>, the price sources and the Nostr relays for mint discovery. The test suite checks that the allowlist covers every host the config uses.</li>
+<li><strong>Requests reach Bellows only</strong>, on the paths it serves.</li>
+<li><strong>For a release</strong>, <code>--release</code> also refuses example values and an image digest that is still a placeholder.</li>
+</ul>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="operate.html"><span>Previous</span>Operator guide</a>
+<a class="pager-next" rel="next" href="operate-what-you-need.html"><span>Next</span>What you need</a>
+</nav>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OPERATE.md">docs/OPERATE.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

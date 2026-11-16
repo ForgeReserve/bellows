@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4. Release | Operator guide | Bellows</title>
+<meta name="description" content="Build, pin, tag and measure a release, and propose it for builds.json.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="4. Release | Operator guide | Bellows">
+<meta property="og:description" content="Build, pin, tag and measure a release, and propose it for builds.json.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="4. Release | Operator guide | Bellows">
+<meta name="twitter:description" content="Build, pin, tag and measure a release, and propose it for builds.json.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html" class="in-section">Operator guide</a>
+<ol class="side-parts"><li><a href="operate-the-deploy-kit.html">The deploy kit</a></li><li><a href="operate-what-you-need.html">What you need</a></li><li><a href="operate-1-make-your-deploy-repository.html">1. Make your deploy repository</a></li><li><a href="operate-2-make-the-keys-offline.html">2. Make the keys, offline</a></li><li><a href="operate-3-run-your-keyserver.html">3. Run your keyserver</a></li><li><a href="operate-4-release.html" aria-current="page">4. Release</a></li><li><a href="operate-5-approve-the-release-in-your-keyserver.html">5. Approve the release in your keyserver</a></li><li><a href="operate-6-create-the-volume-and-the-instance.html">6. Create the volume and the instance</a></li><li><a href="operate-7-check-it.html">7. Check it</a></li><li><a href="operate-onion-service.html">Onion service</a></li><li><a href="operate-oblivious-http-under-load.html">Oblivious HTTP under load</a></li><li><a href="operate-updating.html">Updating</a></li><li><a href="operate-backups-and-recovery.html">Backups and recovery</a></li><li><a href="operate-rehearse-locally.html">Rehearse locally</a></li><li><a href="operate-not-verified-on-sealed-hardware.html">Not verified on sealed hardware</a></li></ol></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Run your own <span aria-hidden="true">/</span> <a href="operate.html">Operator guide</a></p>
+<article class="prose">
+<h1 id="4-release">4. Release</h1>
+<p class="summary">Build, pin, tag and measure a release, and propose it for builds.json.</p>
+
+<p>Set <code>version</code> in <code>package.json</code>, commit, and run the <strong>Tinfoil Release</strong> workflow (Actions tab, or <code>tinfoil repo build run &lt;owner&gt;/&lt;repo&gt; --version v1.0.0</code>) with <code>v</code> and that version. It:</p>
+<ol>
+<li>type-checks and tests the code, including the end-to-end suite against local mints;</li>
+<li>builds and pushes the Bellows and Tor images to GitHub's container registry, with timestamps from the release commit;</li>
+<li>pins their digests into <code>tinfoil-config.yml</code>, the file Tinfoil measures: the <code>bellows</code> image, and the <code>tor</code> image when your config has the onion service (<code>pnpm deploy:pin tinfoil-config.yml bellows=&lt;image&gt; tor=&lt;image&gt;</code>). It then runs <code>pnpm deploy:check --release</code>, which refuses any container left with a placeholder digest;</li>
+<li>commits the pinned config, tags that commit and pushes the tag;</li>
+<li>starts <strong>Tinfoil Release - Publish</strong>, which measures the tagged config with Tinfoil's measure action. That action signs the measurement into the Sigstore transparency log and publishes a GitHub release with <code>tinfoil-deployment.json</code>;</li>
+<li>adds the build to <code>builds.json</code> (<code>pnpm builds:add</code>) and opens a pull request.</li>
+</ol>
+<p>Review that pull request. The entry names the version, the image digest, the measurement (<code>https://tinfoil.sh/predicate/snp-tdx-multiplatform/v1</code>: the SEV-SNP launch measurement, then TDX RTMR1 and RTMR2) and the deployment (<code>&lt;owner&gt;/&lt;repo&gt;@v1.0.0</code>). Check the measurement against <code>tinfoil-deployment.json</code> in the GitHub release and its Sigstore entry, read <code>tinfoil-config.yml</code> at the tag, and merge.</p>
+<p>Clients accept the build only once it is in the <code>builds.json</code> they trust. A Tinfoil measurement covers the whole measured config, and each operator's config differs (its keyserver, its mints), so each operator deployment is its own entry. To be listed in the public Bellows <code>builds.json</code>, open a pull request there with the same entry.</p>
+<h2 id="if-a-step-fails">If a step fails<a class="anchor" href="#if-a-step-fails" aria-hidden="true" tabindex="-1">#</a></h2>
+<ul>
+<li><strong>Tinfoil Release failed before it pushed the tag.</strong> Nothing was published. Fix the cause and run it again with the same version.</li>
+<li><strong>The tag exists, and Tinfoil Release - Publish never started or failed before the GitHub release <code>v&lt;version&gt;</code> exists.</strong> Tinfoil Release refuses an existing tag, so start Publish on the tag yourself:
+<pre tabindex="0" data-lang="sh"><code class="language-sh">gh workflow run tinfoil-release-publish.yml --ref v&lt;version&gt;</code></pre></li>
+<li><strong>The GitHub release <code>v&lt;version&gt;</code> exists, and there is no builds pull request.</strong> The measure action refuses to publish a release twice, so do not run Publish again. Make the pull request by hand from the published measurement:
+<pre tabindex="0" data-lang="sh"><code class="language-sh">git switch -c builds/v&lt;version&gt; origin/&lt;default branch&gt;
+gh release download v&lt;version&gt; --pattern tinfoil-deployment.json --dir /tmp/bellows-release
+pnpm builds:add --deployment-file /tmp/bellows-release/tinfoil-deployment.json \
+  --version &lt;version&gt; --deployment &lt;owner&gt;/&lt;repo&gt;@v&lt;version&gt;
+pnpm builds:check
+git commit -am &quot;builds: approve v&lt;version&gt;&quot; &amp;&amp; git push origin builds/v&lt;version&gt;
+gh pr create --title &quot;builds: approve v&lt;version&gt;&quot; --fill</code></pre>
+<p>Review it as above before merging.</p></li>
+</ul>
+<p>The workflows have run on GitHub for releases 0.1.0, 0.1.1 and 0.1.2, and Tinfoil's measure action measured each one. The measurements in <code>builds.json</code> match the <code>tinfoil-deployment.json</code> of each GitHub release. For 0.1.0 the publish run failed at its last step, opening the pull request, and the entry was added from the published measurement. NOT VERIFIED: the image build has not been checked for reproducibility.</p>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="operate-3-run-your-keyserver.html"><span>Previous</span>3. Run your keyserver</a>
+<a class="pager-next" rel="next" href="operate-5-approve-the-release-in-your-keyserver.html"><span>Next</span>5. Approve the release in your keyserver</a>
+</nav>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OPERATE.md">docs/OPERATE.md</a> in the repository.</p>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

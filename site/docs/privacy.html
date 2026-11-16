@@ -3,20 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Privacy | Bellows docs</title>
+<title>Privacy | Bellows developers</title>
 <meta name="description" content="What the gateway can see, per model tier, and what it never stores or logs.">
 <meta name="theme-color" content="#0B0D10">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bellows">
-<meta property="og:title" content="Privacy | Bellows docs">
+<meta property="og:title" content="Privacy | Bellows developers">
 <meta property="og:description" content="What the gateway can see, per model tier, and what it never stores or logs.">
 <meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Privacy | Bellows docs">
+<meta name="twitter:title" content="Privacy | Bellows developers">
 <meta name="twitter:description" content="What the gateway can see, per model tier, and what it never stores or logs.">
 <meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
 <link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
@@ -24,54 +24,60 @@
 <link rel="stylesheet" href="../assets/site.css">
 <script src="../assets/site.js" defer></script>
 </head>
-<body class="docs">
+<body class="developers">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
     <nav aria-label="Main">
       <ul class="nav">
-        <li><a href="../docs/index.html" aria-current="page">Docs</a></li>
-        <li><a href="../docs/build.html">Build</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
         <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
       </ul>
     </nav>
   </div>
 </header>
-<div class="wrap docs-layout">
-<nav class="docs-nav" aria-label="Docs">
-<details class="docs-menu" open>
-<summary>All docs</summary>
-<p class="nav-group">Build</p>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
 <ul>
 <li><a href="build.html">Build on Bellows</a></li>
-</ul>
-<p class="nav-group">Reference</p>
-<ul>
 <li><a href="api.html">API reference</a></li>
 <li><a href="payments.html">Payments</a></li>
-<li><a href="attestation.html">Attestation</a></li>
 <li><a href="ohttp.html">Oblivious HTTP</a></li>
-<li><a href="privacy.html" aria-current="page">Privacy</a>
-<ul class="toc"><li><a href="#never-stored-or-logged-any-tier">Never stored or logged, any tier</a></li><li><a href="#per-tier">Per tier</a></li><li><a href="#funding">Funding</a></li><li><a href="#encrypted-pass-through-tinfoil-ehbp">Encrypted pass-through (Tinfoil EHBP)</a></li><li><a href="#client-apps">Client apps</a></li></ul></li>
-<li><a href="threat-model.html">Threat model</a></li>
 <li><a href="operators.html">Operators</a></li>
 </ul>
-<p class="nav-group">Run</p>
+<p class="side-group">Trust</p>
 <ul>
-<li><a href="operate.html">Run your own</a></li>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html" aria-current="page">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
 </ul>
-<p class="nav-group">On GitHub</p>
+<p class="side-group">Run your own</p>
 <ul>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/README.md">README</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md">Design</a></li>
-<li><a href="https://github.com/ForgeReserve/bellows/blob/main/docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
+<li><a href="operate.html">Operator guide</a></li>
 </ul>
 </details>
 </nav>
-<main id="main" class="prose">
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Trust</p>
+<article class="prose">
 <h1 id="privacy">Privacy</h1>
+<p class="summary">What the gateway can see, per model tier, and what it never stores or logs.</p>
+<nav class="on-this-page" aria-label="On this page">
+<p>On this page</p>
+<ul><li><a href="#never-stored-or-logged-any-tier">Never stored or logged, any tier</a></li><li><a href="#per-tier">Per tier</a></li><li><a href="#funding">Funding</a></li><li><a href="#encrypted-pass-through-tinfoil-ehbp">Encrypted pass-through (Tinfoil EHBP)</a></li><li><a href="#client-apps">Client apps</a></li></ul>
+</nav>
 <p>What the gateway can see depends on the tier and on whether the client encrypts.</p>
 <h2 id="never-stored-or-logged-any-tier">Never stored or logged, any tier<a class="anchor" href="#never-stored-or-logged-any-tier" aria-hidden="true" tabindex="-1">#</a></h2>
 <ul>
@@ -116,21 +122,17 @@
 <h2 id="client-apps">Client apps<a class="anchor" href="#client-apps" aria-hidden="true" tabindex="-1">#</a></h2>
 <p>Bellows serves no web page. A client app (a chat app, an agent, a script) runs on the user's device and talks to the API. What it stores, and what it sends, is up to that app.</p>
 <p>File attachments are the client's job too. An app reads a file on the device and sends its text inside the message, for example as a <code>&lt;file name=&quot;report.pdf&quot; pages=&quot;12&quot;&gt;...&lt;/file&gt;</code> block. To Bellows that is message content like any other: relayed in memory (or, encrypted, never readable), never logged or stored. <code>test/e2e/files-privacy.e2e.test.ts</code> checks the logs and the database for file text on both the plaintext and the encrypted path.</p>
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="attestation.html"><span>Previous</span>Attestation</a>
+<a class="pager-next" rel="next" href="threat-model.html"><span>Next</span>Threat model</a>
+</nav>
 <p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/PRIVACY.md">docs/PRIVACY.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">
-  <div class="wrap footer-inner">
-    <div class="footer-brand"><img src="../assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
-    <p>Open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source, issues and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
-    <nav aria-label="Footer">
-      <ul>
-        <li><a href="../docs/build.html">Build on Bellows</a></li>
-        <li><a href="../docs/api.html">API reference</a></li>
-        <li><a href="../docs/threat-model.html">Threat model</a></li>
-        <li><a href="../docs/operate.html">Run your own</a></li>
-      </ul>
-    </nav>
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
   </div>
 </footer>
 </body>

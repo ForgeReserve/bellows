@@ -1,12 +1,14 @@
 /**
- * Builds the docs pages of the static site from the repository's Markdown docs, and copies the brand files
- * the site uses. No network, no dependencies beyond Node.
+ * Builds the static site: the landing page, the 404 page and the Developers pages, and copies the brand
+ * files the site uses. No network, no dependencies beyond Node.
  *
- *   node scripts/build-site.ts           # write site/docs/*.html and site/assets/<brand files>
+ *   node scripts/build-site.ts           # write site/index.html, site/404.html, site/docs/*.html, brand files
  *   node scripts/build-site.ts --check   # exit 1 when any of them is missing or out of date
  *
- * The landing page (site/index.html), site/assets/site.css and site/assets/site.js are written by hand.
- * test/unit/site.test.ts runs the check, so `pnpm test` fails when the generated pages are stale.
+ * Sources: the repository's Markdown docs (docs/*.md) and the hand-written page bodies in
+ * scripts/site-pages/. The Markdown stays the source of truth; long guides are split into one page per
+ * top-level section here, never in the Markdown. site/assets/site.css and site/assets/site.js are written by
+ * hand. test/unit/site.test.ts runs the check, so `pnpm test` fails when the generated pages are stale.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -15,32 +17,107 @@ import { fileURLToPath } from 'node:url';
 export const REPO_URL = 'https://github.com/ForgeReserve/bellows';
 const BLOB = `${REPO_URL}/blob/main/`;
 const TREE = `${REPO_URL}/tree/main/`;
+/** The link-preview image. Absolute, because some preview services need that (site/README.md). */
+export const PREVIEW_IMAGE = 'https://bellows.forgereserve.org/assets/social-preview.png';
 
-export interface DocPage {
-  /** The Markdown file in docs/. */
-  file: string;
-  /** The page's file name in site/docs/, without .html. */
+export type Group = 'Start' | 'Build on it' | 'Trust' | 'Run your own';
+
+export interface PageDef {
+  /** The page's file name in site/docs/, without .html. Parts of a split doc get `<slug>-<heading id>`. */
   slug: string;
-  /** The label in the docs navigation. */
+  /** The label in the Developers navigation and index. */
   label: string;
-  /** One sentence for the description meta tag and the docs index. */
-  description: string;
-  /** The navigation group. */
-  group: 'Build' | 'Reference' | 'Run';
+  group: Group;
+  /** One line: the Developers index entry, the summary at the top of the page and its description tag. */
+  summary: string;
+  /** The Markdown source in docs/. */
+  md?: string;
+  /** The hand-written body in scripts/site-pages/. */
+  html?: string;
+  /**
+   * Split the doc into one page per top-level (##) section, with a summary for each, keyed by heading id.
+   * The doc's own page keeps the text before the first section and lists the parts.
+   */
+  parts?: Readonly<Record<string, string>>;
 }
 
-/** The docs the site renders, in navigation order. Links to any other .md file go to GitHub. */
-export const DOCS: readonly DocPage[] = [
-  { file: 'BUILD.md', slug: 'build', label: 'Build on Bellows', group: 'Build', description: 'Use a running Bellows from an app, an agent or a script: verify it, pay with eCash, chat, stream and go through Oblivious HTTP.' },
-  { file: 'API.md', slug: 'api', label: 'API reference', group: 'Reference', description: 'The client API, the operator API and the discovery format, with every path, header, field and error code.' },
-  { file: 'PAYMENTS.md', slug: 'payments', label: 'Payments', group: 'Reference', description: 'How Bellows takes, holds and returns eCash, and what happens when something fails halfway.' },
-  { file: 'ATTESTATION.md', slug: 'attestation', label: 'Attestation', group: 'Reference', description: 'How a client checks which build a Bellows runs before it sends anything.' },
-  { file: 'OHTTP.md', slug: 'ohttp', label: 'Oblivious HTTP', group: 'Reference', description: 'Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.' },
-  { file: 'PRIVACY.md', slug: 'privacy', label: 'Privacy', group: 'Reference', description: 'What the gateway can see, per model tier, and what it never stores or logs.' },
-  { file: 'THREAT-MODEL.md', slug: 'threat-model', label: 'Threat model', group: 'Reference', description: 'What each party can see and do in a sealed deployment, what the design assumes and where it is weak.' },
-  { file: 'OPERATORS.md', slug: 'operators', label: 'Operators', group: 'Reference', description: 'Operator announcements, choosing among many operators and moving a balance from one to another.' },
-  { file: 'OPERATE.md', slug: 'operate', label: 'Run your own', group: 'Run', description: 'Run a Bellows on Tinfoil Containers, step by step, so that its operator cannot read it.' },
+export const GROUPS: readonly { name: Group; line: string }[] = [
+  { name: 'Start', line: 'What Bellows is, how a request flows, and a first request.' },
+  { name: 'Build on it', line: 'Use an engine from your app, agent or script.' },
+  { name: 'Trust', line: 'Check what an engine runs and what each party can see.' },
+  { name: 'Run your own', line: 'Operate a Bellows, sealed on Tinfoil Containers.' },
 ];
+
+/** The Developers pages, in reading order. Links to any other .md file go to GitHub. */
+export const PAGES: readonly PageDef[] = [
+  { slug: 'overview', label: 'What Bellows is', group: 'Start', html: 'overview.html', summary: 'What Bellows is, and what a sealed deployment hides from its operator, with the limits of each.' },
+  { slug: 'how-it-works', label: 'How a request flows', group: 'Start', html: 'how-it-works.html', summary: 'One request from your app, through a relay, to a sealed Bellows and on to the model.' },
+  { slug: 'quickstart', label: 'Quickstart', group: 'Start', html: 'quickstart.html', summary: 'List models, open a balance and send a chat request, with curl or any OpenAI client.' },
+  { slug: 'reference-instance', label: 'Reference instance', group: 'Start', html: 'reference-instance.html', summary: 'The public Bellows on Tinfoil Containers: its address, what it answers and what has run there.' },
+  {
+    slug: 'build',
+    label: 'Build on Bellows',
+    group: 'Build on it',
+    md: 'BUILD.md',
+    summary: 'The guide: verify an engine, pay with eCash, chat, stream and go through Oblivious HTTP, with examples in curl, JavaScript and Python.',
+    parts: {
+      'pick-an-engine': 'Use the reference instance, or start a local engine with test mints while you build.',
+      'check-which-build-it-runs': 'Read the attested identity, and verify it with verifyBellows before you send anything.',
+      'list-models': 'Read the models, prices, mints and units an engine offers.',
+      'pay-for-requests': 'Open a balance with eCash or Lightning, or pay each request with a token in a header.',
+      'send-a-chat-request': 'Send an OpenAI chat request with curl, JavaScript or any OpenAI client, and read what it cost.',
+      'stream-an-answer': 'Stream the answer, and read the event that settles the request at the end.',
+      'send-through-oblivious-http': 'Send each call through a relay with bellowsFetch, so who is asking is hidden from the operator when someone else runs the relay.',
+      'handle-errors': 'The error shape, and what to do about the codes an app meets most.',
+      'read-the-balance-and-take-it-back': 'Read the balance, and withdraw what is left as an eCash token.',
+      'use-the-client-library': 'What the client library in client/ exports, and how to bring it into your app.',
+      'run-your-own-engine': 'Where to go next to run an engine of your own.',
+      'how-these-examples-were-checked': 'Which examples in this guide were run, against what, and which were not.',
+    },
+  },
+  { slug: 'api', label: 'API reference', group: 'Build on it', md: 'API.md', summary: 'The client API, the operator API and the discovery format, with every path, header, field and error code.' },
+  { slug: 'payments', label: 'Payments', group: 'Build on it', md: 'PAYMENTS.md', summary: 'How Bellows takes, holds and returns eCash, and what happens when something fails halfway.' },
+  { slug: 'ohttp', label: 'Oblivious HTTP', group: 'Build on it', md: 'OHTTP.md', summary: 'Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.' },
+  { slug: 'operators', label: 'Operators', group: 'Build on it', md: 'OPERATORS.md', summary: 'Operator announcements on Nostr, choosing among many operators, and moving a balance from one to another.' },
+  { slug: 'attestation', label: 'Attestation', group: 'Trust', md: 'ATTESTATION.md', summary: 'How a client checks which build a Bellows runs before it sends anything.' },
+  { slug: 'privacy', label: 'Privacy', group: 'Trust', md: 'PRIVACY.md', summary: 'What the gateway can see, per model tier, and what it never stores or logs.' },
+  { slug: 'threat-model', label: 'Threat model', group: 'Trust', md: 'THREAT-MODEL.md', summary: 'What each party can see and do in a sealed deployment, what the design assumes and where it is weak.' },
+  {
+    slug: 'operate',
+    label: 'Operator guide',
+    group: 'Run your own',
+    md: 'OPERATE.md',
+    summary: 'Run a Bellows on Tinfoil Containers, step by step, so that its operator cannot read the requests, the answers, the balances or the keys.',
+    parts: {
+      'the-deploy-kit': 'The files that make a sealed deployment, and the rules pnpm deploy:check enforces.',
+      'what-you-need': 'The accounts, servers, keys and rate cards to have ready before you start.',
+      '1-make-your-deploy-repository': 'Copy the repository, edit tinfoil-config.yml and check it.',
+      '2-make-the-keys-offline': 'Make the volume key, the wallet secret and the admin token on an offline machine, and back them up.',
+      '3-run-your-keyserver': 'Run the keyserver that releases your secrets only to an approved build.',
+      '4-release': 'Build, pin, tag and measure a release, and propose it for builds.json.',
+      '5-approve-the-release-in-your-keyserver': 'Approve the release in your keyserver and sign your operator announcement.',
+      '6-create-the-volume-and-the-instance': 'Create the encrypted volume and the instance on Tinfoil.',
+      '7-check-it': 'Check the health, the attested identity, the models and the admin API.',
+      'onion-service': 'Add a Tor onion service as a sidecar.',
+      'oblivious-http-under-load': 'How the gateway bounds anonymous encapsulated requests, and how to tune it.',
+      updating: 'Roll a new release out to a running instance.',
+      'backups-and-recovery': 'What protects the money when there is no database export.',
+      'rehearse-locally': 'Run the image the way Tinfoil runs it, on your own machine.',
+      'not-verified-on-sealed-hardware': 'The steps that have not yet been checked on sealed hardware.',
+    },
+  },
+];
+
+/** Extra entries on the Developers index that point into other pages. */
+export const INDEX_LINKS: readonly { group: Group; label: string; href: string; summary: string }[] = [
+  { group: 'Run your own', label: 'Try it locally', href: 'build-pick-an-engine.html', summary: 'Start an engine with test mints on your own machine.' },
+  { group: 'Run your own', label: 'Rehearse a sealed deployment', href: 'operate-rehearse-locally.html', summary: 'Run the image the way Tinfoil runs it, before you deploy.' },
+  { group: 'Run your own', label: 'Not verified on sealed hardware', href: 'operate-not-verified-on-sealed-hardware.html', summary: 'What has not yet been checked on sealed hardware.' },
+];
+
+const MD_PAGES = PAGES.filter((p) => p.md);
+/** Kept for the tests and for older callers: the pages made from Markdown. */
+export const DOCS = MD_PAGES;
 
 /** Brand files copied into site/assets, by their name there. */
 export const BRAND_ASSETS: Readonly<Record<string, string>> = {
@@ -50,7 +127,10 @@ export const BRAND_ASSETS: Readonly<Record<string, string>> = {
   'social-preview.png': 'docs/brand/social-preview.png',
 };
 
-const SITE_DESCRIPTION = 'Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request and forwards the request to AI models.';
+/** Where each heading of each Markdown doc ends up: doc file, heading id, page file in site/docs/. */
+const anchors = new Map<string, Map<string, string>>();
+/** The page being rendered, for links within a doc that is split over several pages. */
+let linkContext: { doc: PageDef; page: string } | null = null;
 
 // ---------------------------------------------------------------------------------------------------------
 // Markdown: the subset the docs use (headings, paragraphs, nested lists, tables, fenced code, inline code,
@@ -77,15 +157,27 @@ function plainText(md: string): string {
     .replace(/\*\*([^*]*)\*\*/g, '$1');
 }
 
-/** Rewrites a link written for the repository into one that works on the site (pages in site/docs/). */
-export function rewriteHref(href: string, from: 'docs' | 'root' = 'docs'): string {
-  if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('#')) return href;
+/**
+ * Rewrites a link written for the repository (in docs/*.md) into one that works on the site, from a page in
+ * site/docs/. A link to a rendered doc goes to the page that holds the heading it names, which matters for
+ * docs split into one page per section. Links to any other file in the repository go to GitHub.
+ */
+export function rewriteHref(href: string): string {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return href;
+  if (href.startsWith('#')) {
+    const doc = linkContext?.doc;
+    const at = doc?.md ? anchors.get(doc.md)?.get(href.slice(1)) : undefined;
+    return at && at !== linkContext?.page ? `${at}${href}` : href;
+  }
   const [path, hash] = href.split('#', 2) as [string, string | undefined];
   const anchor = hash !== undefined ? `#${hash}` : '';
   // Resolve against the docs/ directory of the repository.
   const repoPath = join('docs', path).replace(/\\/g, '/');
-  const doc = DOCS.find((d) => `docs/${d.file}` === repoPath);
-  if (doc) return (from === 'docs' ? `${doc.slug}.html` : `docs/${doc.slug}.html`) + anchor;
+  const doc = MD_PAGES.find((d) => `docs/${d.md}` === repoPath);
+  if (doc) {
+    const at = hash !== undefined ? anchors.get(doc.md!)?.get(hash) : undefined;
+    return (at ?? `${doc.slug}.html`) + anchor;
+  }
   const normalized = repoPath.replace(/^docs\/\.\.\//, '').replace(/\/+$/, '');
   if (href.endsWith('/')) return `${TREE}${normalized}/${anchor}`;
   return `${BLOB}${normalized}${anchor}`;
@@ -101,7 +193,7 @@ function inline(md: string): string {
   s = escapeHtml(s);
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, text: string, href: string) => {
     // A link whose text is the file name of a rendered doc reads better as the doc's name on the site.
-    const named = DOCS.find((d) => d.file === text);
+    const named = MD_PAGES.find((d) => d.md === text);
     return `<a href="${escapeHtml(rewriteHref(href))}">${named ? escapeHtml(named.label) : text}</a>`;
   });
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
@@ -118,6 +210,8 @@ export interface Heading {
 interface RenderState {
   ids: Map<string, number>;
   headings: Heading[];
+  /** Levels to take off every heading: 1 on a page made from one section, whose ## becomes the page's h1. */
+  shift: number;
 }
 
 const FENCE = /^(\s*)(`{3,})([\w-]*)\s*$/;
@@ -184,7 +278,7 @@ function renderBlocks(lines: readonly string[], state: RenderState): string {
     }
     const heading = HEADING.exec(line);
     if (heading) {
-      const level = heading[1]!.length;
+      const level = Math.max(1, heading[1]!.length - state.shift);
       const base = slugify(plainText(heading[2]!));
       const seen = state.ids.get(base) ?? 0;
       state.ids.set(base, seen + 1);
@@ -267,37 +361,108 @@ function renderBlocks(lines: readonly string[], state: RenderState): string {
 }
 
 export function renderMarkdown(md: string): { html: string; headings: Heading[] } {
-  const state: RenderState = { ids: new Map(), headings: [] };
+  const state: RenderState = { ids: new Map(), headings: [], shift: 0 };
   const html = renderBlocks(md.replace(/\r\n/g, '\n').split('\n'), state);
   return { html, headings: state.headings };
 }
 
 // ---------------------------------------------------------------------------------------------------------
-// Pages
+// Splitting a doc into one page per top-level section
 
-function head(opts: { title: string; description: string; prefix: string; path: string }): string {
+interface Chunk {
+  /** The heading id of the section, or null for the text before the first section. */
+  id: string | null;
+  lines: string[];
+}
+
+/** Splits Markdown at each `## ` heading outside code. */
+function chunks(md: string): Chunk[] {
+  const out: Chunk[] = [{ id: null, lines: [] }];
+  let fence: string | null = null;
+  const ids = new Map<string, number>();
+  for (const line of md.replace(/\r\n/g, '\n').split('\n')) {
+    const f = FENCE.exec(line);
+    if (f) fence = fence === null ? f[2]! : line.trim().startsWith(fence) ? null : fence;
+    const h = fence === null && !f ? HEADING.exec(line) : null;
+    if (h) {
+      // The same ids renderBlocks gives, counted over the whole doc.
+      const base = slugify(plainText(h[2]!));
+      const seen = ids.get(base) ?? 0;
+      ids.set(base, seen + 1);
+      if (h[1]!.length === 2) out.push({ id: seen ? `${base}-${seen}` : base, lines: [] });
+    }
+    out[out.length - 1]!.lines.push(line);
+  }
+  return out;
+}
+
+interface Page {
+  /** File name in site/docs/. */
+  file: string;
+  def: PageDef;
+  /** The section, for a part of a split doc. */
+  part?: { id: string; title: string; summary: string };
+}
+
+function partPages(root: string, def: PageDef): Page[] {
+  if (!def.md || !def.parts) return [];
+  const md = readFileSync(join(root, 'docs', def.md), 'utf8');
+  return chunks(md)
+    .filter((c): c is Chunk & { id: string } => c.id !== null)
+    .map((c) => {
+      const summary = def.parts![c.id];
+      if (!summary) throw new Error(`docs/${def.md}: no summary for the section #${c.id} in PAGES`);
+      return { file: `${def.slug}-${c.id}.html`, def, part: { id: c.id, title: plainText(c.lines[0]!.replace(/^##\s+/, '')), summary } };
+    });
+}
+
+/** Every Developers page in reading order, parts after the page of their doc. */
+function allPages(root: string): Page[] {
+  return PAGES.flatMap((def) => [{ file: `${def.slug}.html`, def }, ...partPages(root, def)]);
+}
+
+/** Fills `anchors`: which page each heading of each Markdown doc is on. */
+function mapAnchors(root: string): void {
+  anchors.clear();
+  for (const def of MD_PAGES) {
+    const map = new Map<string, string>();
+    const state: RenderState = { ids: new Map(), headings: [], shift: 0 };
+    for (const c of chunks(readFileSync(join(root, 'docs', def.md!), 'utf8'))) {
+      const from = state.headings.length;
+      renderBlocks(c.lines, state);
+      const file = def.parts && c.id ? `${def.slug}-${c.id}.html` : `${def.slug}.html`;
+      for (const h of state.headings.slice(from)) map.set(h.id, file);
+    }
+    anchors.set(def.md!, map);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------
+// Page parts
+
+function head(opts: { title: string; description: string; prefix: string; base?: string; noindex?: boolean }): string {
   const { title, description, prefix } = opts;
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)}</title>
+${opts.base ? `<!-- Served for any missing path, so links resolve from the site root. -->\n<base href="${opts.base}">\n` : ''}<title>${escapeHtml(title)}</title>
 <meta name="description" content="${escapeHtml(description)}">
-<meta name="theme-color" content="#0B0D10">
+${opts.noindex ? '<meta name="robots" content="noindex">\n' : ''}<meta name="theme-color" content="#0B0D10">
 <meta name="color-scheme" content="dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bellows">
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(description)}">
-<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image" content="${PREVIEW_IMAGE}">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${escapeHtml(title)}">
 <meta name="twitter:description" content="${escapeHtml(description)}">
-<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta name="twitter:image" content="${PREVIEW_IMAGE}">
 <link rel="icon" href="${prefix}assets/logo.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="${prefix}assets/icon.png">
 <link rel="stylesheet" href="${prefix}assets/site.css">
@@ -305,17 +470,15 @@ function head(opts: { title: string; description: string; prefix: string; path: 
 </head>`;
 }
 
-function header(prefix: string, current: 'home' | 'docs' | 'build' | 'operate'): string {
-  const cur = (k: string) => (k === current ? ' aria-current="page"' : '');
+/** The header of every page: the logo, which links home, and two menu items. */
+export function header(prefix: string, inDevelopers: boolean): string {
   return `<a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="brand" href="${prefix}index.html"><img src="${prefix}assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <a class="brand" href="${prefix}index.html" aria-label="Bellows home"><img src="${prefix}assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
     <nav aria-label="Main">
       <ul class="nav">
-        <li><a href="${prefix}docs/index.html"${cur('docs')}>Docs</a></li>
-        <li><a href="${prefix}docs/build.html"${cur('build')}>Build</a></li>
-        <li><a href="${prefix}docs/operate.html"${cur('operate')}>Run your own</a></li>
+        <li><a href="${prefix}docs/index.html"${inDevelopers ? ' aria-current="true"' : ''}>Developers</a></li>
         <li><a href="${REPO_URL}">GitHub</a></li>
       </ul>
     </nav>
@@ -323,90 +486,202 @@ function header(prefix: string, current: 'home' | 'docs' | 'build' | 'operate'):
 </header>`;
 }
 
-export function footer(prefix: string): string {
+export function footer(): string {
   return `<footer class="site-footer">
-  <div class="wrap footer-inner">
-    <div class="footer-brand"><img src="${prefix}assets/logo.svg" alt="" width="28" height="28"><span>Bellows</span></div>
-    <p>Open source under the <a href="${BLOB}LICENSE">MIT licence</a>. Source, issues and releases on <a href="${REPO_URL}">GitHub</a>.</p>
-    <nav aria-label="Footer">
-      <ul>
-        <li><a href="${prefix}docs/build.html">Build on Bellows</a></li>
-        <li><a href="${prefix}docs/api.html">API reference</a></li>
-        <li><a href="${prefix}docs/threat-model.html">Threat model</a></li>
-        <li><a href="${prefix}docs/operate.html">Run your own</a></li>
-      </ul>
-    </nav>
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="${BLOB}LICENSE">MIT licence</a>. Source and releases on <a href="${REPO_URL}">GitHub</a>.</p>
   </div>
 </footer>`;
 }
 
-function docsNav(current: DocPage | null, headings: readonly Heading[]): string {
-  const groups = ['Build', 'Reference', 'Run'] as const;
-  const parts = groups.map((g) => {
-    const items = DOCS.filter((d) => d.group === g)
+function sideNav(pages: readonly Page[], current: Page): string {
+  const groups = GROUPS.map(({ name }) => {
+    const items = PAGES.filter((d) => d.group === name)
       .map((d) => {
-        const here = current?.slug === d.slug;
-        const toc = here && headings.some((h) => h.level === 2)
-          ? `\n<ul class="toc">${headings
-              .filter((h) => h.level === 2)
-              .map((h) => `<li><a href="#${h.id}">${h.html.replace(/<a class="anchor"[^>]*>#<\/a>/, '')}</a></li>`)
-              .join('')}</ul>`
+        const here = current.def.slug === d.slug;
+        const own = here && !current.part;
+        const parts = here && d.parts
+          ? `\n<ol class="side-parts">${pages
+              .filter((p) => p.def === d && p.part)
+              .map((p) => `<li><a href="${p.file}"${p.file === current.file ? ' aria-current="page"' : ''}>${escapeHtml(p.part!.title)}</a></li>`)
+              .join('')}</ol>`
           : '';
-        return `<li><a href="${d.slug}.html"${here ? ' aria-current="page"' : ''}>${escapeHtml(d.label)}</a>${toc}</li>`;
+        return `<li><a href="${d.slug}.html"${own ? ' aria-current="page"' : here ? ' class="in-section"' : ''}>${escapeHtml(d.label)}</a>${parts}</li>`;
       })
       .join('\n');
-    return `<p class="nav-group">${g}</p>\n<ul>\n${items}\n</ul>`;
+    return `<p class="side-group">${name}</p>\n<ul>\n${items}\n</ul>`;
   });
-  return `<nav class="docs-nav" aria-label="Docs">
-<details class="docs-menu" open>
-<summary>All docs</summary>
-${parts.join('\n')}
-<p class="nav-group">On GitHub</p>
-<ul>
-<li><a href="${BLOB}README.md">README</a></li>
-<li><a href="${BLOB}docs/DESIGN.md">Design</a></li>
-<li><a href="${BLOB}docs/MIGRATE-FROM-FORGE-AI.md">Migrating</a></li>
-</ul>
+  return `<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+${groups.join('\n')}
 </details>
 </nav>`;
 }
 
-function docPage(root: string, doc: DocPage): string {
-  const md = readFileSync(join(root, 'docs', doc.file), 'utf8');
-  const { html, headings } = renderMarkdown(md);
-  const h1 = headings.find((h) => h.level === 1);
-  const title = `${h1 ? plainText(md.split('\n').find((l) => l.startsWith('# '))!.slice(2)) : doc.label} | Bellows docs`;
-  return `${head({ title, description: doc.description, prefix: '../', path: `docs/${doc.slug}.html` })}
-<body class="docs">
-${header('../', doc.slug === 'build' ? 'build' : doc.slug === 'operate' ? 'operate' : 'docs')}
-<div class="wrap docs-layout">
-${docsNav(doc, headings)}
-<main id="main" class="prose">
-${html}
-<p class="source">This page is <a href="${BLOB}docs/${doc.file}">docs/${doc.file}</a> in the repository.</p>
-</main>
+/** The h2 headings of a page body, for its "On this page" list. */
+function sectionsOf(html: string): { id: string; html: string }[] {
+  return [...html.matchAll(/<h2 id="([^"]+)">([\s\S]*?)<\/h2>/g)].map((m) => ({ id: m[1]!, html: m[2]!.replace(/<a class="anchor"[^>]*>#<\/a>/, '') }));
+}
+
+function onThisPage(sections: readonly { id: string; html: string }[]): string {
+  if (sections.length < 2) return '';
+  return `<nav class="on-this-page" aria-label="On this page">
+<p>On this page</p>
+<ul>${sections.map((s) => `<li><a href="#${s.id}">${s.html}</a></li>`).join('')}</ul>
+</nav>`;
+}
+
+function pageTitle(p: Page): string {
+  return p.part ? p.part.title : p.def.label;
+}
+
+function pager(pages: readonly Page[], current: Page): string {
+  const i = pages.indexOf(current);
+  const prev = pages[i - 1];
+  const next = pages[i + 1];
+  const link = (p: Page | undefined, rel: 'prev' | 'next') =>
+    p
+      ? `<a class="pager-${rel}" rel="${rel}" href="${p.file}"><span>${rel === 'prev' ? 'Previous' : 'Next'}</span>${escapeHtml(pageTitle(p))}</a>`
+      : '<span></span>';
+  return `<nav class="pager" aria-label="Previous and next page">
+${link(prev, 'prev')}
+${link(next, 'next')}
+</nav>`;
+}
+
+/** The body of one Developers page, before the summary and the "On this page" list go in after its h1. */
+function body(root: string, pages: readonly Page[], p: Page): { html: string; moved?: Record<string, string> } {
+  if (p.def.html) return { html: readFileSync(join(root, 'scripts', 'site-pages', p.def.html), 'utf8') };
+  const md = readFileSync(join(root, 'docs', p.def.md!), 'utf8');
+  linkContext = { doc: p.def, page: p.file };
+  try {
+    if (!p.def.parts) return { html: renderMarkdown(md).html };
+    // A split doc: render every chunk with one id counter, keep the one this page shows.
+    const state: RenderState = { ids: new Map(), headings: [], shift: 0 };
+    let html = '';
+    for (const c of chunks(md)) {
+      state.shift = c.id ? 1 : 0;
+      const out = renderBlocks(c.lines, state);
+      if ((p.part && c.id === p.part.id) || (!p.part && c.id === null)) html = out;
+    }
+    if (p.part) return { html };
+    const parts = pages.filter((q) => q.def === p.def && q.part);
+    const list = `<h2 id="in-this-guide">In this guide</h2>
+<ol class="parts">
+${parts.map((q) => `<li><a href="${q.file}">${escapeHtml(q.part!.title)}</a><span>${escapeHtml(q.part!.summary)}</span></li>`).join('\n')}
+</ol>`;
+    // Anchors that moved to a part page, so old links to this page still land (site.js follows them).
+    const moved: Record<string, string> = {};
+    for (const [id, file] of anchors.get(p.def.md!) ?? []) if (file !== p.file) moved[id] = file;
+    return { html: `${html}\n${list}`, moved };
+  } finally {
+    linkContext = null;
+  }
+}
+
+function developerPage(root: string, pages: readonly Page[], p: Page): string {
+  const { html, moved } = body(root, pages, p);
+  const summary = p.part ? p.part.summary : p.def.summary;
+  const sections = p.def.parts && !p.part ? [] : sectionsOf(html);
+  const h1End = html.indexOf('</h1>');
+  if (h1End < 0) throw new Error(`${p.file}: no h1`);
+  const top = `\n<p class="summary">${escapeHtml(summary)}</p>\n${onThisPage(sections)}`;
+  const article = html.slice(0, h1End + 5) + top + html.slice(h1End + 5);
+  const h1Text = html.slice(html.indexOf('<h1'), h1End).replace(/<[^>]+>/g, '').replace(/#$/, '');
+  const title = p.part ? `${h1Text} | ${p.def.label} | Bellows` : `${h1Text} | Bellows developers`;
+  const crumbs = [`<a href="index.html">Developers</a>`, escapeHtml(p.def.group)];
+  if (p.part) crumbs.push(`<a href="${p.def.slug}.html">${escapeHtml(p.def.label)}</a>`);
+  const source = p.def.md
+    ? `<p class="source">${p.part ? 'This page is a section of' : 'This page is'} <a href="${BLOB}docs/${p.def.md}">docs/${p.def.md}</a> in the repository.</p>\n`
+    : '';
+  const movedAttr = moved && Object.keys(moved).length ? ` data-moved="${escapeHtml(JSON.stringify(moved))}"` : '';
+  return `${head({ title, description: summary, prefix: '../' })}
+<body class="developers">
+${header('../', true)}
+<div class="wrap dev-layout">
+${sideNav(pages, p)}
+<main id="main" class="dev-main"${movedAttr}>
+<p class="crumbs">${crumbs.join(' <span aria-hidden="true">/</span> ')}</p>
+<article class="prose">
+${article}
+</article>
+${pager(pages, p)}
+${source}</main>
 </div>
-${footer('../')}
+${footer()}
 </body>
 </html>
 `;
 }
 
-function docsIndex(): string {
-  const cards = DOCS.map(
-    (d) => `<li class="card"><h2><a href="${d.slug}.html">${escapeHtml(d.label)}</a></h2><p>${escapeHtml(d.description)}</p></li>`,
-  ).join('\n');
-  return `${head({ title: 'Docs | Bellows', description: 'The Bellows docs: build an app on a Bellows, the API, payments, attestation, Oblivious HTTP, privacy, the threat model and running your own.', prefix: '../', path: 'docs/index.html' })}
-<body class="docs">
-${header('../', 'docs')}
-<main id="main" class="wrap docs-index">
-<h1>Docs</h1>
-<p class="lead">Start with <a href="build.html">Build on Bellows</a> to use a running engine, or <a href="operate.html">Run your own</a> to operate one. The reference pages describe each part in full.</p>
-<ul class="cards">
-${cards}
+function developersHome(pages: readonly Page[]): string {
+  const groups = GROUPS.map(({ name, line }) => {
+    const entries = [
+      ...PAGES.filter((d) => d.group === name).map((d) => ({ href: `${d.slug}.html`, label: d.label, summary: d.summary })),
+      ...INDEX_LINKS.filter((l) => l.group === name),
+    ];
+    const id = slugify(name);
+    return `<section class="dev-group" aria-labelledby="${id}">
+<h2 id="${id}">${escapeHtml(name)}</h2>
+<p class="group-line">${escapeHtml(line)}</p>
+<ul class="entries">
+${entries.map((e) => `<li><a href="${e.href}">${escapeHtml(e.label)}</a><span>${escapeHtml(e.summary)}</span></li>`).join('\n')}
 </ul>
+</section>`;
+  }).join('\n');
+  void pages;
+  return `${head({ title: 'Developers | Bellows', description: 'Build an app on a Bellows, check what it runs, or run your own: guides and references, grouped by what you want to do.', prefix: '../' })}
+<body class="developers">
+${header('../', true)}
+<main id="main" class="wrap dev-home">
+<h1>Developers</h1>
+<p class="lead">Guides and references for Bellows, grouped by what you want to do. New here? Start with <a href="overview.html">What Bellows is</a>, then the <a href="quickstart.html">Quickstart</a>.</p>
+<div class="dev-groups">
+${groups}
+</div>
 </main>
-${footer('../')}
+${footer()}
+</body>
+</html>
+`;
+}
+
+/** Sections the landing page had before it was cut down, and the pages that now hold them (site.js follows these). */
+const LANDING_MOVED: Readonly<Record<string, string>> = {
+  guarantees: 'docs/overview.html',
+  flow: 'docs/how-it-works.html',
+  quickstart: 'docs/quickstart.html',
+  'reference-instance': 'docs/reference-instance.html',
+  'get-started': 'docs/index.html',
+};
+
+function landing(root: string): string {
+  return `${head({
+    title: 'Bellows | An open AI gateway, paid with eCash',
+    description: 'Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request. For developers who want AI in their apps with no accounts, and for anyone who wants to run one.',
+    prefix: '',
+  })}
+<body class="home">
+${header('', false)}
+<main id="main" data-moved="${escapeHtml(JSON.stringify(LANDING_MOVED))}">
+${readFileSync(join(root, 'scripts', 'site-pages', 'index.html'), 'utf8').trimEnd()}
+</main>
+${footer()}
+</body>
+</html>
+`;
+}
+
+function notFound(root: string): string {
+  return `${head({ title: 'Page not found | Bellows', description: 'This page does not exist on the Bellows site. The home page and the Developers pages are linked below.', prefix: '', base: '/', noindex: true })}
+<body class="not-found-page">
+${header('', false).replace('<a class="skip" href="#main">Skip to content</a>\n', '')}
+<main id="main">
+${readFileSync(join(root, 'scripts', 'site-pages', '404.html'), 'utf8').trimEnd()}
+</main>
+${footer()}
 </body>
 </html>
 `;
@@ -414,9 +689,13 @@ ${footer('../')}
 
 /** Every generated file, by its path under site/. */
 export function renderSite(root: string): Map<string, Buffer> {
+  mapAnchors(root);
+  const pages = allPages(root);
   const out = new Map<string, Buffer>();
-  for (const doc of DOCS) out.set(`docs/${doc.slug}.html`, Buffer.from(docPage(root, doc)));
-  out.set('docs/index.html', Buffer.from(docsIndex()));
+  out.set('index.html', Buffer.from(landing(root)));
+  out.set('404.html', Buffer.from(notFound(root)));
+  out.set('docs/index.html', Buffer.from(developersHome(pages)));
+  for (const p of pages) out.set(`docs/${p.file}`, Buffer.from(developerPage(root, pages, p)));
   for (const [name, src] of Object.entries(BRAND_ASSETS)) out.set(`assets/${name}`, readFileSync(join(root, src)));
   return out;
 }
@@ -435,8 +714,6 @@ export function staleFiles(root: string): string[] {
   return stale;
 }
 
-export { SITE_DESCRIPTION };
-
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
   if (process.argv.includes('--check')) {
@@ -447,11 +724,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     }
     console.log('site is up to date');
   } else {
-    for (const [rel, content] of renderSite(root)) {
+    const files = renderSite(root);
+    for (const [rel, content] of files) {
       const p = join(root, 'site', rel);
       mkdirSync(dirname(p), { recursive: true });
       writeFileSync(p, content);
     }
-    console.log(`wrote ${renderSite(root).size} files under site/`);
+    console.log(`wrote ${files.size} files under site/`);
   }
 }

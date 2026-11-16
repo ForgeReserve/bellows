@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference instance | Bellows developers</title>
+<meta name="description" content="The public Bellows on Tinfoil Containers: its address, what it answers and what has run there.">
+<meta name="theme-color" content="#0B0D10">
+<meta name="color-scheme" content="dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bellows">
+<meta property="og:title" content="Reference instance | Bellows developers">
+<meta property="og:description" content="The public Bellows on Tinfoil Containers: its address, what it answers and what has run there.">
+<meta property="og:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="The Bellows logo, a gold ring and a teal ring around a white lock, beside the words: An open AI gateway, paid with eCash.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Reference instance | Bellows developers">
+<meta name="twitter:description" content="The public Bellows on Tinfoil Containers: its address, what it answers and what has run there.">
+<meta name="twitter:image" content="https://bellows.forgereserve.org/assets/social-preview.png">
+<link rel="icon" href="../assets/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+<script src="../assets/site.js" defer></script>
+</head>
+<body class="developers">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="../index.html" aria-label="Bellows home"><img src="../assets/logo.svg" alt="" width="32" height="32"><span>Bellows</span></a>
+    <nav aria-label="Main">
+      <ul class="nav">
+        <li><a href="../docs/index.html" aria-current="true">Developers</a></li>
+        <li><a href="https://github.com/ForgeReserve/bellows">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<div class="wrap dev-layout">
+<nav class="side" aria-label="Developers">
+<details class="side-menu" open>
+<summary>Developers menu</summary>
+<p class="side-home"><a href="index.html">Developers home</a></p>
+<p class="side-group">Start</p>
+<ul>
+<li><a href="overview.html">What Bellows is</a></li>
+<li><a href="how-it-works.html">How a request flows</a></li>
+<li><a href="quickstart.html">Quickstart</a></li>
+<li><a href="reference-instance.html" aria-current="page">Reference instance</a></li>
+</ul>
+<p class="side-group">Build on it</p>
+<ul>
+<li><a href="build.html">Build on Bellows</a></li>
+<li><a href="api.html">API reference</a></li>
+<li><a href="payments.html">Payments</a></li>
+<li><a href="ohttp.html">Oblivious HTTP</a></li>
+<li><a href="operators.html">Operators</a></li>
+</ul>
+<p class="side-group">Trust</p>
+<ul>
+<li><a href="attestation.html">Attestation</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+<li><a href="threat-model.html">Threat model</a></li>
+</ul>
+<p class="side-group">Run your own</p>
+<ul>
+<li><a href="operate.html">Operator guide</a></li>
+</ul>
+</details>
+</nav>
+<main id="main" class="dev-main">
+<p class="crumbs"><a href="index.html">Developers</a> <span aria-hidden="true">/</span> Start</p>
+<article class="prose">
+<h1 id="reference-instance">Reference instance</h1>
+<p class="summary">The public Bellows on Tinfoil Containers: its address, what it answers and what has run there.</p>
+<nav class="on-this-page" aria-label="On this page">
+<p>On this page</p>
+<ul><li><a href="#what-it-answers">What it answers</a></li><li><a href="#what-has-run-there">What has run there</a></li><li><a href="#use-it">Use it</a></li></ul>
+</nav>
+<p>Release 0.1.2 runs sealed on Tinfoil Containers at this address. It takes real eCash. Check its build before you send it anything.</p>
+<p><code class="addr">https://bellows.<wbr>island-bitcoin.<wbr>containers.<wbr>tinfoil.dev</code></p>
+<h2 id="what-it-answers">What it answers</h2>
+<p>Its public routes need no payment:</p>
+<pre tabindex="0"><code>B=https://bellows.island-bitcoin.containers.tinfoil.dev
+curl -s $B/healthz                 # liveness and the BTC/USD rate in use
+curl -s $B/v1/models | jq '{units, mints, ids: [.data[].id]}'
+curl -s $B/ohttp-keys | tail -c +3 | base64     # its Oblivious HTTP key</code></pre>
+<p>The models, prices and mints it offers can change. Read them from <code>/v1/models</code> each time.</p>
+<h2 id="what-has-run-there">What has run there</h2>
+<ul>
+<li>Releases 0.1.0, 0.1.1 and 0.1.2 were built and measured by the public release workflows, and each is listed in <code>builds.json</code>.</li>
+<li><code>/healthz</code>, <code>/v1/models</code> and <code>/ohttp-keys</code> answer.</li>
+<li>A paid request, an Oblivious HTTP round trip and reading a balance back after a restart are covered by the test suite and local runs. They have not yet been run on sealed hardware.</li>
+</ul>
+<p><a href="operate-not-verified-on-sealed-hardware.html">Not verified on sealed hardware</a> lists every step that has not been checked there.</p>
+<h2 id="use-it">Use it</h2>
+<ul>
+<li><a href="build-check-which-build-it-runs.html">Check which build it runs</a> before you send it a token.</li>
+<li><a href="quickstart.html">Quickstart</a> opens a balance and sends a chat request.</li>
+<li>To run your own instance, follow the <a href="operate.html">operator guide</a>.</li>
+</ul>
+
+</article>
+<nav class="pager" aria-label="Previous and next page">
+<a class="pager-prev" rel="prev" href="quickstart.html"><span>Previous</span>Quickstart</a>
+<a class="pager-next" rel="next" href="build.html"><span>Next</span>Build on Bellows</a>
+</nav>
+</main>
+</div>
+<footer class="site-footer">
+  <div class="wrap">
+    <p>Bellows is open source under the <a href="https://github.com/ForgeReserve/bellows/blob/main/LICENSE">MIT licence</a>. Source and releases on <a href="https://github.com/ForgeReserve/bellows">GitHub</a>.</p>
+  </div>
+</footer>
+</body>
+</html>

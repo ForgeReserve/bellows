@@ -1,0 +1,23 @@
+<h1 id="reference-instance">Reference instance</h1>
+<p>Release 0.1.2 runs sealed on Tinfoil Containers at this address. It takes real eCash. Check its build before you send it anything.</p>
+<p><code class="addr">https://bellows.<wbr>island-bitcoin.<wbr>containers.<wbr>tinfoil.dev</code></p>
+<h2 id="what-it-answers">What it answers</h2>
+<p>Its public routes need no payment:</p>
+<pre tabindex="0"><code>B=https://bellows.island-bitcoin.containers.tinfoil.dev
+curl -s $B/healthz                 # liveness and the BTC/USD rate in use
+curl -s $B/v1/models | jq '{units, mints, ids: [.data[].id]}'
+curl -s $B/ohttp-keys | tail -c +3 | base64     # its Oblivious HTTP key</code></pre>
+<p>The models, prices and mints it offers can change. Read them from <code>/v1/models</code> each time.</p>
+<h2 id="what-has-run-there">What has run there</h2>
+<ul>
+<li>Releases 0.1.0, 0.1.1 and 0.1.2 were built and measured by the public release workflows, and each is listed in <code>builds.json</code>.</li>
+<li><code>/healthz</code>, <code>/v1/models</code> and <code>/ohttp-keys</code> answer.</li>
+<li>A paid request, an Oblivious HTTP round trip and reading a balance back after a restart are covered by the test suite and local runs. They have not yet been run on sealed hardware.</li>
+</ul>
+<p><a href="operate-not-verified-on-sealed-hardware.html">Not verified on sealed hardware</a> lists every step that has not been checked there.</p>
+<h2 id="use-it">Use it</h2>
+<ul>
+<li><a href="build-check-which-build-it-runs.html">Check which build it runs</a> before you send it a token.</li>
+<li><a href="quickstart.html">Quickstart</a> opens a balance and sends a chat request.</li>
+<li>To run your own instance, follow the <a href="operate.html">operator guide</a>.</li>
+</ul>

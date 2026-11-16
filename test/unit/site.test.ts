@@ -6,7 +6,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { DOCS, renderMarkdown, rewriteHref, slugify, staleFiles } from '../../scripts/build-site.ts';
+import { PAGES, renderMarkdown, renderSite, rewriteHref, slugify, staleFiles } from '../../scripts/build-site.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SITE = join(ROOT, 'site');
@@ -23,6 +23,8 @@ const rel = (p: string) => relative(SITE, p).split('\\').join('/');
 const read = (p: string) => readFileSync(p, 'utf8');
 /** The link-preview image, absolute because some preview services need that (site/README.md). */
 const PREVIEW = 'https://bellows.forgereserve.org/assets/social-preview.png';
+/** The most words the landing page may hold, header and footer included. */
+const LANDING_WORD_LIMIT = 160;
 const isExternal = (url: string) => /^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith('//');
 
 function ids(html: string): Set<string> {
@@ -44,14 +46,66 @@ function references(html: string): { attr: string; url: string; tag: string }[] 
 }
 
 describe('site', () => {
-  it('has generated docs pages that match docs/*.md (run pnpm site:build after editing a doc)', () => {
+  it('has generated pages that match their sources (run pnpm site:build after editing a doc)', () => {
     expect(staleFiles(ROOT)).toEqual([]);
   });
 
-  it('renders every doc it lists, from an existing Markdown file', () => {
-    for (const d of DOCS) {
-      expect(existsSync(join(ROOT, 'docs', d.file)), d.file).toBe(true);
+  it('renders every page it lists, from an existing source', () => {
+    for (const d of PAGES) {
+      const source = d.md ? join(ROOT, 'docs', d.md) : join(ROOT, 'scripts', 'site-pages', d.html!);
+      expect(existsSync(source), source).toBe(true);
       expect(existsSync(join(SITE, 'docs', `${d.slug}.html`)), d.slug).toBe(true);
+    }
+  });
+
+  it('keeps every page the site published before the Developers section, so old links still land', () => {
+    for (const old of ['index.html', '404.html', 'docs/index.html', ...['build', 'api', 'payments', 'attestation', 'ohttp', 'privacy', 'threat-model', 'operators', 'operate'].map((s) => `docs/${s}.html`)]) {
+      expect(existsSync(join(SITE, old)), old).toBe(true);
+    }
+    // Headings that moved to a section page are followed there by site.js, from the map on the old page.
+    for (const [page, id, to] of [
+      ['build.html', 'open-a-balance', 'build-pay-for-requests.html'],
+      ['build.html', 'check-which-build-it-runs', 'build-check-which-build-it-runs.html'],
+      ['operate.html', 'not-verified-on-sealed-hardware', 'operate-not-verified-on-sealed-hardware.html'],
+      ['operate.html', '4-release', 'operate-4-release.html'],
+    ] as const) {
+      const html = read(join(SITE, 'docs', page));
+      const map = JSON.parse(html.match(/data-moved="([^"]+)"/)![1]!.replace(/&quot;/g, '"').replace(/&amp;/g, '&')) as Record<string, string>;
+      expect(map[id], `${page}#${id}`).toBe(to);
+      expect(ids(read(join(SITE, 'docs', to))).has(id), `${to}#${id}`).toBe(true);
+    }
+  });
+
+  it('has the logo and exactly two menu items, Developers and GitHub, in the header of every page', () => {
+    for (const page of pages) {
+      const html = read(page);
+      const headerHtml = html.match(/<header class="site-header">([\s\S]*?)<\/header>/)?.[1];
+      expect(headerHtml, rel(page)).toBeDefined();
+      const items = [...headerHtml!.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => m[1]!.replace(/<[^>]+>/g, '').trim());
+      expect(items, rel(page)).toEqual(['Developers', 'GitHub']);
+      expect(headerHtml, rel(page)).toMatch(/<a class="brand" href="[^"]*index\.html"[^>]*><img src="[^"]*assets\/logo\.svg"/);
+      expect([...headerHtml!.matchAll(/<a\b/g)], rel(page)).toHaveLength(3);
+    }
+  });
+
+  it('keeps the landing page short', () => {
+    // The landing page says what Bellows is and links to the detail. This limit keeps it from growing back.
+    const html = read(join(SITE, 'index.html'));
+    const text = html.slice(html.indexOf('<body')).replace(/<script[\s\S]*?<\/script>/g, '').replace(/<[^>]+>/g, ' ');
+    const words = text.split(/\s+/).filter((w) => /[A-Za-z0-9]/.test(w));
+    expect(words.length).toBeLessThanOrEqual(LANDING_WORD_LIMIT);
+    expect(html).not.toMatch(/<pre\b/);
+    expect(html.match(/<li>/g)?.length ?? 0).toBeLessThanOrEqual(2 + 3); // two menu items, at most three points
+  });
+
+  it('gives every Developers page a summary, a way back and a way on', () => {
+    for (const page of pages.filter((p) => rel(p).startsWith('docs/') && rel(p) !== 'docs/index.html')) {
+      const html = read(page);
+      expect(html, rel(page)).toMatch(/<\/h1>\n<p class="summary">[^<]+<\/p>/);
+      expect(html, rel(page)).toMatch(/<nav class="pager" aria-label="Previous and next page">/);
+      expect(html, rel(page)).toMatch(/<nav class="side" aria-label="Developers">/);
+      const sections = (html.match(/<article class="prose">[\s\S]*<\/article>/)![0].match(/<h2 id=/g) ?? []).length;
+      if (sections >= 2 && !html.includes('id="in-this-guide"')) expect(html, rel(page)).toMatch(/<nav class="on-this-page" aria-label="On this page">/);
     }
   });
 
@@ -129,7 +183,8 @@ describe('site', () => {
   });
 
   it('has no em dash in the pages written for the site', () => {
-    for (const p of [join(SITE, 'index.html'), join(SITE, '404.html'), join(ROOT, 'docs/BUILD.md')]) expect(read(p).includes('\u2014'), p).toBe(false);
+    const written = [join(ROOT, 'docs/BUILD.md'), join(ROOT, 'scripts/build-site.ts'), ...files(join(ROOT, 'scripts', 'site-pages'))];
+    for (const p of written) expect(read(p).includes('\u2014'), p).toBe(false);
   });
 });
 
@@ -141,6 +196,13 @@ describe('site Markdown', () => {
     expect(slugify('`/.well-known/bellows`')).toBe('well-knownbellows');
     const { headings } = renderMarkdown('## Crash safety\n\n## Crash safety\n');
     expect(headings.map((h) => h.id)).toEqual(['crash-safety', 'crash-safety-1']);
+  });
+
+  it('sends a link to a heading of a split doc to the page that holds it', () => {
+    renderSite(ROOT);
+    expect(rewriteHref('BUILD.md#open-a-balance')).toBe('build-pay-for-requests.html#open-a-balance');
+    expect(rewriteHref('OPERATE.md#4-release')).toBe('operate-4-release.html#4-release');
+    expect(rewriteHref('API.md#error-codes')).toBe('api.html#error-codes');
   });
 
   it('rewrites repository links for the site', () => {
