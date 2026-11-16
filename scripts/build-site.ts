@@ -659,8 +659,8 @@ const LANDING_MOVED: Readonly<Record<string, string>> = {
 
 function landing(root: string): string {
   return `${head({
-    title: 'Bellows | An open AI gateway, paid with eCash',
-    description: 'Bellows is an open-source, OpenAI-compatible AI gateway that takes Cashu eCash per request. For developers who want AI in their apps with no accounts, and for anyone who wants to run one.',
+    title: 'Bellows | An AI gateway its operator cannot read',
+    description: 'Bellows is an open-source AI gateway that runs sealed: its operator cannot read your prompts or see who paid. It speaks the OpenAI API and takes Cashu eCash per request.',
     prefix: '',
   })}
 <body class="home">
