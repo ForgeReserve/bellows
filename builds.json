@@ -28,6 +28,20 @@
       },
       "released": "2026-11-16",
       "deployment": "ForgeReserve/bellows@v0.1.1"
+    },
+    {
+      "version": "0.1.2",
+      "image": "ghcr.io/forgereserve/bellows@sha256:b7e26a57d5ee903d769045d1e708dc7a6eb3cbd5a0ccf5805e91ed6846ee3aff",
+      "measurement": {
+        "type": "https://tinfoil.sh/predicate/snp-tdx-multiplatform/v1",
+        "registers": [
+          "6d565da8041509b8800c29729cadc4a9a77e2f8cf73fa788776926e5bee17eef3a6f534a49e68757ab1ff0e2fc9cb9cc",
+          "758adac43a82a5f3146342660caefea0a7714414dd9055c4a56d1502273d85bbad86d625096a206c9335c23d05df3f99",
+          "0480dd8671250442c3a8f3654d66ad86c414b838db5b5fb4354fbbcf26d7e3ec4b84a2b0513b76e2482e10d612da3d8c"
+        ]
+      },
+      "released": "2026-11-16",
+      "deployment": "ForgeReserve/bellows@v0.1.2"
     }
   ]
 }
