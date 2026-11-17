@@ -28,7 +28,7 @@ Parts of this depend on sealed hardware and on Tinfoil's platform behaving as do
 
 ## What the operator can do
 
-- **Stop the service or destroy its data.** Deleting the volume loses the ledger. The wallet secret, kept offline, restores the gateway's eCash from the mint; customer balances held only in the ledger are lost. Clients keep balances small and move them between operators ([OPERATORS.md](OPERATORS.md)).
+- **Stop the service or destroy its data.** Deleting the volume loses the ledger. The wallet secret, kept offline, restores the gateway's eCash from the mint; customer balances held only in the ledger are lost. Clients keep balances small and move them between operators ([OPERATORS.md](OPERATORS.md)). A deployment without a volume (`"storage": "memory"` in `/.well-known/bellows`) loses every balance on every restart, so the operator destroys them just by restarting it. The eCash behind those balances is then recovered by the operator's wallet and shown as recovered funds, and the operator decides what to do with it. Such a deployment bounds that loss: it runs invite-only, and no balance may hold more than the cap it states as `balance_max` in the same statement (by default $20 or 20,000 sat), so a restart takes at most that from any one person ([OPERATE.md](OPERATE.md#running-without-a-volume)).
 - **Change prices, mints or suppliers.** Only by releasing a new build, whose config is public and measured. A price not marked as checked against the supplier's rate card is not served unless the measured config sets `BELLOWS_SERVE_UNVERIFIED_PRICES=true`, which anyone can read there; such models show `pricing.verified: false` in `/v1/models`.
 - **See timing and volume** at the host, and client addresses unless clients use a relay or Tor.
 - **Run the relay too.** A relay and a Bellows run by the same party hide nothing from that party.
@@ -55,7 +55,7 @@ The disk encryption hides contents, not which blocks are read and written, or wh
 
 ## What the deploy kit enforces
 
-`pnpm deploy:check` refuses a config that would break one of these assumptions from the inside: a second container with attestation access (it could attest a statement with its own key), a second container with secrets or with access to Bellows' volume (the tor sidecar has open egress), a container without a read-only root file system, admin access to the enclave, open ports, secrets in the measured file or in Tinfoil's secret store, a database off the encrypted volume, a volume without a keyserver-released key, unmeasured settings, or open egress for Bellows. See [OPERATE.md](OPERATE.md#the-deploy-kit).
+`pnpm deploy:check` refuses a config that would break one of these assumptions from the inside: a second container with attestation access (it could attest a statement with its own key), a second container with secrets or with access to Bellows' volume (the tor sidecar has open egress), a container without a read-only root file system, admin access to the enclave, open ports, secrets in the measured file or in Tinfoil's secret store, a database off the encrypted volume (unless `BELLOWS_STORAGE` says memory, and then a volume, a volume key, invite-only off or on-chain funding on), a volume without a keyserver-released key, unmeasured settings, or open egress for Bellows. See [OPERATE.md](OPERATE.md#the-deploy-kit).
 
 ## What it does not cover
 

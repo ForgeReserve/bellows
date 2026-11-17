@@ -23,6 +23,7 @@ The rules `pnpm deploy:check` enforces, and why:
 - **Only the `bellows` container has `attestation: true`.** Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key ([ATTESTATION.md](ATTESTATION.md)). A Tor sidecar or any other container runs without it.
 - **Secrets come from your keyserver, and only Bellows gets them.** `keyserver-url` is required. Secrets are never `env` values and never Tinfoil-managed secrets, which Tinfoil's infrastructure can read. No container other than `bellows` lists `secrets`.
 - **The database is on the encrypted volume.** Bellows runs sealed (`BELLOWS_MODE=sealed`), the database path is under a mount listed in `BELLOWS_SEALED_MOUNTS`, that mount is a persistent volume, and every volume has a `key-secret` so it unlocks at boot with a key only your keyserver releases. A volume belongs to one container: no other container mounts Bellows' volume.
+- **Or the database is in memory, and says so.** With `BELLOWS_STORAGE: "memory"` there is no volume, no `persistent_volumes` and no volume key, and the database is on a `tmpfs` of the `bellows` container that `BELLOWS_SEALED_MOUNTS` names. A config that mixes the two is refused. Memory storage also needs `BELLOWS_INVITE_ONLY: "true"` and on-chain funding off ([Running without a volume](#running-without-a-volume)).
 - **Every setting is measured.** Every `env` entry is a literal in the measured file. A bare name, whose value would come from an unmeasured instance variable, is refused.
 - **Nobody gets in.** No `cvm_admin`, no `ports`, no `cvm-network`, no capabilities, no root user, and `read_only: true` on every container, so no writable root file system.
 - **Bellows reaches only what it needs.** Its egress network is an allowlist: your mints, the suppliers in `config/models.json`, the price sources and the Nostr relays for mint discovery. The test suite checks that the allowlist covers every host the config uses.
@@ -225,6 +226,30 @@ The operator cannot read the volume, so there is no database export from a seale
 If the volume is lost, the eCash in the gateway's wallet can be restored with the wallet secret, and the balances customers held are lost. Clients that keep their balances small, and move them with `moveBalance` ([OPERATORS.md](OPERATORS.md)), lose little.
 
 The volume has no rollback protection: whoever controls the disk can put back an older copy, and the enclave does not notice. See [THREAT-MODEL.md](THREAT-MODEL.md).
+
+## Running without a volume
+
+Use this only while your Tinfoil organization has no encrypted volumes. Set `BELLOWS_STORAGE: "memory"` in the `bellows` env, remove the `volumes` block, `persistent_volumes` and the volume key from `secrets`, and point `BELLOWS_SEALED_MOUNTS` at a `tmpfs` (`/tmp`, `size=256m`) with `BELLOWS_DB_PATH` under it. Set `BELLOWS_INVITE_ONLY: "true"` and leave `BELLOWS_ONCHAIN_ENABLED` off. `pnpm deploy:check` accepts that and nothing in between. Create the instance without `--volume`.
+
+The database then lives in memory inside the sealed machine. Every restart, update or redeploy loses every balance, every unfinished funding and the ledger. People's balances are gone. Tell users to keep only what they are about to spend and to withdraw the rest. Bellows logs a `storage_memory` warning at boot, and `/.well-known/bellows` says `"storage": "memory"` in its attested statement, so clients can see it.
+
+Memory storage limits what a restart can take from anyone:
+
+- **Invite-only.** Bellows refuses to start with `BELLOWS_STORAGE=memory` unless `BELLOWS_INVITE_ONLY` is on, so only people you invite hold a balance that a restart can wipe. It refuses rather than turning the gate on itself, so the measured config says what runs.
+- **A cap on every balance.** No balance may hold more than `BELLOWS_MEMORY_MAX_BALANCE_USD` (in cents, default `2000`, $20) or `BELLOWS_MEMORY_MAX_BALANCE_SAT` (default `20000`), counting what is on its way to it: an unpaid Lightning invoice, a quoted or moving token from another mint, and a top-up whose outcome is not yet known. A top-up, Lightning quote or other-mint quote that would pass it is refused with `400 balance_limit` before any eCash is taken: the token stays with its owner, and no invoice is made. Nothing is part-credited. The cap is set as a measured env literal like every other setting, never released by the keyserver; it appears as `balance_max` in `/v1/wallet/fund/methods` and in the attested statement at `/.well-known/bellows`, and Lightning's `max` there is no higher than it.
+- **No on-chain funding.** A deposit address takes any amount, so no cap can bound it, and a restart loses the key that mints it. Bellows refuses to start with `BELLOWS_ONCHAIN_ENABLED` on in memory mode.
+
+The defaults are a few days of heavy use for one person, below the $50 / 100,000 sat limit on tokens from other mints. Lower them if your users spend less.
+
+The eCash behind those balances is not lost. It was made from the wallet secret, so at boot, on a new database, Bellows asks each mint (NUT-09 restore) which of its outputs the mint has signed, keyset by keyset, until 1,000 counters in a row come back empty (batches of up to 500, at most 400 batches per keyset, at most 2 minutes per mint). It moves its counters past them, so no top-up or withdrawal is refused for reusing one, and keeps what is still unspent (NUT-07) as recovered funds. The boot log line `counter_recovery` gives the totals and the number of batches. The admin overview shows them as `recovered`, per mint and unit and per unit, next to the other totals.
+
+Recovered funds belong to nobody's balance: Bellows credits them to no one, never spends them, and leaves them out of the wallet totals and of what is sweepable. They can include withdrawals and change people took before the restart and have not redeemed yet, which come from the same wallet secret and cannot be told apart. You, the operator, decide what to do with them. This is one more reason to keep balances small in memory mode.
+
+While a mint cannot be reached for its scan, Bellows keeps that mint closed: top-ups, fundings and withdrawals there answer `503 mint_unavailable`, `/healthz` counts it in `mints_closed`, and the scan is retried with backoff (5 seconds, doubling, up to 5 minutes). The other mints work meanwhile. A restart with the same database does not scan again.
+
+The keyserver needs no volume key for this. Leave `BELLOWS_DATA_VOLUME_KEY` out of the policy, or leave it unused; the config does not ask for it.
+
+To go back to a volume, start again from `deploy/tinfoil-config.example.yml` (or set `BELLOWS_STORAGE: "volume"` and restore the `volumes` block, `persistent_volumes: [data:/data]`, the volume key secret and the `/data` paths), make and back up the volume key (step 2), add it to the keyserver, and release. Users must withdraw first: nothing in memory moves to the volume.
 
 ## Rehearse locally
 

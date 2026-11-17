@@ -14,7 +14,7 @@ import {
   type SerializedOutputData,
   type Wallet,
 } from '@cashu/cashu-ts';
-import { OPEN_FUNDING_STATES, releaseIfEmpty } from './accounts.ts';
+import { BalanceCap, OPEN_FUNDING_STATES, releaseIfEmpty } from './accounts.ts';
 import { type GatewayWallet, PaymentError } from './cashu/wallet.ts';
 import { type Env, normalizeMintUrl, type Unit } from './config.ts';
 import { type DB, now, tx } from './db.ts';
@@ -88,6 +88,13 @@ interface Observed {
 }
 
 export interface FundingMethods {
+  /** Where balances are kept (BELLOWS_STORAGE). memory: every restart loses every balance. */
+  storage: Env['BELLOWS_STORAGE'];
+  /**
+   * Memory storage: the most one balance may hold, per unit, in whole units (cents for usd), counting open
+   * fundings. A funding or top-up past it is refused with balance_limit. null: no cap.
+   */
+  balance_max: Partial<Record<Unit, number>> | null;
   ecash: { mints: string[]; units: Unit[] };
   lightning: { enabled: boolean; units: Unit[]; min: Partial<Record<Unit, number>>; max: Partial<Record<Unit, number>> };
   onchain: { enabled: boolean; unit: 'sat'; min_amount: number; confirmations: number };
@@ -221,6 +228,8 @@ export class FundingService {
   private readonly wallet: GatewayWallet;
   private readonly env: Env;
   private readonly rates: RateOracle;
+  /** The memory-storage balance cap (no cap unless BELLOWS_STORAGE=memory). */
+  readonly cap: BalanceCap;
   readonly mint: string;
   private readonly inflight = new Set<string>();
   private info?: { at: number; value: any };
@@ -241,12 +250,15 @@ export class FundingService {
     discovery?: MintDiscovery;
     /** Tests: a stand-in for the live mint probe (probeMint). */
     probe?: (url: string) => Promise<MintProbe>;
+    /** The memory-storage balance cap. Default: none. */
+    cap?: BalanceCap;
   }) {
     this.db = d.db;
     this.ledger = d.ledger;
     this.wallet = d.wallet;
     this.env = d.env;
     this.rates = d.rates;
+    this.cap = d.cap ?? new BalanceCap(d.db, null);
     this.mint = normalizeMintUrl(d.mint);
     this.faults = d.faults ?? {};
     this.discovery = d.discovery;
@@ -275,9 +287,16 @@ export class FundingService {
     const m4: any[] = info?.nuts?.['4']?.disabled ? [] : (info?.nuts?.['4']?.methods ?? []);
     const bolt11 = m4.filter((m) => m.method === 'bolt11' && env.BELLOWS_UNITS.includes(m.unit));
     const onchain = m4.find((m) => m.method === 'onchain' && m.unit === 'sat');
-    const cap: Record<Unit, number> = { sat: env.BELLOWS_FUND_MAX_SAT, usd: env.BELLOWS_FUND_MAX_USD };
+    const balanceMax = this.cap.max;
+    // In memory storage no balance holds more than its cap, so neither does one invoice.
+    const cap: Record<Unit, number> = {
+      sat: Math.min(env.BELLOWS_FUND_MAX_SAT, balanceMax?.sat ?? Infinity),
+      usd: Math.min(env.BELLOWS_FUND_MAX_USD, balanceMax?.usd ?? Infinity),
+    };
     const lightningUnits = bolt11.map((m) => m.unit as Unit);
     return {
+      storage: env.BELLOWS_STORAGE,
+      balance_max: balanceMax ? { ...balanceMax } : null,
       ecash: { mints: this.wallet.trustedMints, units: env.BELLOWS_UNITS },
       lightning: {
         enabled: env.BELLOWS_LIGHTNING_ENABLED && lightningUnits.length > 0,
@@ -401,6 +420,8 @@ export class FundingService {
     if (!m.lightning.enabled || !m.lightning.units.includes(unit)) throw new PaymentError('method_unavailable', `Lightning funding in ${unit} is not available`, 400);
     const min = m.lightning.min[unit] ?? 1;
     const max = m.lightning.max[unit] ?? 0;
+    // Refused up front, before an invoice exists, when the balance cannot take it.
+    this.cap.check(accountId, unit, amount);
     if (!Number.isInteger(amount) || amount < min || amount > max) throw new PaymentError('invalid_amount', `amount must be ${min}..${max} ${unit}`);
     this.checkPendingLimit(accountId);
     const w = await this.fundWallet(unit);
@@ -410,7 +431,9 @@ export class FundingService {
     } catch (e) {
       throw new PaymentError('mint_unavailable', `the funding mint did not create an invoice: ${errText(e)}`, 503);
     }
-    // Persisted before the invoice is shown: a restart resumes watching it.
+    // Persisted before the invoice is shown: a restart resumes watching it. The room is checked again in the
+    // same step as the insert, since another request may have taken it while the invoice was made.
+    this.cap.check(accountId, unit, amount);
     const row = this.insert({
       method: 'lightning',
       account_id: accountId,
@@ -666,6 +689,8 @@ export class FundingService {
     if (!fq || !mq) throw new PaymentError('insufficient_amount', 'this token cannot cover the Lightning fees to move it to the funding mint');
     const feeMax = rawAmount - t.amount + meltInputFee + num(mq.fee_reserve);
     const expiries = [fq.expiry, mq.expiry].filter((x): x is number => typeof x === 'number' && x > 0);
+    // Nothing is taken at a quote; the token stays with its owner. Checked in the same step as the insert.
+    this.cap.check(accountId, unit, credit);
     const row = this.insert({
       method: 'foreign',
       account_id: accountId,

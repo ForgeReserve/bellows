@@ -8,7 +8,8 @@
  *   }
  *
  * The statement holds everything a client acts on: the Bellows version, the build measurement it claims, its
- * HPKE key configuration, its relays and its operator announcement. The statement travels as base64 so the
+ * HPKE key configuration, its relays, its operator announcement, where it keeps balances (storage) and, for
+ * memory storage, the most one balance may hold (balance_max). The statement travels as base64 so the
  * exact bytes are hashed, never a re-serialization. The attestation binds
  *
  *   binding = SHA-256( "bellows-identity/v1" || 0x00 || statement bytes )
@@ -21,6 +22,13 @@ import type { Measurement } from './builds.ts';
 
 export const IDENTITY_FORMAT = 'bellows-identity/v1';
 export const WELL_KNOWN_PATH = '/.well-known/bellows';
+
+/**
+ * Where a Bellows keeps its database. volume: on the encrypted volume, so balances survive a restart.
+ * memory: in memory inside the sealed machine, so every restart loses every balance.
+ */
+export const STORAGE_KINDS = ['volume', 'memory'] as const;
+export type Storage = (typeof STORAGE_KINDS)[number];
 
 export interface Statement {
   /** The Bellows release version the server says it runs. */
@@ -35,6 +43,13 @@ export interface Statement {
   relays: string[];
   /** The operator's announcement, as the operator published it, or null. */
   operator: unknown;
+  /** Where balances are kept (BELLOWS_STORAGE). A statement without it comes from an older Bellows: volume. */
+  storage?: Storage;
+  /**
+   * Memory storage only: the most one balance may hold, per unit ("sat", "usd"), in whole units (cents for
+   * usd). Absent: no cap is stated.
+   */
+  balance_max?: Record<string, number>;
 }
 
 /** An attestation document. `format` picks the verifier; the rest belongs to that format. */

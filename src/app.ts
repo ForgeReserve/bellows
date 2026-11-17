@@ -158,7 +158,13 @@ export function createApp(d: Deps) {
 
   app.get('/healthz', (c) => {
     const r = rates.status();
-    return c.json({ ok: true, rate: r ? { btc_usd: r.rate, age_s: Math.round(r.ageMs / 1000) } : null, invite_only: env.BELLOWS_INVITE_ONLY });
+    // mints_closed: mints still waiting for their counter scan after a restart (funding and payouts there answer 503).
+    return c.json({
+      ok: true,
+      rate: r ? { btc_usd: r.rate, age_s: Math.round(r.ageMs / 1000) } : null,
+      invite_only: env.BELLOWS_INVITE_ONLY,
+      mints_closed: d.wallet.closedMints.length,
+    });
   });
 
   app.get('/v1/models', async (c) => {
@@ -216,11 +222,18 @@ export function createApp(d: Deps) {
     const key = opened.generatedKey;
     const acct = account;
     try {
-      const r = await wallet.receive(token, {
-        purpose: 'topup',
-        accountId: acct.id,
-        onFinalize: (amount) => ledger.creditRaw(acct.id, amount * MSUB_PER_UNIT, 'topup', null),
-      });
+      // Memory storage: refused before the mint sees the token when the balance cannot take it all.
+      const release = d.funding.cap.claimTopup(acct.id, acct.unit, t.hash, t.amount);
+      let r;
+      try {
+        r = await wallet.receive(token, {
+          purpose: 'topup',
+          accountId: acct.id,
+          onFinalize: (amount) => ledger.creditRaw(acct.id, amount * MSUB_PER_UNIT, 'topup', null),
+        });
+      } finally {
+        release();
+      }
       const a = ledger.get(acct.id)!;
       log.info('topup', { unit: a.unit, amount: r.amount, replay: r.replay, new_balance: created });
       return c.json({
@@ -1122,6 +1135,12 @@ function round(n: number): number {
 
 /** Startup tasks: recover mint operations, release stale reservations, owe change to interrupted NUT-24 requests. */
 export async function startupRecovery(d: Deps, olderThanMs = 0): Promise<void> {
+  // A database without wallet state: catch the NUT-13 counters up with what the mints have signed under this
+  // seed before anything makes an output. A mint that cannot be scanned stays closed and is retried.
+  if (d.wallet.needsCounterScan) {
+    d.wallet.needsCounterScan = false;
+    await d.wallet.recoverCounters([...d.wallet.trustedMints, d.funding.mint]);
+  }
   // At process start nothing is in flight, so every active reservation and running request is orphaned.
   installRecoveryHooks(d);
   const w = await d.wallet.recover();

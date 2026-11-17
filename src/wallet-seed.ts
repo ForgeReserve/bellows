@@ -41,7 +41,7 @@ export function walletSeedCheck(seed: Uint8Array): string {
 const meta = (db: DB, key: string) => (db.prepare('SELECT value FROM meta WHERE key = ?').get(key) as { value: string } | undefined)?.value;
 
 /** Whether the wallet has written anything: NUT-13 counters, proofs, or mint and melt operations. */
-function hasWalletState(db: DB): boolean {
+export function hasWalletState(db: DB): boolean {
   return ['counters', 'proofs', 'incoming', 'outgoing'].some((t) => db.prepare(`SELECT 1 FROM ${t} LIMIT 1`).get() !== undefined);
 }
 
