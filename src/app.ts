@@ -81,9 +81,13 @@ function bearer(c: Context): string | undefined {
 }
 
 /** Requests that can open a new balance. Without a known key they carry proof of work instead of a per-address limit. */
-export const OPENS_BALANCE = new Set(['/v1/wallet/topup', '/v1/wallet/fund/lightning', '/v1/wallet/fund/onchain', '/v1/wallet/fund/foreign/quote']);
+export const OPENS_BALANCE = new Set(['/v1/wallet/topup', '/v1/wallet/open', '/v1/wallet/fund/lightning', '/v1/wallet/fund/onchain', '/v1/wallet/fund/foreign/quote']);
 
-type Payment = { kind: 'balance'; account: Account; reservationId: string } | { kind: 'nut24'; mint: string; unit: Unit; paid: number };
+type Payment =
+  | { kind: 'balance'; account: Account; reservationId: string }
+  | { kind: 'nut24'; mint: string; unit: Unit; paid: number }
+  /** A free model: a known balance key, nothing reserved and nothing charged. */
+  | { kind: 'free'; account: Account };
 
 /** What a chat request holds until it settles: its balance reservation or its NUT-24 request row (see the chat route). */
 type ChatOwnership = { reservationId?: string; nut24RequestId?: string };
@@ -179,14 +183,28 @@ export function createApp(d: Deps) {
         speed: m.speed ?? null,
         context_length: m.context_length ?? null,
         max_output_tokens: m.max_output_tokens,
-        pricing: {
-          mode: s.pricing,
-          usd_per_mtok: { input: round(m.input_usd_per_mtok * env.BELLOWS_MARKUP), output: round(m.output_usd_per_mtok * env.BELLOWS_MARKUP) },
-          sat_per_mtok: rate
-            ? { input: round(displayPrice(m.input_usd_per_mtok, env.BELLOWS_MARKUP, 'sat', rate)!), output: round(displayPrice(m.output_usd_per_mtok, env.BELLOWS_MARKUP, 'sat', rate)!) }
-            : null,
-          verified: m.price_verified,
-        },
+        // A free model keeps the same shape: mode 'free' and prices of 0 in both units (no rate needed).
+        pricing: m.free
+          ? {
+              mode: 'free',
+              free: true,
+              free_reason: m.free_reason,
+              requires_balance_key: true,
+              usd_per_mtok: { input: 0, output: 0 },
+              sat_per_mtok: { input: 0, output: 0 },
+              verified: true,
+            }
+          : {
+              mode: s.pricing,
+              free: false,
+              free_reason: null,
+              requires_balance_key: false,
+              usd_per_mtok: { input: round(m.input_usd_per_mtok * env.BELLOWS_MARKUP), output: round(m.output_usd_per_mtok * env.BELLOWS_MARKUP) },
+              sat_per_mtok: rate
+                ? { input: round(displayPrice(m.input_usd_per_mtok, env.BELLOWS_MARKUP, 'sat', rate)!), output: round(displayPrice(m.output_usd_per_mtok, env.BELLOWS_MARKUP, 'sat', rate)!) }
+                : null,
+              verified: m.price_verified,
+            },
         upstream_model: s.type === 'tinfoil' ? m.upstream : undefined,
       };
     });
@@ -373,7 +391,37 @@ export function createApp(d: Deps) {
     }
   };
 
-  app.get('/v1/wallet/fund/methods', async (c) => c.json({ ...(await funding.methods()), invite_only: env.BELLOWS_INVITE_ONLY }));
+  // An empty balance opened without eCash, so a new person can use free models without funding anything.
+  // Bounded by the invite when invite-only is on, by proof of work otherwise (both apply when both are on);
+  // with neither, anyone could open balances without limit, so it is off.
+  const openEmpty = { enabled: env.BELLOWS_INVITE_ONLY || pow.enabled, needs_invite: env.BELLOWS_INVITE_ONLY, pow_bits: pow.enabled ? pow.bits : 0 };
+
+  app.get('/v1/wallet/fund/methods', async (c) => c.json({ ...(await funding.methods()), invite_only: env.BELLOWS_INVITE_ONLY, open_empty: openEmpty }));
+
+  app.post('/v1/wallet/open', async (c) => {
+    const text = await c.req.text();
+    let body: any = {};
+    if (text.trim()) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        return apiError(c, 400, 'invalid_request', 'expected JSON {"invite": "...", "unit"?: "usd" | "sat"}');
+      }
+    }
+    const key = bearer(c);
+    const known = key ? ledger.findByKey(key) : undefined;
+    if (!known && !openEmpty.enabled) {
+      return apiError(c, 403, 'open_disabled', 'this Bellows opens a balance only with a topup or a funding: an empty balance needs invite-only or proof of work to be on');
+    }
+    // The unit as a funding takes it: the one named, else the default (a known balance keeps its own).
+    const unit = body?.unit === undefined && known ? known.unit : unitOf(body?.unit);
+    const invite = typeof body?.invite === 'string' ? body.invite : c.req.header('x-forge-invite');
+    // The same rules as a topup or a funding: an open invite while invite-only, redeemed for the new balance.
+    const opened = openAccount({ db, ledger, invites, inviteOnly: env.BELLOWS_INVITE_ONLY }, { key, invite, unit, keep: true });
+    const a = opened.account;
+    if (opened.created) log.info('balance_opened_empty', { unit: a.unit });
+    return c.json({ key: opened.generatedKey, account_id: a.id, unit: a.unit, created: opened.created, balance_msub: a.balance_msub, balance: a.balance_msub / MSUB_PER_UNIT });
+  });
 
   // Other mints whose eCash is accepted for funding. Public; never waits on a relay.
   app.get(FOREIGN_MINTS_PATH, (c) => {
@@ -598,6 +646,12 @@ export function createApp(d: Deps) {
     // 2. Payment kind and unit.
     const key = bearer(c);
     const cashu = c.req.header('x-cashu');
+    // A free model takes no payment, only a balance key, which keeps it to known balances and their rate
+    // limit. Refused here, before any eCash sent with the request is looked at, so a token is never taken.
+    const free = model.free;
+    if (free && !key) {
+      return apiError(c, 401, 'balance_key_required', `${model.id} is free and needs a balance key: send Authorization: Bearer <key>. Any balance works, 0 included; eCash is not taken for it.`);
+    }
     // NUT-11: lock this request's change to the payer's key. Stored with the request, never logged.
     const lockPubkey = parseOptionalLockPubkey(c.req.header('x-cashu-pubkey'));
     let account: Account | undefined;
@@ -614,7 +668,8 @@ export function createApp(d: Deps) {
       unit = u;
     }
     let rate: number | undefined;
-    if (unit === 'sat') {
+    // A free model has nothing to convert, so it needs no BTC/USD rate.
+    if (unit === 'sat' && !free) {
       rate = await rates.get();
       if (!rate) return apiError(c, 503, 'rate_unavailable', 'BTC/USD rate unavailable; sat pricing is paused. Pay in usd or retry later.');
     }
@@ -622,19 +677,24 @@ export function createApp(d: Deps) {
     // 3. Maximum cost of this request.
     // pricing=flat: always the flat schedule. pricing=metered with a flat schedule: flat is the fallback
     // when no usage signal arrives (e.g. encrypted pass-through without usage metrics).
-    const flat = supplierCfg.flat;
-    const alwaysFlat = supplierCfg.pricing === 'flat';
+    // A free model costs nothing under any schedule: no flat price, no token price, nothing to reserve.
+    const flat = free ? undefined : supplierCfg.flat;
+    const alwaysFlat = !free && supplierCfg.pricing === 'flat';
     const markup = env.BELLOWS_MARKUP;
     const flatNano = flat ? flatCostNanoUsd(flat, raw.length, maxOut, markup) : 0;
-    const meteredMax = costNanoUsd(model, { inputTokens: estimateTokensFromBytes(raw.length, env.BELLOWS_BYTES_PER_TOKEN), outputTokens: maxOut }, markup);
+    const meteredMax = free ? 0 : costNanoUsd(model, { inputTokens: estimateTokensFromBytes(raw.length, env.BELLOWS_BYTES_PER_TOKEN), outputTokens: maxOut }, markup);
     const maxNano = alwaysFlat ? flatNano : Math.max(meteredMax, flatNano);
-    const reserveMsub = Math.max(1, nanoUsdToMsub(maxNano, unit, rate));
+    const reserveMsub = free ? 0 : Math.max(1, nanoUsdToMsub(maxNano, unit, rate));
     const requiredUnits = msubToUnitsCeil(reserveMsub);
 
     // 4. Payment.
     const inviteOk = () => !env.BELLOWS_INVITE_ONLY || invites.checkForNut24(c.req.header('x-forge-invite'));
     let pay: Payment;
-    if (account) {
+    if (free) {
+      // The key was checked above. A frozen balance cannot use free models either.
+      if (ledger.isFrozen(account!.id)) return apiError(c, 403, 'account_frozen', 'this balance is frozen by the operator; refunds still work');
+      pay = { kind: 'free', account: account! };
+    } else if (account) {
       const reservationId = ledger.reserve(account.id, reserveMsub);
       own.reservationId = reservationId;
       pay = { kind: 'balance', account, reservationId };
@@ -682,16 +742,20 @@ export function createApp(d: Deps) {
       (settled ??= (async () => {
         let nano = 0;
         if (alwaysFlat && usage) source = 'flat';
-        if (status === 'ok' || status === 'partial') {
+        if ((status === 'ok' || status === 'partial') && pay.kind !== 'free') {
           if (alwaysFlat || source === 'flat') nano = flatNano;
           else if (usage) nano = costNanoUsd(model, usage, markup);
         }
         const actualMsub = nanoUsdToMsub(nano, unit, rate);
         // Our cost: the supplier's own figure when it sends one, else the usage at our catalog cost (no markup).
+        // The catalog marks a model free when it costs the operator nothing too (its free_reason), so its cost is 0.
         let costNusd: number | null = null;
         let costSource: string | null = null;
         if (usage && (status === 'ok' || status === 'partial')) {
-          if (usage.costUsd !== undefined) {
+          if (pay.kind === 'free') {
+            costNusd = 0;
+            costSource = 'free';
+          } else if (usage.costUsd !== undefined) {
             costNusd = Math.round(usage.costUsd * 1e9);
             costSource = 'supplier';
           } else if (!alwaysFlat && source !== 'flat') {
@@ -705,7 +769,10 @@ export function createApp(d: Deps) {
         // One transaction: the charge (or the change owed), this request's share of the daily aggregates, and
         // removing the in-flight row. Nothing about the request is kept on its own afterwards.
         tx(db, () => {
-          if (pay.kind === 'balance') {
+          if (pay.kind === 'free') {
+            // Nothing was held and nothing is charged: the balance is only read.
+            res.balanceMsub = ledger.get(pay.account.id)?.balance_msub ?? 0;
+          } else if (pay.kind === 'balance') {
             const s = ledger.settleRaw(pay.reservationId, actualMsub, pay.account.id);
             res.chargedMsub = s.charged;
             res.balanceMsub = s.balance;
@@ -725,7 +792,8 @@ export function createApp(d: Deps) {
             ok,
             encrypted,
             nut24: pay.kind === 'nut24',
-            estimated: source === 'estimate' || source === 'flat',
+            // Nothing was billed for a free model, from an estimate or otherwise.
+            estimated: pay.kind !== 'free' && (source === 'estimate' || source === 'flat'),
             inputTokens: usage?.inputTokens ?? null,
             outputTokens: usage?.outputTokens ?? null,
             chargedMsub: res.chargedMsub,

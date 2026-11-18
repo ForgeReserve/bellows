@@ -29,7 +29,7 @@ Parts of this depend on sealed hardware and on Tinfoil's platform behaving as do
 ## What the operator can do
 
 - **Stop the service or destroy its data.** Deleting the volume loses the ledger. The wallet secret, kept offline, restores the gateway's eCash from the mint; customer balances held only in the ledger are lost. Clients keep balances small and move them between operators ([OPERATORS.md](OPERATORS.md)).
-- **Change prices, mints or suppliers.** Only by releasing a new build, whose config is public and measured. A price not marked as checked against the supplier's rate card is not served unless the measured config sets `BELLOWS_SERVE_UNVERIFIED_PRICES=true`, which anyone can read there; such models show `pricing.verified: false` in `/v1/models`.
+- **Change prices, mints or suppliers.** Only by releasing a new build, whose config is public and measured. A price not marked as checked against the supplier's rate card is not served unless the measured config sets `BELLOWS_SERVE_UNVERIFIED_PRICES=true`, which anyone can read there; such models show `pricing.verified: false` in `/v1/models`. A model the catalog marks free (`"pricing": "free"`) is part of that measured config as well, shows `pricing.mode: "free"` there, and charges nothing; it is served only to a balance key, and eCash sent for it is refused untouched.
 - **See timing and volume** at the host, and client addresses unless clients use a relay or Tor.
 - **Run the relay too.** A relay and a Bellows run by the same party hide nothing from that party.
 

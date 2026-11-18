@@ -85,6 +85,17 @@ export class Ledger {
     this.db.prepare('UPDATE invites SET account_id = NULL WHERE account_id = ?').run(accountId);
   }
 
+  /**
+   * A balance opened on purpose with nothing in it (POST /v1/wallet/open). A ledger row of 0 keeps it from
+   * being released as the leftover of a funding that failed or expired (releaseIfEmpty), and the invite that
+   * opened it is unlinked, as a credit unlinks it. Caller provides the transaction.
+   */
+  openedEmptyRaw(accountId: string) {
+    this.db.prepare("INSERT INTO ledger (account_id, kind, amount_msub, ref, created_at) VALUES (?, 'open', 0, NULL, ?)").run(accountId, now());
+    this.db.prepare('UPDATE accounts SET invite_id = NULL WHERE id = ?').run(accountId);
+    this.db.prepare('UPDATE invites SET account_id = NULL WHERE account_id = ?').run(accountId);
+  }
+
   reservedMsub(accountId: string): number {
     const r = this.db.prepare("SELECT COALESCE(SUM(amount_msub), 0) AS s FROM reservations WHERE account_id = ? AND status = 'active'").get(accountId) as {
       s: number;

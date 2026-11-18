@@ -20,7 +20,8 @@ export interface OpenedAccount {
  */
 export function openAccount(
   d: { db: DB; ledger: Ledger; invites: Invites; inviteOnly: boolean },
-  p: { key?: string; invite?: string; unit: Unit },
+  /** keep: a new balance is meant to stay empty (POST /v1/wallet/open), so it is never released as unfunded. */
+  p: { key?: string; invite?: string; unit: Unit; keep?: boolean },
 ): OpenedAccount {
   const { db, ledger, invites } = d;
   if (p.key) {
@@ -44,6 +45,7 @@ export function openAccount(
       const inviteId = invites.redeemRaw(p.invite!, a.id);
       db.prepare('UPDATE accounts SET invite_id = ? WHERE id = ?').run(inviteId, a.id);
     }
+    if (p.keep) ledger.openedEmptyRaw(a.id);
     return ledger.get(a.id)!;
   });
   return { account, generatedKey: p.key ? undefined : key, created: true };

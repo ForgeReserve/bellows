@@ -252,27 +252,61 @@ const SupplierSchema = z.object({
 });
 export type SupplierConfig = z.infer<typeof SupplierSchema>;
 
-const ModelSchema = z.object({
-  id: z.string().min(1),
-  supplier: z.string(),
-  upstream: z.string(),
-  name: z.string().optional(),
-  input_usd_per_mtok: z.number().nonnegative(),
-  output_usd_per_mtok: z.number().nonnegative(),
-  /** true once the cost above has been checked against the supplier's rate card. */
-  price_verified: z.boolean().default(false),
-  max_output_tokens: z.number().int().positive().default(4096),
-  context_length: z.number().int().positive().optional(),
-  uncensored: z.boolean().default(false),
-  /** Accepts image parts in messages (OpenAI image_url content). */
-  vision: z.boolean().default(false),
-  /** Streams reasoning (reasoning_content / reasoning deltas). */
-  reasoning: z.boolean().default(false),
-  /** Values the chat page may send as reasoning_effort; empty means the control is hidden. */
-  reasoning_efforts: z.array(z.string()).default([]),
-  /** Rough speed hint for the chat page. */
-  speed: z.enum(['fast', 'balanced', 'slow']).optional(),
-});
+const ModelSchema = z
+  .object({
+    id: z.string().min(1),
+    supplier: z.string(),
+    upstream: z.string(),
+    name: z.string().optional(),
+    /** The supplier's cost in USD per million tokens. Required unless pricing is free. */
+    input_usd_per_mtok: z.number().nonnegative().optional(),
+    output_usd_per_mtok: z.number().nonnegative().optional(),
+    /**
+     * free: the model costs its users nothing. Nothing is reserved or charged (no markup, no flat schedule),
+     * and only a request with a known balance key is served. Needs free_reason. Omitted: priced from the
+     * token prices above and the supplier's pricing.
+     */
+    pricing: z.literal('free').optional(),
+    /** Why the model is free, shown in GET /v1/models (e.g. the supplier charges nothing during a beta). */
+    free_reason: z.string().trim().min(1).max(200).optional(),
+    /** true once the cost above has been checked against the supplier's rate card. A free model counts as checked. */
+    price_verified: z.boolean().optional(),
+    max_output_tokens: z.number().int().positive().default(4096),
+    context_length: z.number().int().positive().optional(),
+    uncensored: z.boolean().default(false),
+    /** Accepts image parts in messages (OpenAI image_url content). */
+    vision: z.boolean().default(false),
+    /** Streams reasoning (reasoning_content / reasoning deltas). */
+    reasoning: z.boolean().default(false),
+    /** Values the chat page may send as reasoning_effort; empty means the control is hidden. */
+    reasoning_efforts: z.array(z.string()).default([]),
+    /** Rough speed hint for the chat page. */
+    speed: z.enum(['fast', 'balanced', 'slow']).optional(),
+  })
+  .superRefine((m, ctx) => {
+    const issue = (message: string) => ctx.addIssue({ code: 'custom', message: `model ${m.id}: ${message}` });
+    if (m.pricing === 'free') {
+      if (m.free_reason === undefined) issue('pricing free needs a free_reason');
+      if (m.price_verified === false) issue('a free model has no price to verify; drop price_verified');
+    } else {
+      if (m.free_reason !== undefined) issue('free_reason is only for pricing free');
+      if (m.input_usd_per_mtok === undefined || m.output_usd_per_mtok === undefined) issue('needs input_usd_per_mtok and output_usd_per_mtok, or pricing free');
+    }
+  })
+  .transform(({ pricing, free_reason, input_usd_per_mtok, output_usd_per_mtok, price_verified, ...m }) => {
+    const free = pricing === 'free';
+    return {
+      ...m,
+      /** Costs its users nothing: never reserved or charged, and served only with a balance key. */
+      free,
+      free_reason: free ? free_reason! : null,
+      // A free model's token prices are 0 whatever the file says, so no code path can charge them.
+      input_usd_per_mtok: free ? 0 : input_usd_per_mtok!,
+      output_usd_per_mtok: free ? 0 : output_usd_per_mtok!,
+      // Free is an explicit decision in the catalog, not a placeholder price.
+      price_verified: free ? true : (price_verified ?? false),
+    };
+  });
 export type ModelConfig = z.infer<typeof ModelSchema>;
 
 export const CatalogSchema = z

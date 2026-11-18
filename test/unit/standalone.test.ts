@@ -101,6 +101,8 @@ describe('client API surface (unchanged from Forge AI)', () => {
     ['GET', '/.well-known/hpke-keys'],
     // Added by S4 (attested identity); new, not part of the Forge AI surface.
     ['GET', '/.well-known/bellows'],
+    // An empty balance from an invite, for free models; new, not part of the Forge AI surface.
+    ['POST', '/v1/wallet/open'],
   ];
   it('an unknown route is the router\'s plain 404 (the check below can tell them apart)', async () => {
     const res = await app().request('http://gw.test/v1/no-such-route', { method: 'POST', body: '{}' });
