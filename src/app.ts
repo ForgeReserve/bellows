@@ -470,7 +470,7 @@ export function createApp(d: Deps) {
     return c.json({ request_id: id, data: out, token: out[0]?.token });
   });
 
-  // ------------------------------------------------------------------ identity (docs/ATTESTATION.md)
+  // ------------------------------------------------------------------ identity (docs/verify/attestation.md)
 
   // This Bellows' attested identity: statement (version, claimed measurement, HPKE key config, relays,
   // operator announcement) and the attestation binding it. Clients verify it before sending anything.
@@ -484,7 +484,7 @@ export function createApp(d: Deps) {
     }
   });
 
-  // ------------------------------------------------------------------ Oblivious HTTP (docs/OHTTP.md)
+  // ------------------------------------------------------------------ Oblivious HTTP (docs/how-it-works/ohttp.md)
 
   // An encapsulated request for a client API path runs through this same app, so it is metered, paid and
   // rate limited exactly like a direct one. The outer request's address and headers never reach it.

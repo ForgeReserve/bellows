@@ -1,5 +1,5 @@
 /**
- * Blind by default (docs/DESIGN.md, S2): nothing that identifies a client is stored, logged or shown.
+ * Blind by default (docs/how-it-works/design.md, S2): nothing that identifies a client is stored, logged or shown.
  *
  * Every request below carries made-up client identifiers (forwarded-for and similar headers, a user agent,
  * a referrer) and comes from ::1. The test then looks for them in every log line, every response, every

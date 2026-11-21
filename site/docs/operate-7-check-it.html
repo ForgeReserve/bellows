@@ -79,10 +79,10 @@
 <pre tabindex="0" data-lang="sh"><code class="language-sh">curl https://&lt;your domain&gt;/healthz
 curl https://&lt;your domain&gt;/.well-known/bellows</code></pre>
 <ul>
-<li><code>/.well-known/bellows</code> must return an attestation, not <code>503 not_attested</code>. Verify it the way a client does, with <code>verifyBellows</code> from <code>client/</code> and your <code>builds.json</code> (<a href="attestation.html">Attestation</a>). It must find your build.</li>
+<li><code>/.well-known/bellows</code> must return an attestation, not <code>503 not_attested</code>. Verify it the way a client does, with <code>verifyBellows</code> from <code>client/</code> and your <code>builds.json</code> (<a href="attestation.html">Attested identity</a>). It must find your build.</li>
 <li>The instance logs show <code>startup</code> with <code>&quot;mode&quot;:&quot;sealed&quot;</code> and <code>&quot;sealed_mount&quot;:&quot;/data&quot;</code>, then <code>attested</code> with <code>&quot;attester&quot;:&quot;tinfoil&quot;</code>.</li>
 <li><code>GET /v1/models</code> lists the models you mean to sell. A warning <code>unverified_prices_withheld</code> names models left out because their price is not verified; an error <code>unverified_prices_served</code> means <code>BELLOWS_SERVE_UNVERIFIED_PRICES</code> is on.</li>
-<li>The admin API answers with your admin token at <code>https://&lt;your domain&gt;/admin/api/overview</code>, and 401 without it. It is on the public origin (<a href="https://github.com/ForgeReserve/bellows/blob/main/README.md#admin-api">README.md</a>).</li>
+<li>The admin API answers with your admin token at <code>https://&lt;your domain&gt;/admin/api/overview</code>, and 401 without it. It is on the public origin (<a href="https://github.com/ForgeReserve/bellows/blob/main/docs/run/admin.md#admin-api">Admin API</a>).</li>
 </ul>
 <p>NOT VERIFIED: a real Tinfoil attestation of a Bellows, and its verification with an app's <code>authenticate</code>.</p>
 </article>
@@ -90,7 +90,7 @@ curl https://&lt;your domain&gt;/.well-known/bellows</code></pre>
 <a class="pager-prev" rel="prev" href="operate-6-create-the-volume-and-the-instance.html"><span>Previous</span>6. Create the volume and the instance</a>
 <a class="pager-next" rel="next" href="operate-onion-service.html"><span>Next</span>Onion service</a>
 </nav>
-<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OPERATE.md">docs/OPERATE.md</a> in the repository.</p>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/run/sealed-deployment.md">docs/run/sealed-deployment.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">

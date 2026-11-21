@@ -1,6 +1,6 @@
 # Tinfoil Release, step 2 of 2: measure the tagged release and propose it for builds.json.
 #
-# Normally started by tinfoil-release.yml; run by hand only to recover (docs/OPERATE.md, If a step fails).
+# Normally started by tinfoil-release.yml; run by hand only to recover (docs/run/sealed-deployment.md, If a step fails).
 # Run on the new v<version> tag, it:
 #   1. measures tinfoil-config.yml at the tag with Tinfoil's measure action, which signs the measurement
 #      into the Sigstore transparency log and publishes a GitHub release with tinfoil-deployment.json;
@@ -8,7 +8,7 @@
 #      (`pnpm builds:add`), on a new branch from the default branch;
 #   3. opens a pull request. A person reviews and merges it: approving a build is never automatic.
 #
-# Clients accept the build only once it is in the builds.json they trust (docs/OPERATE.md, Release).
+# Clients accept the build only once it is in the builds.json they trust (docs/run/sealed-deployment.md, Release).
 name: Tinfoil Release - Publish (auto-triggered)
 
 run-name: Publish ${{ github.ref_name }}

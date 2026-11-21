@@ -1,5 +1,5 @@
 /**
- * Oblivious HTTP end to end (docs/DESIGN.md, S5): client -> relay -> Bellows, against the local test mints.
+ * Oblivious HTTP end to end (docs/how-it-works/design.md, S5): client -> relay -> Bellows, against the local test mints.
  *
  * The client reaches the relay over IPv6 loopback (::1) with made-up identifying headers; the relay reaches
  * the Bellows over IPv4 loopback. The Bellows listens on both, so a direct request from the client would

@@ -4,7 +4,7 @@
  *  - file: a JSON object of name to value, mode 0600. For development and for hosts without a secret store.
  *  - platform: the secrets the hosting platform releases to the sealed machine after it has proved which
  *    build is running. They reach the process as environment variables set by the platform, not by the
- *    deploy config (NOT VERIFIED on real sealed hardware; see docs/DESIGN.md, S3).
+ *    deploy config (NOT VERIFIED on real sealed hardware; see docs/how-it-works/design.md, S3).
  *  - memory: values held in the process only (tests, and a development database kept in memory).
  *
  * Error messages name a secret, never its value.

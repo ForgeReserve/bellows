@@ -2,7 +2,7 @@
 # file over tinfoil-config.yml at the repository root (Tinfoil reads only that path) and edit the copy.
 # Leave this template as it is. It is deploy/tinfoil-config.example.yml plus the `tor` container, its
 # `onion` volume and the two networks it needs; test/unit/deploy.test.ts keeps the two templates in step.
-# Step by step: docs/OPERATE.md (Onion service).
+# Step by step: docs/run/sealed-deployment.md (Onion service).
 #
 # Tinfoil measures tinfoil-config.yml at each release tag and publishes the measurement, so every line
 # here is part of what clients verify.
@@ -13,7 +13,7 @@
 #
 # Rules this file keeps (checked by `pnpm deploy:check` and test/unit/deploy.test.ts):
 #  - Only the bellows container has `attestation: true`. Any container that can reach the attestation
-#    socket can obtain a quote over any nonce (docs/ATTESTATION.md).
+#    socket can obtain a quote over any nonce (docs/verify/attestation.md).
 #  - Secrets come from your own keyserver (`keyserver-url`), never from Tinfoil's secret store and never
 #    from `env`.
 #  - The database is on the encrypted volume, unlocked at boot with a key only your keyserver releases.
@@ -54,7 +54,7 @@ networks:
 
 volumes:
   # The encrypted volume. Its key is a private secret your keyserver releases at every boot; Tinfoil
-  # never holds it. Back the key up offline before you write anything to the volume (docs/OPERATE.md).
+  # never holds it. Back the key up offline before you write anything to the volume (docs/run/sealed-deployment.md).
   - name: data
     key-secret: BELLOWS_DATA_VOLUME_KEY
     owner: "1000:1000"

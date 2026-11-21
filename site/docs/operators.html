@@ -103,7 +103,7 @@
 <p>The same signed event is published in two places:</p>
 <ol>
 <li><strong>On Nostr relays</strong>, where clients find operators.</li>
-<li><strong>Inside the Bellows' attested identity.</strong> Set <code>BELLOWS_OPERATOR_ANNOUNCEMENT_FILE</code> to the file holding the event, or <code>BELLOWS_OPERATOR_ANNOUNCEMENT</code> to the event itself as JSON. Bellows serves it in the <code>operator</code> field of the statement at <code>/.well-known/bellows</code> (<a href="attestation.html">Attestation</a>), so the hardware attestation covers it. A sealed deployment uses the variable: the operator cannot write a file on the encrypted volume, and the measured config cannot hold an announcement that names the build it is measured into, so the keyserver releases it with the secrets (<a href="operate.html">Operator guide</a>).</li>
+<li><strong>Inside the Bellows' attested identity.</strong> Set <code>BELLOWS_OPERATOR_ANNOUNCEMENT_FILE</code> to the file holding the event, or <code>BELLOWS_OPERATOR_ANNOUNCEMENT</code> to the event itself as JSON. Bellows serves it in the <code>operator</code> field of the statement at <code>/.well-known/bellows</code> (<a href="attestation.html">Attested identity</a>), so the hardware attestation covers it. A sealed deployment uses the variable: the operator cannot write a file on the encrypted volume, and the measured config cannot hold an announcement that names the build it is measured into, so the keyserver releases it with the secrets (<a href="operate.html">Sealed deployment guide</a>).</li>
 </ol>
 <p>When a version of Bellows is listed in <code>builds.json</code> for several operator deployments, <code>pnpm announce</code> needs <code>--deployment owner/repo@tag</code> to pick the measurement of yours.</p>
 <p>At startup Bellows checks the announcement and refuses to start unless it is a correctly signed announcement that matches its configuration: the relays equal <code>BELLOWS_RELAYS</code> in the same order, the version is this release, the measurement (when the announcement names one) is the one this Bellows claims, every unit is in <code>BELLOWS_UNITS</code> and every mint is in <code>BELLOWS_TRUSTED_MINTS</code>. An announcement that does not match what the Bellows does would only make clients refuse it later.</p>
@@ -139,7 +139,7 @@ const { response, operator } = await pool.fetch('/v1/models');</code></pre>
 <p><code>loadOperatorAnnouncements</code> reads kind 38390 events from Nostr relays, checks each event's id and signature, and keeps the newest per key and address. <code>authors</code> limits it to keys the app trusts. An app can also ship a list of signed events and skip the relays.</p>
 <p>Before an operator is used, the pool:</p>
 <ol>
-<li>Verifies the Bellows with <code>verifyBellows</code>: a hardware attestation of a build on the approved list (<a href="attestation.html">Attestation</a>).</li>
+<li>Verifies the Bellows with <code>verifyBellows</code>: a hardware attestation of a build on the approved list (<a href="attestation.html">Attested identity</a>).</li>
 <li>Checks that the attested statement carries a signed announcement by the <strong>same operator key for the same address</strong>. A listed event that points at someone else's Bellows is refused (<code>announcement_mismatch</code>). From here on the pool uses the attested copy.</li>
 <li>Checks requirements: the unit and mint the app asks for (<code>not_accepted</code> otherwise).</li>
 <li>Checks health: <code>GET /healthz</code> through Oblivious HTTP, on the same path real requests take.</li>
@@ -203,7 +203,7 @@ const moved = await moveBalance(pool, {
 <a class="pager-prev" rel="prev" href="ohttp.html"><span>Previous</span>Oblivious HTTP</a>
 <a class="pager-next" rel="next" href="attestation.html"><span>Next</span>Attestation</a>
 </nav>
-<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OPERATORS.md">docs/OPERATORS.md</a> in the repository.</p>
+<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/use/operators.md">docs/use/operators.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">

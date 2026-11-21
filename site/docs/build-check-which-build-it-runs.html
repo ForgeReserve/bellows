@@ -76,7 +76,7 @@
 <h1 id="check-which-build-it-runs">Check which build it runs</h1>
 <p class="summary">Read the attested identity, and verify it with verifyBellows before you send anything.</p>
 
-<p>Before you send a prompt or a token, check that the engine runs an approved build. A Bellows serves its identity at <code>GET /.well-known/bellows</code>: a statement (version, claimed build, the HPKE key clients encrypt to, its relays, the operator's announcement) and an attestation that binds that statement. <a href="attestation.html">Attestation</a> describes each part.</p>
+<p>Before you send a prompt or a token, check that the engine runs an approved build. A Bellows serves its identity at <code>GET /.well-known/bellows</code>: a statement (version, claimed build, the HPKE key clients encrypt to, its relays, the operator's announcement) and an attestation that binds that statement. <a href="attestation.html">Attested identity</a> describes each part.</p>
 <p>Look at it by hand:</p>
 <pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s $B/.well-known/bellows | jq '.attestation | {format, warning}'
 curl -s $B/.well-known/bellows | jq -r .statement | base64 -d | jq '{version, measurement, relays, operator}'</code></pre>
@@ -93,7 +93,7 @@ const bellows = await verifyBellows('https://bellows.island-bitcoin.containers.t
   verifier: tinfoilVerifier({ authenticate }),
 });
 // bellows.keyConfig is the attested key, bellows.relays its relays, bellows.build the approved build.</code></pre>
-<p><code>authenticate</code> is yours to supply. It must check the SEV-SNP report or TDX quote (vendor certificate chain, collateral, provenance) and return the measurement it proves and the REPORT_DATA read from the quote. No implementation ships in this repository; <a href="attestation.html#the-client-library">Attestation</a> says what it must do, and <a href="attestation.html#not-verified-locally">Attestation</a> lists what has not been run on real sealed hardware.</p>
+<p><code>authenticate</code> is yours to supply. It must check the SEV-SNP report or TDX quote (vendor certificate chain, collateral, provenance) and return the measurement it proves and the REPORT_DATA read from the quote. No implementation ships in this repository; <a href="attestation.html#the-client-library">The client library</a> says what it must do, and <a href="attestation.html#not-verified-locally">Not verified locally</a> lists what has not been run on real sealed hardware.</p>
 <p>Against a local engine, accept the development stand-in explicitly. It proves nothing, so use it only for development:</p>
 <pre tabindex="0" data-lang="ts"><code class="language-ts">import { devVerifier, verifyBellows } from './client/index.ts';
 
@@ -113,7 +113,7 @@ const bellows = await verifyBellows(BELLOWS, { approvedBuilds: devBuilds, verifi
 <a class="pager-prev" rel="prev" href="build-pick-an-engine.html"><span>Previous</span>Pick an engine</a>
 <a class="pager-next" rel="next" href="build-list-models.html"><span>Next</span>List models</a>
 </nav>
-<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/BUILD.md">docs/BUILD.md</a> in the repository.</p>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/use/guide.md">docs/use/guide.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">

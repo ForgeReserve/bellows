@@ -12,7 +12,7 @@
 #   6. starts tinfoil-release-publish.yml on the new tag, which measures the release with Tinfoil's action
 #      and opens a pull request adding it to builds.json.
 #
-# Every action is pinned by commit. Step by step: docs/OPERATE.md (Release).
+# Every action is pinned by commit. Step by step: docs/run/sealed-deployment.md (Release).
 name: Tinfoil Release
 
 run-name: Release ${{ inputs.version }}
@@ -102,7 +102,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Timestamps come from the release commit, so a rebuild of the same commit can be compared with the
-      # published image (reproducibility is not verified; see docs/OPERATE.md).
+      # published image (reproducibility is not verified; see docs/run/sealed-deployment.md).
       - name: Build and push the Bellows image
         id: bellows
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0

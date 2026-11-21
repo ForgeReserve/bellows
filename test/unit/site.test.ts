@@ -1,5 +1,5 @@
 /**
- * The static site in site/: the generated docs pages match docs/*.md, every internal link and anchor
+ * The static site in site/: the generated docs pages match their Markdown in docs/, every internal link and anchor
  * resolves, and no page loads a script, stylesheet, font or image from another host.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -183,7 +183,7 @@ describe('site', () => {
   });
 
   it('has no em dash in the pages written for the site', () => {
-    const written = [join(ROOT, 'docs/BUILD.md'), join(ROOT, 'scripts/build-site.ts'), ...files(join(ROOT, 'scripts', 'site-pages'))];
+    const written = [join(ROOT, 'docs/use/guide.md'), join(ROOT, 'scripts/build-site.ts'), ...files(join(ROOT, 'scripts', 'site-pages'))];
     for (const p of written) expect(read(p).includes('\u2014'), p).toBe(false);
   });
 });
@@ -200,17 +200,19 @@ describe('site Markdown', () => {
 
   it('sends a link to a heading of a split doc to the page that holds it', () => {
     renderSite(ROOT);
-    expect(rewriteHref('BUILD.md#open-a-balance')).toBe('build-pay-for-requests.html#open-a-balance');
-    expect(rewriteHref('OPERATE.md#4-release')).toBe('operate-4-release.html#4-release');
-    expect(rewriteHref('API.md#error-codes')).toBe('api.html#error-codes');
+    expect(rewriteHref('guide.md#open-a-balance', 'use/api.md')).toBe('build-pay-for-requests.html#open-a-balance');
+    expect(rewriteHref('../run/sealed-deployment.md#4-release', 'verify/attestation.md')).toBe('operate-4-release.html#4-release');
+    expect(rewriteHref('api.md#error-codes', 'use/guide.md')).toBe('api.html#error-codes');
   });
 
   it('rewrites repository links for the site', () => {
-    expect(rewriteHref('OHTTP.md#admission')).toBe('ohttp.html#admission');
+    expect(rewriteHref('ohttp.md#admission', 'how-it-works/threat-model.md')).toBe('ohttp.html#admission');
+    expect(rewriteHref('../how-it-works/ohttp.md#admission', 'run/sealed-deployment.md')).toBe('ohttp.html#admission');
     expect(rewriteHref('#refusals')).toBe('#refusals');
-    expect(rewriteHref('DESIGN.md#platform')).toBe('https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md#platform');
-    expect(rewriteHref('../README.md#admin-cli')).toBe('https://github.com/ForgeReserve/bellows/blob/main/README.md#admin-cli');
-    expect(rewriteHref('../client/')).toBe('https://github.com/ForgeReserve/bellows/tree/main/client/');
+    expect(rewriteHref('../how-it-works/design.md#platform', 'run/sealed-deployment.md')).toBe('https://github.com/ForgeReserve/bellows/blob/main/docs/how-it-works/design.md#platform');
+    expect(rewriteHref('admin.md#admin-cli', 'run/sealed-deployment.md')).toBe('https://github.com/ForgeReserve/bellows/blob/main/docs/run/admin.md#admin-cli');
+    expect(rewriteHref('../../README.md', 'use/api.md')).toBe('https://github.com/ForgeReserve/bellows/blob/main/README.md');
+    expect(rewriteHref('../../client/', 'use/operators.md')).toBe('https://github.com/ForgeReserve/bellows/tree/main/client/');
     expect(rewriteHref('https://www.rfc-editor.org/rfc/rfc9458.html')).toBe('https://www.rfc-editor.org/rfc/rfc9458.html');
   });
 

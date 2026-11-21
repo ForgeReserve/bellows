@@ -1,5 +1,5 @@
 /**
- * Sealed state (docs/DESIGN.md, S3): one secrets source, a wallet seed derived from the wallet secret and
+ * Sealed state (docs/how-it-works/design.md, S3): one secrets source, a wallet seed derived from the wallet secret and
  * never stored, a database that sealed mode refuses off the encrypted volume, and a startup line that names
  * the mode and never a secret.
  */

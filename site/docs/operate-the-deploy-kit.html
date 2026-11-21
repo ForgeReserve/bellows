@@ -92,7 +92,7 @@
 </table></div>
 <p>The rules <code>pnpm deploy:check</code> enforces, and why:</p>
 <ul>
-<li><strong>Only the <code>bellows</code> container has <code>attestation: true</code>.</strong> Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key (<a href="attestation.html">Attestation</a>). A Tor sidecar or any other container runs without it.</li>
+<li><strong>Only the <code>bellows</code> container has <code>attestation: true</code>.</strong> Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key (<a href="attestation.html">Attested identity</a>). A Tor sidecar or any other container runs without it.</li>
 <li><strong>Secrets come from your keyserver, and only Bellows gets them.</strong> <code>keyserver-url</code> is required. Secrets are never <code>env</code> values and never Tinfoil-managed secrets, which Tinfoil's infrastructure can read. No container other than <code>bellows</code> lists <code>secrets</code>.</li>
 <li><strong>The database is on the encrypted volume.</strong> Bellows runs sealed (<code>BELLOWS_MODE=sealed</code>), the database path is under a mount listed in <code>BELLOWS_SEALED_MOUNTS</code>, that mount is a persistent volume, and every volume has a <code>key-secret</code> so it unlocks at boot with a key only your keyserver releases. A volume belongs to one container: no other container mounts Bellows' volume.</li>
 <li><strong>Every setting is measured.</strong> Every <code>env</code> entry is a literal in the measured file. A bare name, whose value would come from an unmeasured instance variable, is refused.</li>
@@ -106,7 +106,7 @@
 <a class="pager-prev" rel="prev" href="operate.html"><span>Previous</span>Operator guide</a>
 <a class="pager-next" rel="next" href="operate-what-you-need.html"><span>Next</span>What you need</a>
 </nav>
-<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OPERATE.md">docs/OPERATE.md</a> in the repository.</p>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/run/sealed-deployment.md">docs/run/sealed-deployment.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">

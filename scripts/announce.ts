@@ -1,5 +1,5 @@
 /**
- * Signs and publishes this Bellows' operator announcement (docs/OPERATORS.md). See src/announce.ts.
+ * Signs and publishes this Bellows' operator announcement (docs/use/operators.md). See src/announce.ts.
  *
  *   pnpm announce --url https://bellows.example --unit sat --mint https://mint.example --out announcement.json
  */

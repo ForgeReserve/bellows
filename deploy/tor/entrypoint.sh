@@ -48,7 +48,7 @@ AvoidDiskWrites 1
 Log notice stdout
 EOF
 
-# The onion address is public: it goes into the operator announcement (docs/OPERATORS.md). Print it once
+# The onion address is public: it goes into the operator announcement (docs/use/operators.md). Print it once
 # Tor has written it. The private key next to it never leaves the volume.
 (
   i=0

@@ -245,7 +245,7 @@ export type DB = DatabaseSync;
 export function refuseOrphanedForgeDb(path: string): void {
   if (path === ':memory:' || existsSync(path)) return;
   if (existsSync(join(dirname(path), 'forge.db'))) {
-    throw new Error(`found forge.db next to ${path}: set BELLOWS_DB_PATH to it or rename it (docs/MIGRATE-FROM-FORGE-AI.md)`);
+    throw new Error(`found forge.db next to ${path}: set BELLOWS_DB_PATH to it or rename it (docs/run/migrate-from-forge-ai.md)`);
   }
 }
 

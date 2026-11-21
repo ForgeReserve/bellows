@@ -49,7 +49,7 @@ export class Ledger {
    * request is still serving it. Kept in memory on purpose: after a restart no request is live, so every
    * reservation left active is abandoned and the sweep may release it. The amount lets a reservation that
    * was released under a running request still be charged: a backstop for a broken one-process invariant
-   * (an overlapping restart on the same file, say), not a supported topology (docs/PAYMENTS.md, Known limits).
+   * (an overlapping restart on the same file, say), not a supported topology (docs/how-it-works/payments.md, Known limits).
    */
   private readonly holds = new Map<string, { accountId: string; amountMsub: number; live: boolean }>();
   constructor(db: DB) {

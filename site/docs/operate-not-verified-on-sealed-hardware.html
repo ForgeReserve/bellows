@@ -79,21 +79,21 @@
 <ul>
 <li>The keyserver releasing secrets to a Bellows enclave, as environment variables, and refusing a debug enclave.</li>
 <li>Volume creation and unlock at boot through <code>key-secret</code>, first-boot initialization of a blank disk, the mount's owner (<code>1000:1000</code>), and the mount appearing in <code>/proc/self/mountinfo</code> so that sealed mode accepts it.</li>
-<li>The attestation socket in a Bellows container and the document it returns (<a href="attestation.html#not-verified-locally">Attestation</a>).</li>
+<li>The attestation socket in a Bellows container and the document it returns (<a href="attestation.html#not-verified-locally">Attested identity</a>).</li>
 <li>The measurement form in <code>builds.json</code> matching what an app's <code>authenticate</code> returns, and reproducible image builds. The release workflows and Tinfoil's measure action have run (<a href="operate-4-release.html#4-release">4. Release</a>).</li>
 <li>On the reference instance: a paid request, an Oblivious HTTP round trip, and reading a balance back after a restart. The test suite and local runs cover each of them.</li>
 <li>Tinfoil's dashboard and CLI accepting these workflows in place of the template's, and the <code>version</code> input they send.</li>
 <li>The egress allowlist in practice: hostnames re-resolved by the platform, Nostr relays over WebSocket, and enclave hosts a client names beyond the ones listed (they are blocked unless you add them).</li>
 <li>Streamed answers and the admin API through the shim.</li>
 <li>The Tor sidecar on Tinfoil (see <a href="operate-onion-service.html#onion-service">Onion service</a>).</li>
-<li>Price, self-serve access and where inbound TLS ends, as <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/DESIGN.md#platform">DESIGN.md</a> notes.</li>
+<li>Price, self-serve access and where inbound TLS ends, as <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/how-it-works/design.md#platform">Design</a> notes.</li>
 </ul>
 </article>
 <nav class="pager" aria-label="Previous and next page">
 <a class="pager-prev" rel="prev" href="operate-rehearse-locally.html"><span>Previous</span>Rehearse locally</a>
 <span></span>
 </nav>
-<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/OPERATE.md">docs/OPERATE.md</a> in the repository.</p>
+<p class="source">This page is a section of <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/run/sealed-deployment.md">docs/run/sealed-deployment.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">
