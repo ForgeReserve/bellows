@@ -11,10 +11,10 @@ Every setting a Bellows reads, where its secrets come from, how it picks which o
 | `BELLOWS_TRUSTED_MINTS` | required | Comma-separated mints whose eCash is accepted. Tokens from other mints get HTTP 400. There is no built-in mint |
 | `BELLOWS_MINT_ALIASES` | none | Other addresses of the same mint, as comma-separated `alias=main` pairs. Tokens under an alias are accepted and stored under the main address, so the wallet keeps one counter per keyset |
 | `BELLOWS_UNITS` | `usd,sat` | Accepted units |
-| `BELLOWS_DEFAULT_UNIT` | `usd` | Unit of a 402 request unless the client sends `X-Forge-Unit` |
+| `BELLOWS_DEFAULT_UNIT` | `sat` | Unit of a call that names none: a 402 quote without `X-Forge-Unit`, and a Lightning or other-mint funding without `unit`. It must be one of `BELLOWS_UNITS`, so an engine without `sat` sets it to `usd` |
 | `BELLOWS_INVITE_ONLY` | `false` | Optional gate: require an invite code to open a balance or pay per request |
 | `BELLOWS_SERVICE_NAME` | `Bellows` | Name in NUT-18 payment requests (`<name>: <model>`) |
-| `BELLOWS_MARKUP` | `1.25` | Multiplier on supplier cost |
+| `BELLOWS_MARKUP` | `1.25` | Multiplier on supplier cost, at least 1. `1` charges the supplier's cost with no margin, as the reference instance does ([Prices](#prices)) |
 | `BELLOWS_SERVE_UNVERIFIED_PRICES` | `false` | Serve models whose catalog price has `price_verified: false`. Off, they are neither listed nor routable, whatever supplier keys are present. On, startup logs them at error level. See [Model catalog](#model-catalog) |
 | `BELLOWS_MODELS_FILE` | `config/models.json` | Supplier and model catalog |
 | `PORT` | `8787` | Port the API listens on |
@@ -122,6 +122,19 @@ Tinfoil prices were read from `https://inference.tinfoil.sh/v1/models` on 2026-1
 A supplier sets `pricing: "metered"` (charge on reported usage) or `pricing: "flat"` (charge a schedule by request body size plus declared max output). A metered supplier may also carry a `flat` schedule, used only when no usage signal arrives.
 
 `config/models.dev.json` is the catalog for local development. It adds an in-process mock supplier (`mock-echo`, `mock-slow` and others), so everything works without upstream keys. To use the real suppliers in development, add `TOKENFACTORY_API_KEY` and `TINFOIL_API_KEY` to the secrets file (`data/secrets.json` in the [quick start](../../README.md#quick-start)). Token Factory models in the dev catalog are marked `price_verified: false`, so they are served only with `BELLOWS_SERVE_UNVERIFIED_PRICES=true`.
+
+## Prices
+
+A model's price is its supplier's cost in the catalog times `BELLOWS_MARKUP`. The markup defaults to 1.25 for anyone running their own Bellows and cannot be set below 1. Prices are kept in USD; a price in sats is converted at the median BTC/USD rate of the price sources. Each charge is rounded up to the next thousandth of the unit, and a per-request (NUT-24) payment to the next whole unit, because its change is whole eCash units.
+
+The reference instance at `https://bellows.island-bitcoin.containers.tinfoil.dev` sets `BELLOWS_MARKUP` to `1` in its measured [`tinfoil-config.yml`](../../tinfoil-config.yml): it charges the suppliers' cost with no margin, and its operator pays its hosting. Its default unit is `sat`, and it also takes `usd`.
+
+To check what an instance charges, compare two things:
+
+- `GET /v1/models` gives each model's price per million input and output tokens, markup included: `pricing.usd_per_mtok`, and `pricing.sat_per_mtok` at the rate in use. It is public.
+- The supplier's cost is `input_usd_per_mtok` and `output_usd_per_mtok` in `config/models.json`, and the markup is `BELLOWS_MARKUP` in `tinfoil-config.yml`, both at the release tag the instance runs. For a sealed instance both are part of the measured build: the catalog is in the image, whose digest the measured config pins.
+
+At markup 1, `pricing.usd_per_mtok` equals the catalog's cost. The operator API also lists cost next to price (`GET /admin/api/settings`), but only for the operator.
 
 ## Suppliers
 

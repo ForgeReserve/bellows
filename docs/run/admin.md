@@ -44,6 +44,8 @@ pnpm admin revenue:export --unit usd [--mint URL] [--amount N]   # sweep revenue
 pnpm admin prices:show [--unit sat]
 ```
 
+Without `--unit`, `revenue:export` and `prices:show` use `BELLOWS_DEFAULT_UNIT`.
+
 `revenue:export` never exports eCash that backs customer balances or unpaid change. Exports are recorded in `revenue_exports` (amount, lock, token hash; never the token).
 
 ## Logs

@@ -396,8 +396,9 @@ describe.skipIf(!up).each(['direct', 'ohttp'] as const)('Forge AI clients, uncha
   });
 
   it('agent example: pays one request with eCash and takes its change back', async () => {
+    // The example names no unit unless UNIT is set, so it is asked in the engine's default unit.
     const run = await agentPays(rig.send, { model: 'mock-echo', prompt: 'What is eCash?', invite: createInvite(rig.g), maxTokens: 64 });
-    expect(run.pr.unit).toBe('usd');
+    expect(run.pr.unit).toBe('sat');
     expect(run.pr.mints).toEqual([MINT_A]);
     expect(run.paid.status).toBe(200);
     expect(run.json.choices[0].message.content).toMatch(/^Hello/);
@@ -411,6 +412,14 @@ describe.skipIf(!up).each(['direct', 'ohttp'] as const)('Forge AI clients, uncha
     const again = await rig.send(url, {});
     expect(again.status).toBe(200);
     expect(((await again.json()) as any).token).toBe(run.changeToken);
+  });
+
+  it('agent example: UNIT=usd pays in usd', async () => {
+    const run = await agentPays(rig.send, { model: 'mock-echo', prompt: 'What is eCash?', invite: createInvite(rig.g), unit: 'usd', maxTokens: 64 });
+    expect(run.pr.unit).toBe('usd');
+    expect(run.paid.status).toBe(200);
+    expect(run.paid.headers.get('x-forge-unit')).toBe('usd');
+    expect(run.change).toBe(run.pr.amount!.toNumber() - Math.ceil(Number(run.paid.headers.get('x-forge-charged-msub')) / 1000));
   });
 
   it('agent example: change locked to the agent key, redeemed with its private key', async () => {

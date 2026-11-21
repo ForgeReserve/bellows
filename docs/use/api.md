@@ -14,7 +14,7 @@ The Forge AI web app and its agent example use the client API exactly as written
 
 **JSON.** Request and response bodies are JSON unless a section says otherwise. Send `Content-Type: application/json` with a body.
 
-**Units and amounts.** A Bellows keeps balances and takes payment in `usd` (cents) and `sat` (satoshis), as configured. Amounts named `amount`, `credited`, `credit` or `refundable` are whole units. Fields ending in `_msub` are thousandths of a unit: milli-cents for `usd`, millisatoshis for `sat`. A balance has one unit, set when it is opened.
+**Units and amounts.** A Bellows keeps balances and takes payment in `usd` (cents) and `sat` (satoshis), as configured. A call that names no unit (a `402` quote without `X-Forge-Unit`, a Lightning or other-mint funding without `unit`) is in the Bellows' default unit, which is `sat` unless its operator chose `usd`; name the unit to be sure. Amounts named `amount`, `credited`, `credit` or `refundable` are whole units. Fields ending in `_msub` are thousandths of a unit: milli-cents for `usd`, millisatoshis for `sat`. A balance has one unit, set when it is opened.
 
 **Names kept from Forge AI.** Bellows started as the engine inside Forge AI. To keep existing clients working, the client API keeps the `X-Forge-` header prefix, the `event: forge` stream event and the `sk-forge-` prefix of balance keys.
 
@@ -119,7 +119,7 @@ The models this Bellows sells, in the OpenAI list shape, with prices and payment
 
 - `tier` (and its copy `privacy`) is `enclave` for a model that runs in its supplier's sealed hardware, `standard` otherwise.
 - `encrypted_passthrough` is true when the model takes EHBP-encrypted bodies ([Encrypted chat](#encrypted-chat-ehbp)). Such a model also lists `upstream_model`, the name to send in `X-Tinfoil-Model`.
-- `pricing.usd_per_mtok` is the price per million input and output tokens in US dollars, markup included. `sat_per_mtok` is the same at the current BTC/USD rate, or `null` when sats are not offered or no rate is known. `mode` is `metered` (charged by tokens) or `flat` (charged by a fixed schedule of request sizes). `verified` is true when the operator checked the price against the supplier's rate card. A Bellows serves a model with `verified: false` only when its operator has turned that on explicitly; treat such a price as an estimate.
+- `pricing.usd_per_mtok` is the price per million input and output tokens in US dollars, markup included ([Prices](../run/configuration.md#prices) in the configuration reference says how to compare it with the supplier's cost). `sat_per_mtok` is the same at the current BTC/USD rate, or `null` when sats are not offered or no rate is known. `mode` is `metered` (charged by tokens) or `flat` (charged by a fixed schedule of request sizes). `verified` is true when the operator checked the price against the supplier's rate card. A Bellows serves a model with `verified: false` only when its operator has turned that on explicitly; treat such a price as an estimate.
 - `mints` lists the mints whose eCash this Bellows takes for topups and per-request payment. `btc_usd` is the rate in use, or `null`.
 
 ### `POST /v1/chat/completions`
@@ -132,7 +132,7 @@ OpenAI chat completions, streamed or not. `tools`, `tool_choice` and other field
 | - | - |
 | `Authorization: Bearer sk-forge-...` | Paid from the balance. `402 insufficient_balance` if the balance cannot cover the maximum cost; `403 account_frozen` if the operator froze it |
 | `X-Cashu: cashuB...` | Paid per request (NUT-24). The token must cover the maximum cost. Add `X-Forge-Invite` when invite only. `X-Cashu-Pubkey` locks the change to your key ([Locking](#locking-payouts-to-your-key)) |
-| Neither | `402 payment_required` with a NUT-18 payment request (below). `X-Forge-Unit: sat` asks for a quote in sats |
+| Neither | `402 payment_required` with a NUT-18 payment request (below), in the default unit. `X-Forge-Unit: usd` or `X-Forge-Unit: sat` names the unit. A sat quote needs a BTC/USD rate: without one the answer is `503 rate_unavailable`, and a usd quote still works |
 
 The `402` answer:
 
@@ -140,8 +140,8 @@ The `402` answer:
 HTTP/1.1 402 Payment Required
 X-Cashu: creqA...
 
-{"error": {"message": "pay 20 usd in eCash: retry with X-Cashu: cashuB... Unused value is returned as change.", "type": "payment_required", "code": "payment_required"},
- "payment_request": "creqA...", "amount": 20, "unit": "usd", "mints": ["https://mint.example"]}
+{"error": {"message": "pay 113 sat in eCash: retry with X-Cashu: cashuB... Unused value is returned as change.", "type": "payment_required", "code": "payment_required"},
+ "payment_request": "creqA...", "amount": 113, "unit": "sat", "mints": ["https://mint.example"]}
 ```
 
 Pay `amount` in `unit` at one of `mints` and send the same request again with `X-Cashu`. A sat quote carries a small buffer for rate movement; the unused part comes back as change.
@@ -219,10 +219,10 @@ A balance can be funded without eCash from an accepted mint: by a Lightning invo
 | Endpoint | Send | Answer |
 | - | - | - |
 | `GET /v1/wallet/fund/methods` | | What is offered (below) |
-| `POST /v1/wallet/fund/lightning` | `{"amount", "unit", "invite"?}` | A funding; `request` is a bolt11 invoice |
+| `POST /v1/wallet/fund/lightning` | `{"amount", "unit", "invite"?}` | A funding; `request` is a bolt11 invoice. Without `unit`, `amount` is in the default unit |
 | `POST /v1/wallet/fund/onchain` | `{"invite"?}` | A funding in `sat`; `request` is a bitcoin address |
 | `GET /v1/wallet/fund/mints` | | Other mints accepted for funding (below) |
-| `POST /v1/wallet/fund/foreign/quote` | `{"token", "unit", "invite"?, "pubkey"?, "accept_unlisted"?}` | A funding in state `quoted` with the exact credit. Nothing is spent yet |
+| `POST /v1/wallet/fund/foreign/quote` | `{"token", "unit", "invite"?, "pubkey"?, "accept_unlisted"?}` | A funding in state `quoted` with the exact credit, for a balance in `unit` (without it, the default unit). Nothing is spent yet |
 | `POST /v1/wallet/fund/foreign/confirm` | Bearer key; `{"id", "token", "pubkey"?}` | The funding, moving |
 | `GET /v1/wallet/fund/{id}` | Bearer key | The funding. Polling it also moves it forward |
 | `GET /v1/wallet/fund` | Bearer key | `{data: [funding]}`, this balance's recent fundings |

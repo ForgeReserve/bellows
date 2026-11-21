@@ -4,6 +4,7 @@
  *   BELLOWS_URL=http://localhost:8787 BELLOWS_INVITE=inv-... MODEL=mock-echo \
  *   CASHU_TOKEN=cashuB...            # eCash to spend from (any trusted mint), or:
  *   DEMO_FAKE_MINT=1                 # mint test eCash from a FakeWallet mint named in the 402
+ *   UNIT=sat|usd                     # optional: the unit to pay in (default: CASHU_TOKEN's unit, else the engine's)
  *   CASHU_PUBKEY=02...               # optional: lock the change to this key (NUT-11 P2PK)
  *   CASHU_PRIVKEY=...                # optional: the matching private key, to redeem locked change
  *   pnpm demo:agent "What is eCash?"
@@ -23,7 +24,9 @@ const MODEL = process.env.MODEL ?? 'mock-echo';
 const prompt = process.argv[2] ?? 'In one sentence, what is eCash?';
 const headers: Record<string, string> = { 'content-type': 'application/json' };
 if (process.env.BELLOWS_INVITE) headers['X-Forge-Invite'] = process.env.BELLOWS_INVITE;
-if (process.env.UNIT) headers['X-Forge-Unit'] = process.env.UNIT;
+// The unit to be asked in: UNIT, else CASHU_TOKEN's own unit, else the engine's default unit (sat unless its operator chose usd).
+const unit = process.env.UNIT ?? (process.env.CASHU_TOKEN ? getTokenMetadata(process.env.CASHU_TOKEN).unit : undefined);
+if (unit) headers['X-Forge-Unit'] = unit;
 // Optional NUT-11 lock for the change. The private key never leaves this process.
 let lockPriv = process.env.CASHU_PRIVKEY;
 let lockPub = process.env.CASHU_PUBKEY;

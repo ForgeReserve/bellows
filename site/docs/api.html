@@ -88,7 +88,7 @@
 <h2 id="conventions">Conventions<a class="anchor" href="#conventions" aria-hidden="true" tabindex="-1">#</a></h2>
 <p><strong>Base URL.</strong> Every path below is relative to the Bellows' origin, for example <code>https://bellows.example</code>. The client API lives under <code>/v1/</code>.</p>
 <p><strong>JSON.</strong> Request and response bodies are JSON unless a section says otherwise. Send <code>Content-Type: application/json</code> with a body.</p>
-<p><strong>Units and amounts.</strong> A Bellows keeps balances and takes payment in <code>usd</code> (cents) and <code>sat</code> (satoshis), as configured. Amounts named <code>amount</code>, <code>credited</code>, <code>credit</code> or <code>refundable</code> are whole units. Fields ending in <code>_msub</code> are thousandths of a unit: milli-cents for <code>usd</code>, millisatoshis for <code>sat</code>. A balance has one unit, set when it is opened.</p>
+<p><strong>Units and amounts.</strong> A Bellows keeps balances and takes payment in <code>usd</code> (cents) and <code>sat</code> (satoshis), as configured. A call that names no unit (a <code>402</code> quote without <code>X-Forge-Unit</code>, a Lightning or other-mint funding without <code>unit</code>) is in the Bellows' default unit, which is <code>sat</code> unless its operator chose <code>usd</code>; name the unit to be sure. Amounts named <code>amount</code>, <code>credited</code>, <code>credit</code> or <code>refundable</code> are whole units. Fields ending in <code>_msub</code> are thousandths of a unit: milli-cents for <code>usd</code>, millisatoshis for <code>sat</code>. A balance has one unit, set when it is opened.</p>
 <p><strong>Names kept from Forge AI.</strong> Bellows started as the engine inside Forge AI. To keep existing clients working, the client API keeps the <code>X-Forge-</code> header prefix, the <code>event: forge</code> stream event and the <code>sk-forge-</code> prefix of balance keys.</p>
 <p><strong>Errors.</strong> Every error is OpenAI-shaped: <code>{&quot;error&quot;: {&quot;message&quot;, &quot;type&quot;, &quot;code&quot;}}</code>, sometimes with extra members named in the endpoint's section. <code>type</code> and <code>code</code> carry the same value. Match on <code>code</code>, not on <code>message</code>. The full list is under <a href="#error-codes">Error codes</a>.</p>
 <p><strong>Paying.</strong> A request is paid one of two ways:</p>
@@ -173,7 +173,7 @@ const res = await bellowsFetch(operator, '/v1/wallet', { headers: { authorizatio
 <ul>
 <li><code>tier</code> (and its copy <code>privacy</code>) is <code>enclave</code> for a model that runs in its supplier's sealed hardware, <code>standard</code> otherwise.</li>
 <li><code>encrypted_passthrough</code> is true when the model takes EHBP-encrypted bodies (<a href="#encrypted-chat-ehbp">Encrypted chat</a>). Such a model also lists <code>upstream_model</code>, the name to send in <code>X-Tinfoil-Model</code>.</li>
-<li><code>pricing.usd_per_mtok</code> is the price per million input and output tokens in US dollars, markup included. <code>sat_per_mtok</code> is the same at the current BTC/USD rate, or <code>null</code> when sats are not offered or no rate is known. <code>mode</code> is <code>metered</code> (charged by tokens) or <code>flat</code> (charged by a fixed schedule of request sizes). <code>verified</code> is true when the operator checked the price against the supplier's rate card. A Bellows serves a model with <code>verified: false</code> only when its operator has turned that on explicitly; treat such a price as an estimate.</li>
+<li><code>pricing.usd_per_mtok</code> is the price per million input and output tokens in US dollars, markup included (<a href="https://github.com/ForgeReserve/bellows/blob/main/docs/run/configuration.md#prices">Prices</a> in the configuration reference says how to compare it with the supplier's cost). <code>sat_per_mtok</code> is the same at the current BTC/USD rate, or <code>null</code> when sats are not offered or no rate is known. <code>mode</code> is <code>metered</code> (charged by tokens) or <code>flat</code> (charged by a fixed schedule of request sizes). <code>verified</code> is true when the operator checked the price against the supplier's rate card. A Bellows serves a model with <code>verified: false</code> only when its operator has turned that on explicitly; treat such a price as an estimate.</li>
 <li><code>mints</code> lists the mints whose eCash this Bellows takes for topups and per-request payment. <code>btc_usd</code> is the rate in use, or <code>null</code>.</li>
 </ul>
 <h3 id="post-v1chatcompletions"><code>POST /v1/chat/completions</code><a class="anchor" href="#post-v1chatcompletions" aria-hidden="true" tabindex="-1">#</a></h3>
@@ -184,15 +184,15 @@ const res = await bellowsFetch(operator, '/v1/wallet', { headers: { authorizatio
 <tbody>
 <tr><td><code>Authorization: Bearer sk-forge-...</code></td><td>Paid from the balance. <code>402 insufficient_balance</code> if the balance cannot cover the maximum cost; <code>403 account_frozen</code> if the operator froze it</td></tr>
 <tr><td><code>X-Cashu: cashuB...</code></td><td>Paid per request (NUT-24). The token must cover the maximum cost. Add <code>X-Forge-Invite</code> when invite only. <code>X-Cashu-Pubkey</code> locks the change to your key (<a href="#locking-payouts-to-your-key">Locking</a>)</td></tr>
-<tr><td>Neither</td><td><code>402 payment_required</code> with a NUT-18 payment request (below). <code>X-Forge-Unit: sat</code> asks for a quote in sats</td></tr>
+<tr><td>Neither</td><td><code>402 payment_required</code> with a NUT-18 payment request (below), in the default unit. <code>X-Forge-Unit: usd</code> or <code>X-Forge-Unit: sat</code> names the unit. A sat quote needs a BTC/USD rate: without one the answer is <code>503 rate_unavailable</code>, and a usd quote still works</td></tr>
 </tbody>
 </table></div>
 <p>The <code>402</code> answer:</p>
 <pre tabindex="0"><code>HTTP/1.1 402 Payment Required
 X-Cashu: creqA...
 
-{&quot;error&quot;: {&quot;message&quot;: &quot;pay 20 usd in eCash: retry with X-Cashu: cashuB... Unused value is returned as change.&quot;, &quot;type&quot;: &quot;payment_required&quot;, &quot;code&quot;: &quot;payment_required&quot;},
- &quot;payment_request&quot;: &quot;creqA...&quot;, &quot;amount&quot;: 20, &quot;unit&quot;: &quot;usd&quot;, &quot;mints&quot;: [&quot;https://mint.example&quot;]}</code></pre>
+{&quot;error&quot;: {&quot;message&quot;: &quot;pay 113 sat in eCash: retry with X-Cashu: cashuB... Unused value is returned as change.&quot;, &quot;type&quot;: &quot;payment_required&quot;, &quot;code&quot;: &quot;payment_required&quot;},
+ &quot;payment_request&quot;: &quot;creqA...&quot;, &quot;amount&quot;: 113, &quot;unit&quot;: &quot;sat&quot;, &quot;mints&quot;: [&quot;https://mint.example&quot;]}</code></pre>
 <p>Pay <code>amount</code> in <code>unit</code> at one of <code>mints</code> and send the same request again with <code>X-Cashu</code>. A sat quote carries a small buffer for rate movement; the unused part comes back as change.</p>
 <p><strong>Answer headers.</strong></p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
@@ -258,10 +258,10 @@ data: {&quot;request_id&quot;:&quot;req_...&quot;,&quot;unit&quot;:&quot;usd&quo
 <thead><tr><th scope="col">Endpoint</th><th scope="col">Send</th><th scope="col">Answer</th></tr></thead>
 <tbody>
 <tr><td><code>GET /v1/wallet/fund/methods</code></td><td></td><td>What is offered (below)</td></tr>
-<tr><td><code>POST /v1/wallet/fund/lightning</code></td><td><code>{&quot;amount&quot;, &quot;unit&quot;, &quot;invite&quot;?}</code></td><td>A funding; <code>request</code> is a bolt11 invoice</td></tr>
+<tr><td><code>POST /v1/wallet/fund/lightning</code></td><td><code>{&quot;amount&quot;, &quot;unit&quot;, &quot;invite&quot;?}</code></td><td>A funding; <code>request</code> is a bolt11 invoice. Without <code>unit</code>, <code>amount</code> is in the default unit</td></tr>
 <tr><td><code>POST /v1/wallet/fund/onchain</code></td><td><code>{&quot;invite&quot;?}</code></td><td>A funding in <code>sat</code>; <code>request</code> is a bitcoin address</td></tr>
 <tr><td><code>GET /v1/wallet/fund/mints</code></td><td></td><td>Other mints accepted for funding (below)</td></tr>
-<tr><td><code>POST /v1/wallet/fund/foreign/quote</code></td><td><code>{&quot;token&quot;, &quot;unit&quot;, &quot;invite&quot;?, &quot;pubkey&quot;?, &quot;accept_unlisted&quot;?}</code></td><td>A funding in state <code>quoted</code> with the exact credit. Nothing is spent yet</td></tr>
+<tr><td><code>POST /v1/wallet/fund/foreign/quote</code></td><td><code>{&quot;token&quot;, &quot;unit&quot;, &quot;invite&quot;?, &quot;pubkey&quot;?, &quot;accept_unlisted&quot;?}</code></td><td>A funding in state <code>quoted</code> with the exact credit, for a balance in <code>unit</code> (without it, the default unit). Nothing is spent yet</td></tr>
 <tr><td><code>POST /v1/wallet/fund/foreign/confirm</code></td><td>Bearer key; <code>{&quot;id&quot;, &quot;token&quot;, &quot;pubkey&quot;?}</code></td><td>The funding, moving</td></tr>
 <tr><td><code>GET /v1/wallet/fund/{id}</code></td><td>Bearer key</td><td>The funding. Polling it also moves it forward</td></tr>
 <tr><td><code>GET /v1/wallet/fund</code></td><td>Bearer key</td><td><code>{data: [funding]}</code>, this balance's recent fundings</td></tr>

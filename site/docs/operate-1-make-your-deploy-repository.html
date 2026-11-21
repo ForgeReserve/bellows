@@ -81,6 +81,8 @@
 <ul>
 <li><code>keyserver-url</code>: your keyserver.</li>
 <li><code>BELLOWS_TRUSTED_MINTS</code> (and <code>BELLOWS_FUND_MINT</code> if you set it): your mints. Add each mint's host to the <code>egress</code> allowlist.</li>
+<li><code>BELLOWS_MARKUP</code>: the multiplier on your suppliers' cost, at least 1. The template and the code default are 1.25. The <code>tinfoil-config.yml</code> in this repository is the reference instance's, which sets <code>1</code>: it charges the suppliers' cost with no margin, and its operator pays its hosting. Set the markup your own deployment charges.</li>
+<li><code>BELLOWS_DEFAULT_UNIT</code>: the unit of a call that names none, <code>sat</code> in the template and the code. It must be one of <code>BELLOWS_UNITS</code>.</li>
 <li>Any other setting in the <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/run/configuration.md">configuration reference</a>. Add it as a quoted literal.</li>
 <li>If you change <code>config/models.json</code>, list each supplier's API key under <code>secrets</code> and its host in the allowlist.</li>
 </ul>

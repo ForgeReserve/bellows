@@ -101,6 +101,20 @@ describe.skipIf(!up)('funding: Lightning (NUT-04 bolt11 at the funding mint)', (
     expect(topupRows(g, done.account_id)).toBe(2);
   });
 
+  it('opens a sat balance when the funding names no unit, and a usd balance when it names usd', async () => {
+    const r = await post(g, '/v1/wallet/fund/lightning', { amount: 40, invite: createInvite(g) });
+    expect(r.status).toBe(200);
+    const key = r.body.key as string;
+    expect((await waitFor(g, r.body.id, key)).credited).toBe(40);
+    const w = await get(g, '/v1/wallet', key);
+    expect(w.body.unit).toBe('sat');
+    expect(w.body.balance_msub).toBe(40_000);
+    const u = await post(g, '/v1/wallet/fund/lightning', { amount: 40, unit: 'usd', invite: createInvite(g) });
+    expect(u.status).toBe(200);
+    await waitFor(g, u.body.id, u.body.key);
+    expect((await get(g, '/v1/wallet', u.body.key)).body.unit).toBe('usd');
+  });
+
   it('rejects a unit that differs from the balance, and bad amounts', async () => {
     const invite = createInvite(g);
     const r = await post(g, '/v1/wallet/fund/lightning', { amount: 100, unit: 'sat', invite });

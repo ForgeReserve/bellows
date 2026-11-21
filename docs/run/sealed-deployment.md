@@ -46,6 +46,8 @@ Edit `tinfoil-config.yml`. The templates in `deploy/` stay as they are. The test
 
 - `keyserver-url`: your keyserver.
 - `BELLOWS_TRUSTED_MINTS` (and `BELLOWS_FUND_MINT` if you set it): your mints. Add each mint's host to the `egress` allowlist.
+- `BELLOWS_MARKUP`: the multiplier on your suppliers' cost, at least 1. The template and the code default are 1.25. The `tinfoil-config.yml` in this repository is the reference instance's, which sets `1`: it charges the suppliers' cost with no margin, and its operator pays its hosting. Set the markup your own deployment charges.
+- `BELLOWS_DEFAULT_UNIT`: the unit of a call that names none, `sat` in the template and the code. It must be one of `BELLOWS_UNITS`.
 - Any other setting in the [configuration reference](configuration.md). Add it as a quoted literal.
 - If you change `config/models.json`, list each supplier's API key under `secrets` and its host in the allowlist.
 

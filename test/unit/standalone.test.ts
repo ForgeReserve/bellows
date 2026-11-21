@@ -5,7 +5,7 @@ import { openDb } from '../../src/db.ts';
 import { loadConfig } from '../../src/config.ts';
 import { buildDeps } from '../../src/deps.ts';
 import { setLogSilent } from '../../src/log.ts';
-import { fixedRateSource } from '../../src/rates.ts';
+import { fixedRateSource, type RateSource } from '../../src/rates.ts';
 
 setLogSilent(true);
 
@@ -14,10 +14,10 @@ const catalog = {
   models: [{ id: 'mock-echo', supplier: 'mock', upstream: 'mock-echo', input_usd_per_mtok: 1, output_usd_per_mtok: 2, price_verified: true }],
 };
 
-function app(env: Record<string, string> = {}) {
+function app(env: Record<string, string> = {}, rateSources: RateSource[] = [fixedRateSource('fixed', 100_000)]) {
   const e = { BELLOWS_DB_PATH: ':memory:', BELLOWS_TRUSTED_MINTS: 'http://127.0.0.1:1', BELLOWS_FOREIGN_DISCOVERY_RELAYS: '', ...env };
   const config = loadConfig(e as NodeJS.ProcessEnv, catalog);
-  return createApp(buildDeps(config, { rateSources: [fixedRateSource('fixed', 100_000)] }));
+  return createApp(buildDeps(config, { rateSources }));
 }
 
 describe('engine only: no web app', () => {
@@ -57,15 +57,37 @@ describe('no beta waitlist', () => {
 });
 
 describe('NUT-18 payment requests', () => {
-  const ask = async (a: ReturnType<typeof app>) => {
-    const res = await a.request('http://gw.test/v1/chat/completions', {
+  const chat = (a: ReturnType<typeof app>, headers: Record<string, string> = {}) =>
+    a.request('http://gw.test/v1/chat/completions', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...headers },
       body: JSON.stringify({ model: 'mock-echo', messages: [{ role: 'user', content: 'hi' }], max_tokens: 16 }),
     });
+  const ask = async (a: ReturnType<typeof app>, headers: Record<string, string> = {}) => {
+    const res = await chat(a, headers);
     expect(res.status).toBe(402);
     return decodePaymentRequest(res.headers.get('x-cashu')!);
   };
+
+  it('ask in sat when the client names no unit, and in usd when it sends X-Forge-Unit: usd', async () => {
+    const a = app();
+    expect((await ask(a)).unit).toBe('sat');
+    expect((await ask(a, { 'x-forge-unit': 'sat' })).unit).toBe('sat');
+    expect((await ask(a, { 'x-forge-unit': 'usd' })).unit).toBe('usd');
+  });
+
+  it('follow BELLOWS_DEFAULT_UNIT when the client names no unit', async () => {
+    expect((await ask(app({ BELLOWS_DEFAULT_UNIT: 'usd' }))).unit).toBe('usd');
+    expect((await ask(app({ BELLOWS_UNITS: 'usd', BELLOWS_DEFAULT_UNIT: 'usd' }))).unit).toBe('usd');
+  });
+
+  it('without a BTC/USD rate, refuse a sat quote and still ask in usd', async () => {
+    const a = app({}, [{ name: 'down', fetchBtcUsd: async () => Promise.reject(new Error('down')) }]);
+    const res = await chat(a);
+    expect(res.status).toBe(503);
+    expect(((await res.json()) as any).error.code).toBe('rate_unavailable');
+    expect((await ask(a, { 'x-forge-unit': 'usd' })).unit).toBe('usd');
+  });
 
   it('name the service Bellows by default, with no invite needed', async () => {
     const pr = await ask(app());

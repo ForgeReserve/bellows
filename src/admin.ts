@@ -5,8 +5,9 @@
  *   pnpm admin invites:revoke <invite-id|code>
  *   pnpm admin balances:show          (totals per unit; there is no per-balance listing)
  *   pnpm admin revenue:show
- *   pnpm admin revenue:export --unit usd|sat [--mint URL] [--amount N]
+ *   pnpm admin revenue:export [--unit usd|sat] [--mint URL] [--amount N]
  *   pnpm admin prices:show [--unit usd|sat]
+ * Without --unit, revenue:export and prices:show use BELLOWS_DEFAULT_UNIT.
  */
 import { parseArgs } from 'node:util';
 import { loadConfig, type Unit } from './config.ts';
@@ -67,7 +68,7 @@ switch (cmd) {
     );
     break;
   case 'revenue:export': {
-    const unit = (values.unit ?? 'usd') as Unit;
+    const unit = (values.unit ?? config.env.BELLOWS_DEFAULT_UNIT) as Unit;
     let plan;
     try {
       plan = planExport(d, unit, { mint: values.mint, amount: values.amount ? Number(values.amount) : undefined });
@@ -82,7 +83,7 @@ switch (cmd) {
     break;
   }
   case 'prices:show': {
-    const unit = (values.unit ?? 'usd') as Unit;
+    const unit = (values.unit ?? config.env.BELLOWS_DEFAULT_UNIT) as Unit;
     const rate = unit === 'sat' ? await d.rates.get() : undefined;
     if (unit === 'sat' && !rate) console.error('BTC/USD rate unavailable');
     table(

@@ -72,6 +72,8 @@ Every `FORGE_*` variable is now `BELLOWS_*`. The old names are not read at all: 
 | `FORGE_ADMIN_RATE_LIMIT_RPM` | `BELLOWS_ADMIN_RATE_LIMIT_RPM` |
 | `FORGE_LOG_SILENT` | `BELLOWS_LOG_SILENT` |
 
+One default changed. `BELLOWS_DEFAULT_UNIT` is `sat` where `FORGE_DEFAULT_UNIT` was `usd`: a 402 quote without `X-Forge-Unit`, and a Lightning or other-mint funding without `unit`, are now in sats. To keep them in usd, set `BELLOWS_DEFAULT_UNIT=usd`. A deployment that takes only `usd` must set it, or startup refuses.
+
 Removed, with no replacement in the engine:
 
 | Forge AI | Why |

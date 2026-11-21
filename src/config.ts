@@ -65,7 +65,11 @@ export const EnvSchema = z.object({
    */
   BELLOWS_MINT_ALIASES: csv.default([]),
   BELLOWS_UNITS: csv.pipe(z.array(z.enum(UNITS)).min(1)).default(['usd', 'sat']),
-  BELLOWS_DEFAULT_UNIT: z.enum(UNITS).default('usd'),
+  /**
+   * Unit of a call that names none: a 402 quote without X-Forge-Unit, a Lightning or other-mint funding without
+   * `unit`. A token, a balance key or an on-chain deposit carries its own unit and never falls back to this.
+   */
+  BELLOWS_DEFAULT_UNIT: z.enum(UNITS).default('sat'),
   /** Name shown in NUT-18 payment requests ("<name>: <model>"). */
   BELLOWS_SERVICE_NAME: z.string().trim().min(1).max(60).default('Bellows'),
   /** Optional gate: a new balance or a NUT-24 request needs an invite code. Off by default. */
@@ -368,7 +372,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
   const env = parsed.data;
   setMintAliases(env.BELLOWS_MINT_ALIASES);
   if (!env.BELLOWS_UNITS.includes(env.BELLOWS_DEFAULT_UNIT)) {
-    throw new Error('BELLOWS_DEFAULT_UNIT must be one of BELLOWS_UNITS');
+    throw new Error(`BELLOWS_DEFAULT_UNIT (${env.BELLOWS_DEFAULT_UNIT}) must be one of BELLOWS_UNITS (${env.BELLOWS_UNITS.join(', ')}); it defaults to sat, so an engine without sat must set it`);
   }
   ohttpAdmitPerSecond(env);
   const raw = catalogOverride ?? JSON.parse(readFileSync(resolve(env.BELLOWS_MODELS_FILE), 'utf8'));

@@ -8,7 +8,7 @@ Every path, header and field here is described in full in [API reference](api.md
 
 A Bellows is an origin that serves the API. Two choices:
 
-- **The reference instance** at `https://bellows.island-bitcoin.containers.tinfoil.dev`, which runs release 0.1.2 on Tinfoil Containers. It takes real eCash.
+- **The reference instance** at `https://bellows.island-bitcoin.containers.tinfoil.dev`, which runs release 0.1.2 on Tinfoil Containers. It takes real eCash. It charges the suppliers' cost with no margin, and its operator pays its hosting.
 - **A local engine** on your machine, with test mints that pay their own invoices. Use it while you build.
 
 Start a local engine from a checkout of this repository. You need Node 22.18 or later, pnpm and Docker.
@@ -223,15 +223,17 @@ Poll the funding until `state` is `done` (or `expired`). Polling also moves it f
 
 ### Pay per request (NUT-24)
 
-Send a chat request with no credentials. The answer is `402` with a NUT-18 payment request in `X-Cashu` and the amount in the body:
+Send a chat request with no credentials. The answer is `402` with a NUT-18 payment request in `X-Cashu` and the amount in the body. A request that names no unit is asked in the engine's default unit, which is `sat` unless its operator chose `usd`:
 
 ```sh
 curl -s -i $B/v1/chat/completions -H 'content-type: application/json' \
   -d '{"model": "mock-echo", "messages": [{"role": "user", "content": "Hello"}]}'
 # HTTP/1.1 402 Payment Required
 # x-cashu: creqA...
-# {"error":{...,"code":"payment_required"},"payment_request":"creqA...","amount":7,"unit":"usd","mints":["http://127.0.0.1:3338"]}
+# {"error":{...,"code":"payment_required"},"payment_request":"creqA...","amount":113,"unit":"sat","mints":["http://127.0.0.1:3338"]}
 ```
+
+Add `-H 'X-Forge-Unit: usd'` to be asked in cents instead (`"amount":7,"unit":"usd"` for the same request). A sat amount carries a small buffer for rate movement, which comes back as change.
 
 Pay `amount` in `unit` at one of `mints`: send the same request again with `X-Cashu: cashuB...`. The amount is the request's maximum cost. The engine charges what the request used and returns the rest as eCash change: in the `X-Cashu-Change` header, in the final `event: forge` of a stream, and at `GET /v1/change/{request_id}` (the `X-Forge-Change-Url` header). Add `X-Cashu-Pubkey: 02...` to lock the change to your wallet key, so that only the holder of the private key can redeem it.
 
@@ -239,13 +241,13 @@ Pay `amount` in `unit` at one of `mints`: send the same request again with `X-Ca
 
 ```sh
 BELLOWS_URL=http://localhost:8787 DEMO_FAKE_MINT=1 pnpm demo:agent "What is eCash?"
-# 402 Payment Required: 7 cents (usd) from one of http://127.0.0.1:3338
+# 402 Payment Required: 113 sat from one of http://127.0.0.1:3338
 # Answer: ...
-# Charged: 1 cents
-# Change returned: 6 cents; ...
+# Charged: 3 sat
+# Change returned: 110 sat; ...
 ```
 
-Set `CASHU_PUBKEY=generate` to lock the change to a fresh key for the run. Against a real engine, set `CASHU_TOKEN=cashuB...` to spend real eCash.
+Set `CASHU_PUBKEY=generate` to lock the change to a fresh key for the run. Against a real engine, set `CASHU_TOKEN=cashuB...` to spend real eCash; the example then asks to be paid in that token's unit. `UNIT=usd` or `UNIT=sat` names the unit yourself.
 
 ## Send a chat request
 
@@ -480,5 +482,7 @@ Run on 2026-11-16 against a local engine at release 0.1.2 (`config/models.dev.js
 - the JavaScript examples (`verifyBellows` with `devVerifier`, its `development_refused` refusal, topup with `solvePow`, chat, the stream reader, and `bellowsFetch` through the relay for the balance, a streamed chat, an unpaid `402` and a refund) on Node 24;
 - the Python examples with `requests` on Python 3.9, and the OpenAI Python SDK 2.48.0 for models, chat, streaming and a `404`;
 - `pnpm demo:agent`, with plain and with locked change.
+
+The `402` answer and `pnpm demo:agent` (with `DEMO_FAKE_MINT=1`, and with a `usd` test token in `CASHU_TOKEN`) were run again on 2026-11-20 with `sat` as the default unit, against the same local setup at the default markup of 1.25.
 
 Not run here: `verifyBellows` with `tinfoilVerifier` (it needs an `authenticate` you supply) and any paid request to the reference instance.

@@ -51,6 +51,21 @@ describe('environment variables', () => {
     expect(c.env.BELLOWS_DB_PATH).toBe('data/bellows.db');
     expect(loadConfig({ ...base, BELLOWS_INVITE_ONLY: 'true' } as NodeJS.ProcessEnv, catalog).env.BELLOWS_INVITE_ONLY).toBe(true);
   });
+
+  it('takes usd and sat, names sat for a call without a unit, and marks supplier cost up by 1.25', () => {
+    const c = loadConfig(base as NodeJS.ProcessEnv, catalog);
+    expect(c.env.BELLOWS_UNITS).toEqual(['usd', 'sat']);
+    expect(c.env.BELLOWS_DEFAULT_UNIT).toBe('sat');
+    expect(c.env.BELLOWS_MARKUP).toBe(1.25);
+    expect(loadConfig({ ...base, BELLOWS_DEFAULT_UNIT: 'usd' } as NodeJS.ProcessEnv, catalog).env.BELLOWS_DEFAULT_UNIT).toBe('usd');
+    expect(loadConfig({ ...base, BELLOWS_MARKUP: '1' } as NodeJS.ProcessEnv, catalog).env.BELLOWS_MARKUP).toBe(1);
+    expect(() => loadConfig({ ...base, BELLOWS_MARKUP: '0.9' } as NodeJS.ProcessEnv, catalog)).toThrow(/BELLOWS_MARKUP/);
+  });
+
+  it('refuses an engine without sat that leaves BELLOWS_DEFAULT_UNIT at its default', () => {
+    expect(() => loadConfig({ ...base, BELLOWS_UNITS: 'usd' } as NodeJS.ProcessEnv, catalog)).toThrow(/BELLOWS_DEFAULT_UNIT \(sat\) must be one of BELLOWS_UNITS \(usd\)/);
+    expect(loadConfig({ ...base, BELLOWS_UNITS: 'usd', BELLOWS_DEFAULT_UNIT: 'usd' } as NodeJS.ProcessEnv, catalog).env.BELLOWS_DEFAULT_UNIT).toBe('usd');
+  });
 });
 
 describe('Oblivious HTTP admission bound', () => {
