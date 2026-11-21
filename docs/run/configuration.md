@@ -11,7 +11,7 @@ Every setting a Bellows reads, where its secrets come from, how it picks which o
 | `BELLOWS_TRUSTED_MINTS` | required | Comma-separated mints whose eCash is accepted. Tokens from other mints get HTTP 400. There is no built-in mint |
 | `BELLOWS_MINT_ALIASES` | none | Other addresses of the same mint, as comma-separated `alias=main` pairs. Tokens under an alias are accepted and stored under the main address, so the wallet keeps one counter per keyset |
 | `BELLOWS_UNITS` | `usd,sat` | Accepted units |
-| `BELLOWS_DEFAULT_UNIT` | `sat` | Unit of a call that names none: a 402 quote without `X-Forge-Unit`, and a Lightning or other-mint funding without `unit`. It must be one of `BELLOWS_UNITS`, so an engine without `sat` sets it to `usd` |
+| `BELLOWS_DEFAULT_UNIT` | `sat` | Unit of a call that names none and has no balance to follow: a 402 quote without `X-Forge-Unit`, and a Lightning or other-mint funding without `unit` that opens a new balance. A funding without `unit` for an existing balance is in that balance's unit. It must be one of `BELLOWS_UNITS`, so an engine without `sat` sets it to `usd` |
 | `BELLOWS_INVITE_ONLY` | `false` | Optional gate: require an invite code to open a balance or pay per request |
 | `BELLOWS_SERVICE_NAME` | `Bellows` | Name in NUT-18 payment requests (`<name>: <model>`) |
 | `BELLOWS_MARKUP` | `1.25` | Multiplier on supplier cost, at least 1. `1` charges the supplier's cost with no margin, as the reference instance does ([Prices](#prices)) |

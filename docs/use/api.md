@@ -14,7 +14,7 @@ The Forge AI web app and its agent example use the client API exactly as written
 
 **JSON.** Request and response bodies are JSON unless a section says otherwise. Send `Content-Type: application/json` with a body.
 
-**Units and amounts.** A Bellows keeps balances and takes payment in `usd` (cents) and `sat` (satoshis), as configured. A call that names no unit (a `402` quote without `X-Forge-Unit`, a Lightning or other-mint funding without `unit`) is in the Bellows' default unit, which is `sat` unless its operator chose `usd`; name the unit to be sure. Amounts named `amount`, `credited`, `credit` or `refundable` are whole units. Fields ending in `_msub` are thousandths of a unit: milli-cents for `usd`, millisatoshis for `sat`. A balance has one unit, set when it is opened.
+**Units and amounts.** A Bellows keeps balances and takes payment in `usd` (cents) and `sat` (satoshis), as configured. A funding without `unit` that carries the key of an existing balance is in that balance's unit. Any other call that names no unit (a `402` quote without `X-Forge-Unit`, a Lightning or other-mint funding without `unit` that opens a new balance) is in the Bellows' default unit, which is `sat` unless its operator chose `usd`; name the unit to be sure. Amounts named `amount`, `credited`, `credit` or `refundable` are whole units. Fields ending in `_msub` are thousandths of a unit: milli-cents for `usd`, millisatoshis for `sat`. A balance has one unit, set when it is opened.
 
 **Names kept from Forge AI.** Bellows started as the engine inside Forge AI. To keep existing clients working, the client API keeps the `X-Forge-` header prefix, the `event: forge` stream event and the `sk-forge-` prefix of balance keys.
 
@@ -214,15 +214,15 @@ For a request that failed before it was served while its payment's outcome was u
 
 ### Funding a balance
 
-A balance can be funded without eCash from an accepted mint: by a Lightning invoice, a bitcoin deposit (NUT-30, off by default), or eCash from another Cashu mint, which the Bellows melts to pay a Lightning invoice at its funding mint. In each case the Bellows mints eCash for itself at its funding mint and credits the exact amount minted. Each method opens a balance on first use (with an invite when invite only, and proof of work) and returns `key` once when the Bellows generated it. Send a bearer key to fund an existing balance, or to open a new one under a key you chose. A funding in another unit than the balance's gets `400 wrong_unit`.
+A balance can be funded without eCash from an accepted mint: by a Lightning invoice, a bitcoin deposit (NUT-30, off by default), or eCash from another Cashu mint, which the Bellows melts to pay a Lightning invoice at its funding mint. In each case the Bellows mints eCash for itself at its funding mint and credits the exact amount minted. Each method opens a balance on first use (with an invite when invite only, and proof of work) and returns `key` once when the Bellows generated it. Send a bearer key to fund an existing balance, or to open a new one under a key you chose. A funding that names no `unit` is in the balance's unit when its key opens an existing balance, and in the default unit when it opens a new one. A funding that names a unit other than the balance's gets `400 wrong_unit`.
 
 | Endpoint | Send | Answer |
 | - | - | - |
 | `GET /v1/wallet/fund/methods` | | What is offered (below) |
-| `POST /v1/wallet/fund/lightning` | `{"amount", "unit", "invite"?}` | A funding; `request` is a bolt11 invoice. Without `unit`, `amount` is in the default unit |
+| `POST /v1/wallet/fund/lightning` | `{"amount", "unit", "invite"?}` | A funding; `request` is a bolt11 invoice. `amount` is in `unit`; without it, in the unit of the key's balance, or the default unit for a new balance. The cap is that unit's |
 | `POST /v1/wallet/fund/onchain` | `{"invite"?}` | A funding in `sat`; `request` is a bitcoin address |
 | `GET /v1/wallet/fund/mints` | | Other mints accepted for funding (below) |
-| `POST /v1/wallet/fund/foreign/quote` | `{"token", "unit", "invite"?, "pubkey"?, "accept_unlisted"?}` | A funding in state `quoted` with the exact credit, for a balance in `unit` (without it, the default unit). Nothing is spent yet |
+| `POST /v1/wallet/fund/foreign/quote` | `{"token", "unit", "invite"?, "pubkey"?, "accept_unlisted"?}` | A funding in state `quoted` with the exact credit, for a balance in `unit` (without it, the unit of the key's balance, or the default unit for a new balance). Nothing is spent yet |
 | `POST /v1/wallet/fund/foreign/confirm` | Bearer key; `{"id", "token", "pubkey"?}` | The funding, moving |
 | `GET /v1/wallet/fund/{id}` | Bearer key | The funding. Polling it also moves it forward |
 | `GET /v1/wallet/fund` | Bearer key | `{data: [funding]}`, this balance's recent fundings |

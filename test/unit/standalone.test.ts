@@ -2,8 +2,10 @@ import { decodePaymentRequest } from '@cashu/cashu-ts';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.ts';
 import { openDb } from '../../src/db.ts';
-import { loadConfig } from '../../src/config.ts';
+import { loadConfig, type Unit } from '../../src/config.ts';
 import { buildDeps } from '../../src/deps.ts';
+import type { FundingRow } from '../../src/funding.ts';
+import { newApiKey } from '../../src/ledger.ts';
 import { setLogSilent } from '../../src/log.ts';
 import { fixedRateSource, type RateSource } from '../../src/rates.ts';
 
@@ -97,6 +99,119 @@ describe('NUT-18 payment requests', () => {
 
   it('use BELLOWS_SERVICE_NAME when set', async () => {
     expect((await ask(app({ BELLOWS_SERVICE_NAME: 'Example AI' }))).description).toBe('Example AI: mock-echo');
+  });
+});
+
+describe('the unit of a funding that names none', () => {
+  // The routes resolve the unit and open the balance; the funding service is replaced by a recorder, so these
+  // tests see the unit and amount each route hands it. test/e2e/funding.e2e.test.ts runs the same rule against mints.
+  function rig(env: Record<string, string> = {}) {
+    const e = { BELLOWS_DB_PATH: ':memory:', BELLOWS_TRUSTED_MINTS: 'http://127.0.0.1:1', BELLOWS_FOREIGN_DISCOVERY_RELAYS: '', BELLOWS_POW_BITS: '0', ...env };
+    const deps = buildDeps(loadConfig(e as NodeJS.ProcessEnv, catalog), { rateSources: [fixedRateSource('fixed', 100_000)] });
+    const calls: Array<{ method: string; accountId: string; unit: Unit; amount?: number }> = [];
+    const row = (method: 'lightning' | 'foreign', accountId: string, unit: Unit, amount: number | null) =>
+      ({ id: 'fund_test', method, account_id: accountId, unit, mint: 'http://127.0.0.1:1', request: 'lnbc1', amount, expires_at: 0, state: method === 'foreign' ? 'quoted' : 'pending', credited: 0, observed: null, error: null, created_at: 0 }) as unknown as FundingRow;
+    deps.funding.createLightning = async (accountId, unit, amount) => {
+      calls.push({ method: 'lightning', accountId, unit, amount });
+      return row('lightning', accountId, unit, amount);
+    };
+    deps.funding.quoteForeign = async (accountId, unit) => {
+      calls.push({ method: 'foreign', accountId, unit });
+      return row('foreign', accountId, unit, 100);
+    };
+    const a = createApp(deps);
+    const balance = (unit: Unit) => {
+      const key = newApiKey();
+      return { key, id: deps.ledger.createAccountRaw(key, unit, null).id };
+    };
+    const fund = async (path: string, body: object, key?: string) => {
+      const res = await a.request(`http://gw.test${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}) },
+        body: JSON.stringify(body),
+      });
+      return { status: res.status, body: (await res.json()) as any };
+    };
+    return { deps, calls, balance, fund };
+  }
+  const routes: Array<[string, string, object]> = [
+    ['Lightning', '/v1/wallet/fund/lightning', { amount: 500 }],
+    ['other-mint quote', '/v1/wallet/fund/foreign/quote', { token: 'cashuBtest' }],
+  ];
+
+  it.each(routes)('%s: a usd balance is funded in usd, and a sat balance in sat', async (_n, path, body) => {
+    const r = rig();
+    for (const unit of ['usd', 'sat'] as const) {
+      const b = r.balance(unit);
+      const res = await r.fund(path, body, b.key);
+      expect(res.status).toBe(200);
+      expect(res.body.unit).toBe(unit);
+      expect(res.body.account_id).toBe(b.id);
+      expect(res.body.key).toBeUndefined();
+      expect(r.calls.at(-1)).toMatchObject({ accountId: b.id, unit });
+    }
+  });
+
+  it('Lightning: the amount is read in the balance unit (500 with a usd balance is 500 cents)', async () => {
+    const r = rig();
+    const b = r.balance('usd');
+    await r.fund('/v1/wallet/fund/lightning', { amount: 500 }, b.key);
+    expect(r.calls).toEqual([{ method: 'lightning', accountId: b.id, unit: 'usd', amount: 500 }]);
+  });
+
+  it.each(routes)('%s: without a key, a new balance opens in the default unit', async (_n, path, body) => {
+    for (const [env, unit] of [[{}, 'sat'], [{ BELLOWS_DEFAULT_UNIT: 'usd' }, 'usd']] as const) {
+      const r = rig(env);
+      const res = await r.fund(path, body);
+      expect(res.status).toBe(200);
+      expect(res.body.unit).toBe(unit);
+      expect(res.body.key).toMatch(/^sk-forge-/);
+      expect(r.deps.ledger.findByKey(res.body.key)!.unit).toBe(unit);
+      expect(r.calls.at(-1)!.unit).toBe(unit);
+    }
+  });
+
+  it.each(routes)('%s: a unit the call names is used as given, and one that differs from the balance is wrong_unit', async (_n, path, body) => {
+    const r = rig();
+    const b = r.balance('usd');
+    const same = await r.fund(path, { ...body, unit: 'usd' }, b.key);
+    expect(same.status).toBe(200);
+    expect(same.body.unit).toBe('usd');
+    const n = r.calls.length;
+    const other = await r.fund(path, { ...body, unit: 'sat' }, b.key);
+    expect(other.status).toBe(400);
+    expect(other.body.error.code).toBe('wrong_unit');
+    expect(other.body.error.message).toBe('this balance is in usd; this funding is in sat');
+    expect(r.calls.length).toBe(n);
+  });
+
+  it.each(routes)('%s: an invalid key is refused as before; a well-formed unknown key opens a balance in the default unit', async (_n, path, body) => {
+    const r = rig();
+    const bad = await r.fund(path, body, 'not-a-key');
+    expect(bad.status).toBe(401);
+    expect(bad.body.error.code).toBe('invalid_key');
+    expect(r.calls).toEqual([]);
+    const chosen = newApiKey();
+    const fresh = await r.fund(path, body, chosen);
+    expect(fresh.status).toBe(200);
+    expect(fresh.body.unit).toBe('sat');
+    expect(fresh.body.key).toBeUndefined();
+    expect(r.deps.ledger.findByKey(chosen)!.unit).toBe('sat');
+  });
+
+  it('Lightning: the cap of the balance unit applies (BELLOWS_FUND_MAX_USD for a usd balance)', async () => {
+    const r = rig({ BELLOWS_FUND_MAX_USD: '400', BELLOWS_FUND_MAX_SAT: '1000' });
+    // The real createLightning, with the mint's methods fixed so the caps come only from the configuration.
+    r.deps.funding.methods = async () => ({ lightning: { enabled: true, units: ['sat', 'usd'], min: { sat: 1, usd: 1 }, max: { sat: 1000, usd: 400 } } }) as any;
+    delete (r.deps.funding as any).createLightning;
+    const usd = r.balance('usd');
+    const over = await r.fund('/v1/wallet/fund/lightning', { amount: 500 }, usd.key);
+    expect(over.status).toBe(400);
+    expect(over.body.error.code).toBe('invalid_amount');
+    expect(over.body.error.message).toBe('amount must be 1..400 usd');
+    const sat = r.balance('sat');
+    const tooMuchSat = await r.fund('/v1/wallet/fund/lightning', { amount: 1001 }, sat.key);
+    expect(tooMuchSat.body.error.message).toBe('amount must be 1..1000 sat');
   });
 });
 

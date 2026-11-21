@@ -356,8 +356,14 @@ export function createApp(d: Deps) {
       throw new PaymentError('invalid_request', 'expected a JSON body');
     }
   };
-  const unitOf = (v: unknown): Unit => {
-    const u = String(v ?? env.BELLOWS_DEFAULT_UNIT) as Unit;
+  /**
+   * The unit of a funding. A unit the call names is used as given. A call that names none is in the unit of
+   * the balance its key opens, and only a call with no such balance (a new one) is in BELLOWS_DEFAULT_UNIT.
+   * An unknown key gets the default here and is judged by openAccount exactly as before.
+   */
+  const unitOf = (c: Context, v: unknown): Unit => {
+    const key = v == null ? bearer(c) : undefined;
+    const u = String(v ?? (key ? ledger.findByKey(key)?.unit : undefined) ?? env.BELLOWS_DEFAULT_UNIT) as Unit;
     if (!env.BELLOWS_UNITS.includes(u)) throw new PaymentError('wrong_unit', `unit must be one of ${env.BELLOWS_UNITS.join(', ')}`);
     return u;
   };
@@ -383,7 +389,7 @@ export function createApp(d: Deps) {
 
   app.post('/v1/wallet/fund/lightning', async (c) => {
     const body = await readJson(c);
-    const unit = unitOf(body?.unit);
+    const unit = unitOf(c, body?.unit);
     const amount = Number(body?.amount);
     if (!Number.isInteger(amount) || amount < 1) return apiError(c, 400, 'invalid_amount', 'amount must be a whole number of units');
     const { result, key } = await withAccount(c, unit, body?.invite, (id) => funding.createLightning(id, unit, amount));
@@ -398,7 +404,7 @@ export function createApp(d: Deps) {
 
   app.post('/v1/wallet/fund/foreign/quote', async (c) => {
     const body = await readJson(c);
-    const unit = unitOf(body?.unit);
+    const unit = unitOf(c, body?.unit);
     const token = String(body?.token ?? '').trim();
     if (!token.startsWith('cashuB')) return apiError(c, 400, 'invalid_token', 'expected a cashuB token');
     const lockPubkey = parseOptionalLockPubkey(body?.pubkey);

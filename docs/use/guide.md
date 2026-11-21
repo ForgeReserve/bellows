@@ -219,7 +219,11 @@ ID=$(jq -r .id <<<"$FUNDING")
 curl -s $B/v1/wallet/fund/$ID -H "authorization: Bearer $KEY" | jq '{state, credited}'
 ```
 
-Poll the funding until `state` is `done` (or `expired`). Polling also moves it forward. Other funding methods (a bitcoin deposit, eCash from another mint) are in [API reference](api.md#funding-a-balance).
+Poll the funding until `state` is `done` (or `expired`). Polling also moves it forward.
+
+To top up the same balance later, send the same key. Without `unit`, a funding is in the balance's own unit, so `{"amount": 500}` on a usd balance is 500 cents; naming the other unit gets `400 wrong_unit`. A new balance opened without `unit` is in the engine's default unit, `sat` unless its operator chose `usd`.
+
+Other funding methods (a bitcoin deposit, eCash from another mint) are in [API reference](api.md#funding-a-balance).
 
 ### Pay per request (NUT-24)
 
