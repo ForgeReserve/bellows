@@ -2,7 +2,7 @@
 
 This page runs a Bellows on Tinfoil Containers, step by step, so that its operator cannot read the requests, the answers, the balances or the keys. What each party can still see is in the [threat model](../how-it-works/threat-model.md).
 
-**NOT VERIFIED** marks every step that needs real sealed hardware and has not been checked there one by one. Those steps follow Tinfoil's public documentation and the deploy kit in this repository. The release workflows have run on GitHub ([4. Release](#4-release)), and the reference instance runs release 0.1.2 this way. Everything else here has been run locally. "Not verified on sealed hardware" at the end lists the open points.
+**NOT VERIFIED** marks every step that needs real sealed hardware and has not been checked there one by one. Those steps follow Tinfoil's public documentation and the deploy kit in this repository. The release workflows have run on GitHub ([4. Release](#4-release)), and the reference instance runs release 0.2.0 this way. Everything else here has been run locally. "Not verified on sealed hardware" at the end lists the open points.
 
 ## The deploy kit
 
@@ -138,7 +138,7 @@ Clients accept the build only once it is in the `builds.json` they trust. A Tinf
 
   Review it as above before merging.
 
-The workflows have run on GitHub for releases 0.1.0, 0.1.1 and 0.1.2, and Tinfoil's measure action measured each one. The measurements in `builds.json` match the `tinfoil-deployment.json` of each GitHub release. For 0.1.0 the publish run failed at its last step, opening the pull request, and the entry was added from the published measurement. NOT VERIFIED: the image build has not been checked for reproducibility.
+The workflows have run on GitHub for releases 0.1.0, 0.1.1, 0.1.2 and 0.2.0, and Tinfoil's measure action measured each one. The measurements in `builds.json` match the `tinfoil-deployment.json` of each GitHub release. For 0.1.0 the publish run failed at its last step, opening the pull request, and the entry was added from the published measurement. NOT VERIFIED: the image build has not been checked for reproducibility.
 
 ## 5. Approve the release in your keyserver
 

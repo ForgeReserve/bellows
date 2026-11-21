@@ -2,7 +2,7 @@
 
 Bellows aims to be operator-blind: the person who runs one learns nothing worth taking from it. This page says what each party can see and do in a sealed deployment ([sealed deployment guide](../run/sealed-deployment.md)), what the design assumes, and where it is weak. It follows the wording rule in [Design](design.md): "the operator cannot read" is said only of the words and of money and state; who is asking is "hidden from the operator when you use a relay or Tor".
 
-Parts of this depend on sealed hardware and on Tinfoil's platform behaving as documented. Release 0.1.2 runs sealed on Tinfoil Containers at the reference instance, and not every one of those parts has been checked there; [Sealed deployment guide](../run/sealed-deployment.md#not-verified-on-sealed-hardware) lists the ones that have not.
+Parts of this depend on sealed hardware and on Tinfoil's platform behaving as documented. Release 0.2.0 runs sealed on Tinfoil Containers at the reference instance, and not every one of those parts has been checked there; [Sealed deployment guide](../run/sealed-deployment.md#not-verified-on-sealed-hardware) lists the ones that have not.
 
 ## Three things to hide, three mechanisms
 

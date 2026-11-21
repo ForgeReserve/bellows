@@ -1,5 +1,5 @@
 <h1 id="reference-instance">Reference instance</h1>
-<p>Release 0.1.2 runs sealed on Tinfoil Containers at this address. It takes real eCash. Check its build before you send it anything.</p>
+<p>Release 0.2.0 runs sealed on Tinfoil Containers at this address. It takes real eCash. Check its build before you send it anything.</p>
 <p><code class="addr">https://bellows.<wbr>island-bitcoin.<wbr>containers.<wbr>tinfoil.dev</code></p>
 <h2 id="what-it-answers">What it answers</h2>
 <p>Its public routes are free to read:</p>
@@ -14,8 +14,9 @@ curl -s $B/ohttp-keys | tail -c +3 | base64     # its Oblivious HTTP key</code><
 <p>To check its prices, compare <code>pricing.usd_per_mtok</code> in <code>/v1/models</code> with the supplier's cost, <code>input_usd_per_mtok</code> and <code>output_usd_per_mtok</code> in <code>config/models.json</code> at the release tag it runs. A model whose supplier bills input from its prompt cache at a lower price also lists <code>cached_input</code>, to compare with <code>cached_input_usd_per_mtok</code>. At markup 1 they are equal. <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/run/configuration.md#prices">Prices</a> in the configuration reference says more.</p>
 <h2 id="what-has-run-there">What has run there</h2>
 <ul>
-<li>Releases 0.1.0, 0.1.1 and 0.1.2 were built and measured by the public release workflows, and each is listed in <code>builds.json</code>.</li>
-<li><code>/healthz</code>, <code>/v1/models</code> and <code>/ohttp-keys</code> answer.</li>
+<li>Releases 0.1.0, 0.1.1, 0.1.2 and 0.2.0 were built and measured by the public release workflows, and each is listed in <code>builds.json</code>.</li>
+<li>Checked on release 0.2.0 on 2026-11-21: <code>/healthz</code> answers through an attested request against <code>ForgeReserve/bellows@v0.2.0</code>; the identity document reports version 0.2.0; every model's listed price equals the catalog cost, cached input included; a chat request with no key and no unit gets a <code>402</code> quoted in sat, and one naming <code>usd</code> gets usd; the admin API refuses a request with no token.</li>
+<li><code>/ohttp-keys</code> answered on an earlier release and has not been read again on 0.2.0.</li>
 <li>A paid request, an Oblivious HTTP round trip and reading a balance back after a restart are covered by the test suite and local runs. They have not yet been run on sealed hardware.</li>
 </ul>
 <p><a href="operate-not-verified-on-sealed-hardware.html">Not verified on sealed hardware</a> lists every step that has not been checked there.</p>

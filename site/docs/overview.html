@@ -112,7 +112,7 @@
   </article>
 </div>
 <h2 id="what-has-run-on-sealed-hardware">What has run on sealed hardware</h2>
-<p>Releases 0.1.0 to 0.1.2 were built and measured by the public release workflows, and the reference instance runs 0.1.2 sealed on Tinfoil Containers. A paid request, an Oblivious HTTP round trip and reading a balance back after a restart are covered by the test suite and local runs, and have not yet been run on sealed hardware. <a href="operate-not-verified-on-sealed-hardware.html">Not verified on sealed hardware</a> lists every step not yet checked there. A Bellows run outside the deploy kit, on your own server, does not seal anything: its operator can read requests in memory and its database.</p>
+<p>Releases 0.1.0 to 0.2.0 were built and measured by the public release workflows, and the reference instance runs 0.2.0 sealed on Tinfoil Containers. On 0.2.0, an attested request to <code>/healthz</code>, the version in its identity document, its listed prices, the <code>402</code> for an unpaid request and the admin API's refusal without a token have been checked there. A paid request, an Oblivious HTTP round trip and reading a balance back after a restart are covered by the test suite and local runs, and have not yet been run on sealed hardware. <a href="operate-not-verified-on-sealed-hardware.html">Not verified on sealed hardware</a> lists every step not yet checked there. A Bellows run outside the deploy kit, on your own server, does not seal anything: its operator can read requests in memory and its database.</p>
 
 </article>
 <nav class="pager" aria-label="Previous and next page">
