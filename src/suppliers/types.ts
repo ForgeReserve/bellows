@@ -15,6 +15,8 @@ export interface ReportedUsage {
   inputTokens: number;
   outputTokens: number;
   costUsd?: number;
+  /** The part of inputTokens served from the supplier's prompt cache (Tinfoil's cached_prompt_tokens). */
+  cachedInputTokens?: number;
 }
 
 export interface EncryptedCall {

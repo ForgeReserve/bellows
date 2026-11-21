@@ -119,14 +119,14 @@ The models this Bellows sells, in the OpenAI list shape, with prices and payment
 
 - `tier` (and its copy `privacy`) is `enclave` for a model that runs in its supplier's sealed hardware, `standard` otherwise.
 - `encrypted_passthrough` is true when the model takes EHBP-encrypted bodies ([Encrypted chat](#encrypted-chat-ehbp)). Such a model also lists `upstream_model`, the name to send in `X-Tinfoil-Model`.
-- `pricing.usd_per_mtok` is the price per million input and output tokens in US dollars, markup included ([Prices](../run/configuration.md#prices) in the configuration reference says how to compare it with the supplier's cost). `sat_per_mtok` is the same at the current BTC/USD rate, or `null` when sats are not offered or no rate is known. `mode` is `metered` (charged by tokens) or `flat` (charged by a fixed schedule of request sizes). `verified` is true when the operator checked the price against the supplier's rate card. A Bellows serves a model with `verified: false` only when its operator has turned that on explicitly; treat such a price as an estimate.
+- `pricing.usd_per_mtok` is the price per million input and output tokens in US dollars, markup included ([Prices](../run/configuration.md#prices) in the configuration reference says how to compare it with the supplier's cost). `sat_per_mtok` is the same at the current BTC/USD rate, or `null` when sats are not offered or no rate is known. A model whose supplier bills input from its prompt cache at a lower price also lists that price as `cached_input` in both; a model without one has no `cached_input` key, and its cached input costs the input price ([Cached input](../how-it-works/payments.md#cached-input)). A client that reads only `input` and `output` is unaffected. `mode` is `metered` (charged by tokens) or `flat` (charged by a fixed schedule of request sizes). `verified` is true when the operator checked the price against the supplier's rate card. A Bellows serves a model with `verified: false` only when its operator has turned that on explicitly; treat such a price as an estimate.
 - `mints` lists the mints whose eCash this Bellows takes for topups and per-request payment. `btc_usd` is the rate in use, or `null`.
 
 ### `POST /v1/chat/completions`
 
 OpenAI chat completions, streamed or not. `tools`, `tool_choice` and other fields pass through untouched. `n` must be 1. `max_tokens` (or `max_completion_tokens`) is capped per model at `max_output_tokens`; without one, the cap applies.
 
-**Payment.** Before the request runs, the Bellows reserves its maximum cost: the request's size as input tokens plus the full output allowance, at the model's price. It then charges the actual cost when the answer is done.
+**Payment.** Before the request runs, the Bellows reserves its maximum cost: the request's size as input tokens plus the full output allowance, at the model's price. It then charges the actual cost when the answer is done. Input tokens the supplier served from its prompt cache (`usage.prompt_tokens_details.cached_tokens` in its answer) are charged at the model's `cached_input` price, where it lists one; the reservation always uses the full input price ([Cached input](../how-it-works/payments.md#cached-input)).
 
 | Send | Result |
 | - | - |
@@ -333,12 +333,12 @@ Payment problems (`untrusted_mint`, `wrong_unit`, `insufficient_amount`, `token_
 | `POST /admin/api/invites/{id}/revoke` | `{}` | `{ok, id, status: "revoked"}` |
 | `POST /admin/api/accounts/{id}/freeze` | `{frozen: true \| false}` | `{id, frozen}`. For a balance whose id its owner gave you, for example after a lost key. A frozen balance cannot spend; refunds still work |
 | `POST /admin/api/fundings/{id}/recheck` | `{}` | `{data: funding, quote_checks}`. Re-checks one unfinished funding; `409 not_open` for a finished one, `429 quote_budget` when the mint's quote-check budget is used up |
-| `GET /admin/api/costs?days=30` | | Supplier cost and margin per model over whole UTC days (1 to 365), with per-million prices fitted to the supplier's reported costs |
+| `GET /admin/api/costs?days=30` | | Supplier cost and margin per model over whole UTC days (1 to 365), with per-million prices fitted to the supplier's reported costs. Each model also has `cached_input_tokens` (the input the supplier served from its prompt cache) and `catalog.cached_input` (its cached input price, or `null`) |
 | `GET /admin/api/mints/discovery` | | Other-mint policy, accepted mints, the operator's own list and discovery status |
 | `POST /admin/api/mints/discovery/refresh` | `{}` | Refreshes discovery now; at most once a minute |
 | `POST /admin/api/mints/allowed` | `{url, note?, force?}` | `{mint, probe, forced, added, view}`. Adds a mint to the operator's list after a live check; `force` adds one that failed it (`400 mint_check_failed` otherwise). One of the Bellows' own mints gets `409 own_mint`, a denied one `409 mint_denied` |
 | `DELETE /admin/api/mints/allowed?url=...`, `POST /admin/api/mints/allowed/remove` `{url}` | | Removes a mint added through the API |
-| `GET /admin/api/settings` | | The configuration in force: units, mints, caps, enabled methods, other-mint policy, models and prices, and where state and secrets live (a source kind and a mount, never a secret) |
+| `GET /admin/api/settings` | | The configuration in force: units, mints, caps, enabled methods, other-mint policy, models and prices (cost and sale price per million tokens, with `cached_input`, `null` on a model without a cached price), and where state and secrets live (a source kind and a mount, never a secret) |
 
 Every admin change is logged as `admin_action` with counts and amounts only. Tokens, invite codes and keys are never logged. `pnpm admin` runs the same operations against the database from the host ([Admin CLI](../run/admin.md#admin-cli)).
 

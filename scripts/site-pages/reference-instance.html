@@ -11,7 +11,7 @@ curl -s $B/ohttp-keys | tail -c +3 | base64     # its Oblivious HTTP key</code><
 <h2 id="what-it-charges">What it charges</h2>
 <p>It charges the suppliers' cost with no margin: <code>BELLOWS_MARKUP</code> is <code>1</code> in its measured <code>tinfoil-config.yml</code>, and its operator pays its hosting. An instance you run yourself marks the cost up by 1.25 unless you set another markup.</p>
 <p>Its default unit is <code>sat</code>: a request that names no unit is asked in sats. Send <code>X-Forge-Unit: usd</code> to pay in cents.</p>
-<p>To check its prices, compare <code>pricing.usd_per_mtok</code> in <code>/v1/models</code> with the supplier's cost, <code>input_usd_per_mtok</code> and <code>output_usd_per_mtok</code> in <code>config/models.json</code> at the release tag it runs. At markup 1 they are equal. <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/run/configuration.md#prices">Prices</a> in the configuration reference says more.</p>
+<p>To check its prices, compare <code>pricing.usd_per_mtok</code> in <code>/v1/models</code> with the supplier's cost, <code>input_usd_per_mtok</code> and <code>output_usd_per_mtok</code> in <code>config/models.json</code> at the release tag it runs. A model whose supplier bills input from its prompt cache at a lower price also lists <code>cached_input</code>, to compare with <code>cached_input_usd_per_mtok</code>. At markup 1 they are equal. <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/run/configuration.md#prices">Prices</a> in the configuration reference says more.</p>
 <h2 id="what-has-run-there">What has run there</h2>
 <ul>
 <li>Releases 0.1.0, 0.1.1 and 0.1.2 were built and measured by the public release workflows, and each is listed in <code>builds.json</code>.</li>

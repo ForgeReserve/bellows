@@ -3,9 +3,12 @@
  * nothing about it is kept on its own: no row per request and nothing tied to a balance.
  *
  * The cost fit in the admin API (per-million prices from the supplier's reported costs, by least squares)
- * needs only five sums over the supplier-reported requests, so those sums are kept instead of the requests.
+ * needs only a few sums over the supplier-reported requests, so those sums are kept instead of the requests.
+ * Input the supplier served from its prompt cache is taken out of the fit at the catalog's cached price, which
+ * the admin API applies when it reads the sums (fit_ik and fit_ok), so the sums do not depend on a price.
  */
 import type { DB } from './db.ts';
+import { cachedInputTokens } from './pricing.ts';
 
 export const DAY_MS = 86_400_000;
 
@@ -33,6 +36,11 @@ export interface SettledUsage {
   /** Billed from an estimate or a flat schedule rather than usage the supplier reported. */
   estimated: boolean;
   inputTokens: number | null;
+  /**
+   * The part of inputTokens the supplier reported as served from its prompt cache, bounded to the input
+   * tokens (pricing.ts cachedInputTokens). Counted on every model, also one without a cached price.
+   */
+  cachedInputTokens?: number;
   outputTokens: number | null;
   chargedMsub: number;
   /** Owed but not charged: a late charge the balance could not cover in full (src/ledger.ts). */
@@ -48,19 +56,22 @@ export function recordUsageRaw(db: DB, u: SettledUsage): void {
   const i = u.inputTokens ?? 0;
   const o = u.outputTokens ?? 0;
   const c = u.costNusd ?? 0;
+  const k = cachedInputTokens({ inputTokens: i, cachedInputTokens: u.cachedInputTokens });
+  // The fit's input is the uncached input; the cached part is taken out of the cost at query time.
+  const x = i - k;
   const fit = u.ok && u.supplierReported && u.costNusd != null && u.inputTokens != null && u.outputTokens != null;
   db.prepare(
-    `INSERT INTO usage_daily (day, unit, model, supplier, requests, ok, failed, encrypted, nut24, estimated, input_tokens, output_tokens,
-       charged_msub, shortfall_msub, price_nusd, cost_nusd, supplier_reported, fit_ii, fit_io, fit_oo, fit_ic, fit_oc)
-     VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO usage_daily (day, unit, model, supplier, requests, ok, failed, encrypted, nut24, estimated, input_tokens, cached_input_tokens, output_tokens,
+       charged_msub, shortfall_msub, price_nusd, cost_nusd, supplier_reported, fit_ii, fit_io, fit_oo, fit_ic, fit_oc, fit_ik, fit_ok)
+     VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (day, unit, model, supplier) DO UPDATE SET
        requests = requests + 1, ok = ok + excluded.ok, failed = failed + excluded.failed, encrypted = encrypted + excluded.encrypted,
        nut24 = nut24 + excluded.nut24, estimated = estimated + excluded.estimated,
-       input_tokens = input_tokens + excluded.input_tokens, output_tokens = output_tokens + excluded.output_tokens,
+       input_tokens = input_tokens + excluded.input_tokens, cached_input_tokens = cached_input_tokens + excluded.cached_input_tokens, output_tokens = output_tokens + excluded.output_tokens,
        charged_msub = charged_msub + excluded.charged_msub, shortfall_msub = shortfall_msub + excluded.shortfall_msub, price_nusd = price_nusd + excluded.price_nusd, cost_nusd = cost_nusd + excluded.cost_nusd,
        supplier_reported = supplier_reported + excluded.supplier_reported,
        fit_ii = fit_ii + excluded.fit_ii, fit_io = fit_io + excluded.fit_io, fit_oo = fit_oo + excluded.fit_oo,
-       fit_ic = fit_ic + excluded.fit_ic, fit_oc = fit_oc + excluded.fit_oc`,
+       fit_ic = fit_ic + excluded.fit_ic, fit_oc = fit_oc + excluded.fit_oc, fit_ik = fit_ik + excluded.fit_ik, fit_ok = fit_ok + excluded.fit_ok`,
   ).run(
     dayOf(u.at),
     u.unit,
@@ -72,17 +83,20 @@ export function recordUsageRaw(db: DB, u: SettledUsage): void {
     u.nut24 ? 1 : 0,
     u.ok && u.estimated ? 1 : 0,
     u.ok ? i : 0,
+    u.ok ? k : 0,
     u.ok ? o : 0,
     u.ok ? u.chargedMsub : 0,
     u.ok ? (u.shortfallMsub ?? 0) : 0,
     u.ok ? Math.round(u.priceNusd) : 0,
     u.ok ? c : 0,
     fit ? 1 : 0,
-    fit ? i * i : 0,
-    fit ? i * o : 0,
+    fit ? x * x : 0,
+    fit ? x * o : 0,
     fit ? o * o : 0,
-    fit ? i * c : 0,
+    fit ? x * c : 0,
     fit ? o * c : 0,
+    fit ? x * k : 0,
+    fit ? o * k : 0,
   );
 }
 
@@ -98,6 +112,8 @@ export interface UsageRow {
   nut24: number;
   estimated: number;
   input_tokens: number;
+  /** The part of input_tokens served from the supplier's prompt cache. */
+  cached_input_tokens: number;
   output_tokens: number;
   charged_msub: number;
   shortfall_msub: number;
@@ -109,6 +125,8 @@ export interface UsageRow {
   fit_oo: number;
   fit_ic: number;
   fit_oc: number;
+  fit_ik: number;
+  fit_ok: number;
 }
 
 export function usageSince(db: DB, day: string): UsageRow[] {
@@ -144,6 +162,8 @@ export function migrateRequestRows(db: DB): number {
       nut24: r.payment === 'nut24',
       estimated: source === 'estimate' || source === 'flat',
       inputTokens: r.input_tokens ?? null,
+      // A Forge AI database from a release that counted cached input has this column; older ones do not.
+      cachedInputTokens: r.cached_input_tokens ?? 0,
       outputTokens: r.output_tokens ?? null,
       chargedMsub: r.charged_msub ?? 0,
       priceNusd: r.price_nusd ?? 0,

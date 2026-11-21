@@ -3,7 +3,7 @@
  * It keeps only counters (usage numbers, delta counts and lengths); content is never stored or logged.
  */
 export class SseMeter {
-  usage?: { inputTokens: number; outputTokens: number; costUsd?: number };
+  usage?: JsonUsage;
   deltaChunks = 0;
   deltaChars = 0;
   private buf = '';
@@ -82,7 +82,16 @@ export class SseMeter {
   }
 }
 
-export function usageFromJson(o: any): { inputTokens: number; outputTokens: number; costUsd?: number } | undefined {
+/** The usage an OpenAI-compatible answer reports in its `usage` object. */
+export interface JsonUsage {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd?: number;
+  /** usage.prompt_tokens_details.cached_tokens (input_tokens_details on the Responses API), when sent. */
+  cachedInputTokens?: number;
+}
+
+export function usageFromJson(o: any): JsonUsage | undefined {
   const u = o?.usage;
   if (!u || typeof u !== 'object') return undefined;
   const inp = Number(u.prompt_tokens ?? u.input_tokens);
@@ -90,7 +99,17 @@ export function usageFromJson(o: any): { inputTokens: number; outputTokens: numb
   if (!Number.isFinite(inp) || !Number.isFinite(out)) return undefined;
   // LiteLLM (Token Factory) adds the request's cost in USD to the usage object.
   const cost = u.cost == null ? NaN : Number(u.cost);
-  return { inputTokens: inp, outputTokens: out, ...(Number.isFinite(cost) && cost >= 0 ? { costUsd: cost } : {}) };
+  // The input tokens served from the supplier's prompt cache, part of prompt_tokens (OpenAI's shape, which
+  // Tinfoil's router reads and reports: github.com/tinfoilsh/confidential-model-router tokencount). Taken
+  // only as a plain number; pricing.ts cachedInputTokens bounds it. Anything else is no cached tokens.
+  const details = u.prompt_tokens_details ?? u.input_tokens_details;
+  const cached = details && typeof details === 'object' ? details.cached_tokens : undefined;
+  return {
+    inputTokens: inp,
+    outputTokens: out,
+    ...(Number.isFinite(cost) && cost >= 0 ? { costUsd: cost } : {}),
+    ...(typeof cached === 'number' && Number.isFinite(cached) ? { cachedInputTokens: cached } : {}),
+  };
 }
 
 /** LiteLLM's per-request cost header (USD), sent on non-streaming responses. */

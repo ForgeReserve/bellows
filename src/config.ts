@@ -263,6 +263,12 @@ const ModelSchema = z.object({
   name: z.string().optional(),
   input_usd_per_mtok: z.number().nonnegative(),
   output_usd_per_mtok: z.number().nonnegative(),
+  /**
+   * Supplier cost per million input tokens served from the supplier's prompt cache, in USD, when its rate
+   * card lists one (Tinfoil's cachedInputTokenPricePer1M). At most input_usd_per_mtok. Left out, cached
+   * input is charged at input_usd_per_mtok (docs/how-it-works/payments.md, Cached input).
+   */
+  cached_input_usd_per_mtok: z.number().nonnegative().optional(),
   /** true once the cost above has been checked against the supplier's rate card. */
   price_verified: z.boolean().default(false),
   max_output_tokens: z.number().int().positive().default(4096),
@@ -290,6 +296,8 @@ export const CatalogSchema = z
       if (ids.has(m.id)) ctx.addIssue({ code: 'custom', message: `duplicate model id ${m.id}` });
       ids.add(m.id);
       if (!c.suppliers[m.supplier]) ctx.addIssue({ code: 'custom', message: `model ${m.id}: unknown supplier ${m.supplier}` });
+      if (m.cached_input_usd_per_mtok !== undefined && m.cached_input_usd_per_mtok > m.input_usd_per_mtok)
+        ctx.addIssue({ code: 'custom', message: `model ${m.id}: cached_input_usd_per_mtok must not be above input_usd_per_mtok` });
     }
     for (const [id, s] of Object.entries(c.suppliers)) {
       if (s.pricing === 'flat' && !s.flat) ctx.addIssue({ code: 'custom', message: `supplier ${id}: flat pricing needs a flat schedule` });

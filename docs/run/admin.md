@@ -44,10 +44,10 @@ pnpm admin revenue:export --unit usd [--mint URL] [--amount N]   # sweep revenue
 pnpm admin prices:show [--unit sat]
 ```
 
-Without `--unit`, `revenue:export` and `prices:show` use `BELLOWS_DEFAULT_UNIT`.
+Without `--unit`, `revenue:export` and `prices:show` use `BELLOWS_DEFAULT_UNIT`. `prices:show` lists each model's input, output and cached input price per million tokens (the cached input price is `null` on a model without one).
 
 `revenue:export` never exports eCash that backs customer balances or unpaid change. Exports are recorded in `revenue_exports` (amount, lock, token hash; never the token).
 
 ## Logs
 
-Logs are JSON lines with request id, model, supplier, token counts, cost, status and latency. Prompt and completion content is never logged or stored. [Privacy](../how-it-works/privacy.md) says what is kept and what is not.
+Logs are JSON lines with request id, model, supplier, token counts, cost, status and latency. The token counts include `cached_input_tokens`, the input the supplier served from its prompt cache. Two warnings concern the supplier's figures: `cached_tokens_differ` (the cached count in a plaintext answer's body and in Tinfoil's usage metrics disagree; the metrics count is charged) and `supplier_cost_differs` (the supplier's reported cost and the catalog cost of the same usage differ by more than 1 percent; the catalog price is charged). Prompt and completion content is never logged or stored. [Privacy](../how-it-works/privacy.md) says what is kept and what is not.

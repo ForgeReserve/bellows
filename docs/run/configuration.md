@@ -113,11 +113,11 @@ A customer can still use a mint that is not on the list (`BELLOWS_FOREIGN_UNLIST
 
 ## Model catalog
 
-`config/models.json` lists suppliers and models. Each model has a public `id`, its `supplier`, the `upstream` model name, the supplier's cost in USD per million input and output tokens, `max_output_tokens`, and `uncensored` (clients may hide those behind an explicit opt-in). `price_verified: true` says the cost was checked against the supplier's rate card; it defaults to `false`.
+`config/models.json` lists suppliers and models. Each model has a public `id`, its `supplier`, the `upstream` model name, the supplier's cost in USD per million input and output tokens, `max_output_tokens`, and `uncensored` (clients may hide those behind an explicit opt-in). `price_verified: true` says the cost was checked against the supplier's rate card; it defaults to `false`. `cached_input_usd_per_mtok` is optional: the supplier's cost per million input tokens it serves from its prompt cache, when its rate card lists one. It must be at least 0 and at most `input_usd_per_mtok`, or the engine refuses to start; without it, cached input is charged at the input price ([Cached input](../how-it-works/payments.md#cached-input)).
 
 A model whose price is not verified is not served: it is left out of `GET /v1/models` and a request for it gets `404 model_not_found`, even when its supplier's key is in the secrets source. A placeholder price would otherwise overcharge customers or leave you paying the difference. Startup logs `unverified_prices_withheld` with the models it left out, and refuses to start if no verified model is left. To serve them anyway, set `BELLOWS_SERVE_UNVERIFIED_PRICES=true`: startup then logs `unverified_prices_served` at error level, and `/v1/models` shows those models with `pricing.verified: false`. The admin settings (`GET /admin/api/settings`) show them as `unverified_prices`.
 
-Tinfoil prices were read from `https://inference.tinfoil.sh/v1/models` on 2026-11-09. Token Factory prices in the shipped catalog are placeholders marked `price_verified: false`, so those models are not served until you set them from your rate card: on 2026-11-13 Token Factory published no prices that could be checked (its gateway's public model list is empty, and its `/v1/model/info` returned no cost fields on 2026-11-09).
+Tinfoil prices were read from `https://inference.tinfoil.sh/v1/models` on 2026-11-09. Cached input prices were read from `cachedInputTokenPricePer1M` at `https://inference.tinfoil.sh/v1/models` and `https://api.tinfoil.sh/api/config/models` on 2026-11-20, and both catalogs set them for the three Tinfoil models that list one: `tinfoil/deepseek-v4-1-flash` 0.01, `tinfoil/glm-5-3` 0.45 and `tinfoil/kimi-k3-1-pro` 0.40 USD per million. Token Factory prices in the shipped catalog are placeholders marked `price_verified: false`, so those models are not served until you set them from your rate card: on 2026-11-13 Token Factory published no prices that could be checked (its gateway's public model list is empty, and its `/v1/model/info` returned no cost fields on 2026-11-09).
 
 A supplier sets `pricing: "metered"` (charge on reported usage) or `pricing: "flat"` (charge a schedule by request body size plus declared max output). A metered supplier may also carry a `flat` schedule, used only when no usage signal arrives.
 
@@ -125,16 +125,16 @@ A supplier sets `pricing: "metered"` (charge on reported usage) or `pricing: "fl
 
 ## Prices
 
-A model's price is its supplier's cost in the catalog times `BELLOWS_MARKUP`. The markup defaults to 1.25 for anyone running their own Bellows and cannot be set below 1. Prices are kept in USD; a price in sats is converted at the median BTC/USD rate of the price sources. Each charge is rounded up to the next thousandth of the unit, and a per-request (NUT-24) payment to the next whole unit, because its change is whole eCash units.
+A model's price is its supplier's cost in the catalog times `BELLOWS_MARKUP`, for input, output and, on a model that has one, input served from the supplier's prompt cache ([Cached input](../how-it-works/payments.md#cached-input)): a request is charged its cached input tokens at the cached input price and the rest of its input at the input price. The markup defaults to 1.25 for anyone running their own Bellows and cannot be set below 1. Prices are kept in USD; a price in sats is converted at the median BTC/USD rate of the price sources. Each charge is rounded up to the next thousandth of the unit, and a per-request (NUT-24) payment to the next whole unit, because its change is whole eCash units.
 
 The reference instance at `https://bellows.island-bitcoin.containers.tinfoil.dev` sets `BELLOWS_MARKUP` to `1` in its measured [`tinfoil-config.yml`](../../tinfoil-config.yml): it charges the suppliers' cost with no margin, and its operator pays its hosting. Its default unit is `sat`, and it also takes `usd`.
 
 To check what an instance charges, compare two things:
 
-- `GET /v1/models` gives each model's price per million input and output tokens, markup included: `pricing.usd_per_mtok`, and `pricing.sat_per_mtok` at the rate in use. It is public.
-- The supplier's cost is `input_usd_per_mtok` and `output_usd_per_mtok` in `config/models.json`, and the markup is `BELLOWS_MARKUP` in `tinfoil-config.yml`, both at the release tag the instance runs. For a sealed instance both are part of the measured build: the catalog is in the image, whose digest the measured config pins.
+- `GET /v1/models` gives each model's price per million input and output tokens, markup included: `pricing.usd_per_mtok`, and `pricing.sat_per_mtok` at the rate in use. A model with a cached input price lists it there too, as `cached_input`. It is public.
+- The supplier's cost is `input_usd_per_mtok`, `output_usd_per_mtok` and, where set, `cached_input_usd_per_mtok` in `config/models.json`, and the markup is `BELLOWS_MARKUP` in `tinfoil-config.yml`, both at the release tag the instance runs. For a sealed instance both are part of the measured build: the catalog is in the image, whose digest the measured config pins.
 
-At markup 1, `pricing.usd_per_mtok` equals the catalog's cost. The operator API also lists cost next to price (`GET /admin/api/settings`), but only for the operator.
+At markup 1, `pricing.usd_per_mtok` equals the catalog's cost, `cached_input` included. The operator API also lists cost next to price (`GET /admin/api/settings`), but only for the operator.
 
 ## Suppliers
 

@@ -92,6 +92,8 @@ switch (cmd) {
         tier: config.catalog.suppliers[m.supplier]!.tier,
         [`in_${unit}_per_mtok`]: displayPrice(m.input_usd_per_mtok, config.env.BELLOWS_MARKUP, unit, rate)?.toFixed(unit === 'usd' ? 4 : 1),
         [`out_${unit}_per_mtok`]: displayPrice(m.output_usd_per_mtok, config.env.BELLOWS_MARKUP, unit, rate)?.toFixed(unit === 'usd' ? 4 : 1),
+        // Input served from the supplier's prompt cache, on a model whose supplier lists a price for it.
+        [`cached_in_${unit}_per_mtok`]: m.cached_input_usd_per_mtok === undefined ? null : displayPrice(m.cached_input_usd_per_mtok, config.env.BELLOWS_MARKUP, unit, rate)?.toFixed(unit === 'usd' ? 4 : 1),
         verified: m.price_verified,
         uncensored: m.uncensored,
       })),

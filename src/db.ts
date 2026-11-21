@@ -195,8 +195,8 @@ CREATE TABLE IF NOT EXISTS requests (
 CREATE INDEX IF NOT EXISTS requests_created ON requests(created_at);
 
 -- Billing aggregates: one row per UTC day, unit, model and supplier (src/usage.ts). fit_* are the sums the
--- admin cost fit needs (input x input, input x output, output x output, input x cost, output x cost) over
--- requests whose cost the supplier reported.
+-- admin cost fit needs over requests whose cost the supplier reported, with input meaning the uncached input
+-- (input x input, input x output, output x output, input x cost, output x cost, input x cached, output x cached).
 CREATE TABLE IF NOT EXISTS usage_daily (
   day TEXT NOT NULL,
   unit TEXT NOT NULL,
@@ -209,6 +209,7 @@ CREATE TABLE IF NOT EXISTS usage_daily (
   nut24 INTEGER NOT NULL DEFAULT 0,
   estimated INTEGER NOT NULL DEFAULT 0,
   input_tokens INTEGER NOT NULL DEFAULT 0,
+  cached_input_tokens INTEGER NOT NULL DEFAULT 0, -- the part of input_tokens the supplier served from its prompt cache
   output_tokens INTEGER NOT NULL DEFAULT 0,
   charged_msub INTEGER NOT NULL DEFAULT 0,
   shortfall_msub INTEGER NOT NULL DEFAULT 0, -- owed by requests settled after their reservation was released, not covered by the balance
@@ -220,6 +221,8 @@ CREATE TABLE IF NOT EXISTS usage_daily (
   fit_oo REAL NOT NULL DEFAULT 0,
   fit_ic REAL NOT NULL DEFAULT 0,
   fit_oc REAL NOT NULL DEFAULT 0,
+  fit_ik REAL NOT NULL DEFAULT 0,
+  fit_ok REAL NOT NULL DEFAULT 0,
   PRIMARY KEY (day, unit, model, supplier)
 );
 `;
@@ -233,6 +236,9 @@ const ADDED_COLUMNS: Array<[table: string, column: string, decl: string]> = [
   ['accounts', 'frozen_at', 'INTEGER'],
   ['fundings', 'f_unlisted', 'INTEGER NOT NULL DEFAULT 0'],
   ['usage_daily', 'shortfall_msub', 'INTEGER NOT NULL DEFAULT 0'],
+  ['usage_daily', 'cached_input_tokens', 'INTEGER NOT NULL DEFAULT 0'],
+  ['usage_daily', 'fit_ik', 'REAL NOT NULL DEFAULT 0'],
+  ['usage_daily', 'fit_ok', 'REAL NOT NULL DEFAULT 0'],
 ];
 
 export type DB = DatabaseSync;
@@ -263,7 +269,7 @@ export function openDb(path: string): DB {
 }
 
 /** Per-request columns an earlier release kept in requests (with the balance id). Dropped once folded into usage_daily. */
-const OLD_REQUEST_COLUMNS = ['account_id', 'input_tokens', 'output_tokens', 'usage_source', 'charged_msub', 'change_units', 'latency_ms', 'price_nusd', 'supplier_cost_nusd', 'cost_source'];
+const OLD_REQUEST_COLUMNS = ['account_id', 'input_tokens', 'output_tokens', 'usage_source', 'charged_msub', 'change_units', 'latency_ms', 'price_nusd', 'supplier_cost_nusd', 'cost_source', 'cached_input_tokens'];
 
 /**
  * Brings a database from an earlier release to "blind by default", and is a no-op on one that is already
