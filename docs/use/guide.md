@@ -8,7 +8,7 @@ Every path, header and field here is described in full in [API reference](api.md
 
 A Bellows is an origin that serves the API. Two choices:
 
-- **The reference instance** at `https://bellows.island-bitcoin.containers.tinfoil.dev`, which runs release 0.1.2 on Tinfoil Containers. It takes real eCash. It charges the suppliers' cost with no margin, and its operator pays its hosting.
+- **The reference instance** at `https://bellows.island-bitcoin.containers.tinfoil.dev`, which runs release 0.2.0 on Tinfoil Containers. It takes real eCash. It charges the suppliers' cost with no margin, and its operator pays its hosting.
 - **A local engine** on your machine, with test mints that pay their own invoices. Use it while you build.
 
 Start a local engine from a checkout of this repository. You need Node 22.18 or later, pnpm and Docker.
