@@ -1,5 +1,5 @@
 /**
- * Enclave identity (docs/DESIGN.md, S4). At boot Bellows makes an HPKE key pair in memory, writes a
+ * Enclave identity (docs/how-it-works/design.md, S4). At boot Bellows makes an HPKE key pair in memory, writes a
  * statement (version, claimed measurement, key configuration, relays, operator announcement), asks the
  * platform's attester for an attestation that binds the statement's hash, and serves the result at
  * /.well-known/bellows. The private key never leaves memory and is new on every boot.

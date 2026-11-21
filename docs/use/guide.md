@@ -2,7 +2,7 @@
 
 Bellows is an OpenAI-compatible AI gateway that you pay per request with Cashu eCash. This guide shows how an app, an agent or a script uses a running Bellows: pick one, check which build it runs, list its models, pay, send chat requests, stream answers, go through Oblivious HTTP, handle errors and take your money back. The last part points operators at the pages for running their own.
 
-Every path, header and field here is described in full in [API.md](API.md). The examples were run against a local Bellows with local test mints; [How these examples were checked](#how-these-examples-were-checked) lists what ran and what did not.
+Every path, header and field here is described in full in [API reference](api.md). The examples were run against a local Bellows with local test mints; [How these examples were checked](#how-these-examples-were-checked) lists what ran and what did not.
 
 ## Pick an engine
 
@@ -38,7 +38,7 @@ curl -s $B/healthz
 
 ## Check which build it runs
 
-Before you send a prompt or a token, check that the engine runs an approved build. A Bellows serves its identity at `GET /.well-known/bellows`: a statement (version, claimed build, the HPKE key clients encrypt to, its relays, the operator's announcement) and an attestation that binds that statement. [ATTESTATION.md](ATTESTATION.md) describes each part.
+Before you send a prompt or a token, check that the engine runs an approved build. A Bellows serves its identity at `GET /.well-known/bellows`: a statement (version, claimed build, the HPKE key clients encrypt to, its relays, the operator's announcement) and an attestation that binds that statement. [Attested identity](../verify/attestation.md) describes each part.
 
 Look at it by hand:
 
@@ -69,7 +69,7 @@ const bellows = await verifyBellows('https://bellows.island-bitcoin.containers.t
 // bellows.keyConfig is the attested key, bellows.relays its relays, bellows.build the approved build.
 ```
 
-`authenticate` is yours to supply. It must check the SEV-SNP report or TDX quote (vendor certificate chain, collateral, provenance) and return the measurement it proves and the REPORT_DATA read from the quote. No implementation ships in this repository; [ATTESTATION.md](ATTESTATION.md#the-client-library) says what it must do, and [ATTESTATION.md](ATTESTATION.md#not-verified-locally) lists what has not been run on real sealed hardware.
+`authenticate` is yours to supply. It must check the SEV-SNP report or TDX quote (vendor certificate chain, collateral, provenance) and return the measurement it proves and the REPORT_DATA read from the quote. No implementation ships in this repository; [The client library](../verify/attestation.md#the-client-library) says what it must do, and [Not verified locally](../verify/attestation.md#not-verified-locally) lists what has not been run on real sealed hardware.
 
 Against a local engine, accept the development stand-in explicitly. It proves nothing, so use it only for development:
 
@@ -113,7 +113,7 @@ There are two ways to pay. Both use eCash from one of the `mints` in `/v1/models
 | Prepaid balance | `Authorization: Bearer sk-forge-...` | Apps and chats that make many requests |
 | Per request (NUT-24) | `X-Cashu: cashuB...` | Agents and scripts that want no account and no key |
 
-A balance key links every request made with it to the others. A per-request payment is not linked to other requests by the engine. [PRIVACY.md](PRIVACY.md) has the details.
+A balance key links every request made with it to the others. A per-request payment is not linked to other requests by the engine. [Privacy](../how-it-works/privacy.md) has the details.
 
 ### Open a balance
 
@@ -219,7 +219,7 @@ ID=$(jq -r .id <<<"$FUNDING")
 curl -s $B/v1/wallet/fund/$ID -H "authorization: Bearer $KEY" | jq '{state, credited}'
 ```
 
-Poll the funding until `state` is `done` (or `expired`). Polling also moves it forward. Other funding methods (a bitcoin deposit, eCash from another mint) are in [API.md](API.md#funding-a-balance).
+Poll the funding until `state` is `done` (or `expired`). Polling also moves it forward. Other funding methods (a bitcoin deposit, eCash from another mint) are in [API reference](api.md#funding-a-balance).
 
 ### Pay per request (NUT-24)
 
@@ -370,7 +370,7 @@ The OpenAI Python SDK streams too, with `stream=True` on `client.chat.completion
 
 ## Send through Oblivious HTTP
 
-Oblivious HTTP (RFC 9458) wraps each API call for the attested key and sends it through a relay. The relay sees your address and ciphertext. The engine sees the request and the relay's address. Who is asking is hidden from the operator when you use a relay run by someone else, or Tor. A relay and a Bellows run by the same party hide nothing from that party. [OHTTP.md](OHTTP.md) has the details.
+Oblivious HTTP (RFC 9458) wraps each API call for the attested key and sends it through a relay. The relay sees your address and ciphertext. The engine sees the request and the relay's address. Who is asking is hidden from the operator when you use a relay run by someone else, or Tor. A relay and a Bellows run by the same party hide nothing from that party. [Oblivious HTTP](../how-it-works/ohttp.md) has the details.
 
 `bellowsFetch(operator, path, init)` takes the same path and `init` as `fetch` and returns the engine's answer as an ordinary `Response`, streamed answers included:
 
@@ -404,7 +404,7 @@ BELLOWS_RELAY_TARGETS=http://127.0.0.1:8787/ohttp pnpm relay      # listens on 1
 BELLOWS_RELAYS=http://127.0.0.1:8788/relay/127.0.0.1:8787
 ```
 
-The relay forwards only the body and its content type and keeps no logs. [relay/README.md](https://github.com/ForgeReserve/bellows/blob/main/relay/README.md) shows how to run it as a Node server or a Cloudflare Worker.
+The relay forwards only the body and its content type and keeps no logs. [relay/README.md](../../relay/README.md) shows how to run it as a Node server or a Cloudflare Worker.
 
 ## Handle errors
 
@@ -433,7 +433,7 @@ The ones an app meets most:
 | `503 mint_unavailable` | Send the request again with the same token, or fetch its change at `GET /v1/change/{request_id}` |
 | `503 topup_pending` | Send the topup again with the returned key and the same token |
 
-`GET /v1/change/{request_id}` answers `409 not_settled` with `Retry-After` while the request still runs. The full list of codes is in [API.md](API.md#error-codes).
+`GET /v1/change/{request_id}` answers `409 not_settled` with `Retry-After` while the request still runs. The full list of codes is in [API reference](api.md#error-codes).
 
 ## Read the balance and take it back
 
@@ -464,13 +464,13 @@ Keep balances small. A balance lives in the engine's ledger, and moving it to an
 | `loadOperatorAnnouncements`, `OperatorPool` | Find operators on Nostr, verify them, pick one and fail over |
 | `moveBalance(pool, {from, key})` | Withdraw a balance from one operator and fund a new one at another |
 
-[OPERATORS.md](OPERATORS.md) shows the operator pool and moving a balance.
+[Operators](operators.md) shows the operator pool and moving a balance.
 
 ## Run your own engine
 
-- To try it on your machine, follow [Pick an engine](#pick-an-engine). The repository's [README](https://github.com/ForgeReserve/bellows#readme) lists every setting.
-- To run one with Docker behind your own TLS proxy, see "Running a Bellows" in the [README](https://github.com/ForgeReserve/bellows#running-a-bellows). In that setup the operator can read requests in memory and can read the database.
-- To run one its operator cannot read, deploy it on Tinfoil Containers with the deploy kit: [OPERATE.md](OPERATE.md) goes step by step, and marks every step that has not yet been run on sealed hardware. [THREAT-MODEL.md](THREAT-MODEL.md) says what each party can still see.
+- To try it on your machine, follow [Pick an engine](#pick-an-engine). The [configuration reference](../run/configuration.md) lists every setting.
+- To run one with Docker behind your own TLS proxy, see [Running a Bellows on your own server](../run/self-hosted.md). In that setup the operator can read requests in memory and can read the database.
+- To run one its operator cannot read, deploy it on Tinfoil Containers with the deploy kit: the [sealed deployment guide](../run/sealed-deployment.md) goes step by step, and marks every step that has not yet been run on sealed hardware. The [threat model](../how-it-works/threat-model.md) says what each party can still see.
 
 ## How these examples were checked
 

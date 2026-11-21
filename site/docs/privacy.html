@@ -76,7 +76,7 @@
 <p class="summary">What the gateway can see, per model tier, and what it stores and logs.</p>
 <nav class="on-this-page" aria-label="On this page">
 <p>On this page</p>
-<ul><li><a href="#never-stored-or-logged-any-tier">Never stored or logged, any tier</a></li><li><a href="#per-tier">Per tier</a></li><li><a href="#funding">Funding</a></li><li><a href="#encrypted-pass-through-tinfoil-ehbp">Encrypted pass-through (Tinfoil EHBP)</a></li><li><a href="#client-apps">Client apps</a></li></ul>
+<ul><li><a href="#never-stored-or-logged-any-tier">Never stored or logged, any tier</a></li><li><a href="#blind-by-default">Blind by default</a></li><li><a href="#per-tier">Per tier</a></li><li><a href="#funding">Funding</a></li><li><a href="#encrypted-pass-through-tinfoil-ehbp">Encrypted pass-through (Tinfoil EHBP)</a></li><li><a href="#client-apps">Client apps</a></li></ul>
 </nav>
 <p>What the gateway can see depends on the tier and on whether the client encrypts.</p>
 <h2 id="never-stored-or-logged-any-tier">Never stored or logged, any tier<a class="anchor" href="#never-stored-or-logged-any-tier" aria-hidden="true" tabindex="-1">#</a></h2>
@@ -87,6 +87,14 @@
 <li>P2PK lock keys (<code>X-Cashu-Pubkey</code>, <code>pubkey</code>) are not logged. They are public keys, stored with the in-flight request, payout or funding they lock (<code>requests.lock_pubkey</code> until the request settles, <code>outgoing.lock_pubkey</code>, <code>fundings.f_lock_pubkey</code>) so a payout made after a crash is still locked, and returned to the payer as <code>locked_to</code>.</li>
 </ul>
 <p>Streams are read in memory as they pass, to count tokens when the supplier does not report usage. Only counters are kept.</p>
+<h2 id="blind-by-default">Blind by default<a class="anchor" href="#blind-by-default" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Bellows stores, logs and shows nothing that identifies a client:</p>
+<ul>
+<li><code>test/unit/blind.test.ts</code> fails if the source reads a client's network address, user agent, referrer or forwarded-for value. <code>test/e2e/blind.e2e.test.ts</code> sends all of them with every request and fails if any shows up in a log line, a response, a database row or the raw database files.</li>
+<li>A request leaves no row of its own once it settles. Billing keeps daily aggregates per model and supplier in <code>usage_daily</code>: counts, tokens, the amount charged, any shortfall of a late charge, the price and the supplier's cost. A NUT-24 request has an in-flight row until it settles, so that a crash can still return the payment as change. A balance request has none (its reservation is deleted at settlement), and charges write no ledger row.</li>
+<li>The admin API and the admin CLI show aggregates only. A balance is the hash of a random key and its amount, tied to nothing else.</li>
+</ul>
+<p>What this leaves visible: the host and its network still see client addresses, and so does a reverse proxy that logs them. Sending through an Oblivious HTTP relay run by someone else, or Tor, hides them (<a href="ohttp.html">Oblivious HTTP</a>). Funding records (<code>fundings</code>) keep the balance id, the invoice or address and the amounts, so that the client can poll them and recovery can finish them. The <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/how-it-works/design.md">design</a> says what each step hides.</p>
 <h2 id="per-tier">Per tier<a class="anchor" href="#per-tier" aria-hidden="true" tabindex="-1">#</a></h2>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Table"><table>
 <thead><tr><th scope="col"></th><th scope="col">Standard (for example Token Factory)</th><th scope="col">Enclave, plaintext</th><th scope="col">Enclave, encrypted (EHBP)</th></tr></thead>
@@ -127,7 +135,7 @@
 <a class="pager-prev" rel="prev" href="attestation.html"><span>Previous</span>Attestation</a>
 <a class="pager-next" rel="next" href="threat-model.html"><span>Next</span>Threat model</a>
 </nav>
-<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/PRIVACY.md">docs/PRIVACY.md</a> in the repository.</p>
+<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/how-it-works/privacy.md">docs/how-it-works/privacy.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">

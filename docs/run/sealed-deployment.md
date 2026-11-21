@@ -1,6 +1,6 @@
 # Operating a Bellows
 
-This page runs a Bellows on Tinfoil Containers, step by step, so that its operator cannot read the requests, the answers, the balances or the keys. What each party can still see is in [THREAT-MODEL.md](THREAT-MODEL.md).
+This page runs a Bellows on Tinfoil Containers, step by step, so that its operator cannot read the requests, the answers, the balances or the keys. What each party can still see is in the [threat model](../how-it-works/threat-model.md).
 
 **NOT VERIFIED** marks every step that needs real sealed hardware and has not been checked there one by one. Those steps follow Tinfoil's public documentation and the deploy kit in this repository. The release workflows have run on GitHub ([4. Release](#4-release)), and the reference instance runs release 0.1.2 this way. Everything else here has been run locally. "Not verified on sealed hardware" at the end lists the open points.
 
@@ -20,7 +20,7 @@ This page runs a Bellows on Tinfoil Containers, step by step, so that its operat
 
 The rules `pnpm deploy:check` enforces, and why:
 
-- **Only the `bellows` container has `attestation: true`.** Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key ([ATTESTATION.md](ATTESTATION.md)). A Tor sidecar or any other container runs without it.
+- **Only the `bellows` container has `attestation: true`.** Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key ([Attested identity](../verify/attestation.md)). A Tor sidecar or any other container runs without it.
 - **Secrets come from your keyserver, and only Bellows gets them.** `keyserver-url` is required. Secrets are never `env` values and never Tinfoil-managed secrets, which Tinfoil's infrastructure can read. No container other than `bellows` lists `secrets`.
 - **The database is on the encrypted volume.** Bellows runs sealed (`BELLOWS_MODE=sealed`), the database path is under a mount listed in `BELLOWS_SEALED_MOUNTS`, that mount is a persistent volume, and every volume has a `key-secret` so it unlocks at boot with a key only your keyserver releases. A volume belongs to one container: no other container mounts Bellows' volume.
 - **Every setting is measured.** Every `env` entry is a literal in the measured file. A bare name, whose value would come from an unmeasured instance variable, is refused.
@@ -46,7 +46,7 @@ Edit `tinfoil-config.yml`. The templates in `deploy/` stay as they are. The test
 
 - `keyserver-url`: your keyserver.
 - `BELLOWS_TRUSTED_MINTS` (and `BELLOWS_FUND_MINT` if you set it): your mints. Add each mint's host to the `egress` allowlist.
-- Any other setting in [README.md](../README.md#configuration). Add it as a quoted literal.
+- Any other setting in the [configuration reference](configuration.md). Add it as a quoted literal.
 - If you change `config/models.json`, list each supplier's API key under `secrets` and its host in the allowlist.
 
 Then check it:
@@ -76,7 +76,7 @@ Generate the admin token with `openssl rand -hex 32` and nothing else. The shim 
 These two values are the only way back to the money:
 
 - **The volume key** opens the encrypted volume, which holds the ledger: every customer balance and the state of the gateway's eCash wallet. If it is lost, the volume cannot be opened by you, by Tinfoil or by anyone. It never changes: a new key cannot open the existing volume, and Tinfoil's secret rotation does not re-encrypt it.
-- **The wallet secret** derives the wallet's keys. With it, the gateway's eCash can be recovered from the mint (NUT-09 restore, [PAYMENTS.md](PAYMENTS.md)) even without the volume. Customer balances cannot: they live only in the ledger on the volume.
+- **The wallet secret** derives the wallet's keys. With it, the gateway's eCash can be recovered from the mint (NUT-09 restore, [Payments](../how-it-works/payments.md)) even without the volume. Customer balances cannot: they live only in the ledger on the volume.
 
 Keep both offline before anything is written to the volume:
 
@@ -94,7 +94,7 @@ Run Tinfoil's reference keyserver ([github.com/tinfoilsh/keyserver](https://gith
 - Choose a backend: HashiCorp Vault, AWS Secrets Manager or a local file. For the file backend, copy `deploy/keyserver/store.example.json`, fill it in on the offline machine, move it to the server and `chmod 600` it.
 - The keyserver must serve `/challenge` and `/fetch` directly at `keyserver-url`, without redirects.
 
-The keyserver releases a secret only to an enclave whose fresh attestation proves it runs your repository at an approved tag and holds a certificate for your instance's domain. You run it, so you decide which release gets your secrets. That is also the known weak point: see [THREAT-MODEL.md](THREAT-MODEL.md#the-operator-approves-releases).
+The keyserver releases a secret only to an enclave whose fresh attestation proves it runs your repository at an approved tag and holds a certificate for your instance's domain. You run it, so you decide which release gets your secrets. That is also the known weak point: see [Threat model](../how-it-works/threat-model.md#the-operator-approves-releases).
 
 NOT VERIFIED: the keyserver's release to a Bellows enclave, and every secret arriving as an environment variable.
 
@@ -172,10 +172,10 @@ curl https://<your domain>/healthz
 curl https://<your domain>/.well-known/bellows
 ```
 
-- `/.well-known/bellows` must return an attestation, not `503 not_attested`. Verify it the way a client does, with `verifyBellows` from `client/` and your `builds.json` ([ATTESTATION.md](ATTESTATION.md)). It must find your build.
+- `/.well-known/bellows` must return an attestation, not `503 not_attested`. Verify it the way a client does, with `verifyBellows` from `client/` and your `builds.json` ([Attested identity](../verify/attestation.md)). It must find your build.
 - The instance logs show `startup` with `"mode":"sealed"` and `"sealed_mount":"/data"`, then `attested` with `"attester":"tinfoil"`.
 - `GET /v1/models` lists the models you mean to sell. A warning `unverified_prices_withheld` names models left out because their price is not verified; an error `unverified_prices_served` means `BELLOWS_SERVE_UNVERIFIED_PRICES` is on.
-- The admin API answers with your admin token at `https://<your domain>/admin/api/overview`, and 401 without it. It is on the public origin ([README.md](../README.md#admin-api)).
+- The admin API answers with your admin token at `https://<your domain>/admin/api/overview`, and 401 without it. It is on the public origin ([Admin API](admin.md#admin-api)).
 
 NOT VERIFIED: a real Tinfoil attestation of a Bellows, and its verification with an app's `authenticate`.
 
@@ -194,7 +194,7 @@ Checked locally: the image builds, and `--verify-config` accepts the configurati
 
 ## Oblivious HTTP under load
 
-Anyone can send `POST /ohttp`, and an encapsulated request names no account, so the gateway bounds new encapsulated requests for all clients together ([OHTTP.md](OHTTP.md#admission)):
+Anyone can send `POST /ohttp`, and an encapsulated request names no account, so the gateway bounds new encapsulated requests for all clients together ([Oblivious HTTP](../how-it-works/ohttp.md#admission)):
 
 - Only a request that will run takes a place in the replay cache. One refused for its method, path or date never does, so requests that run nothing cannot fill it.
 - `BELLOWS_OHTTP_ADMIT_PER_SECOND` new requests a second are admitted, with a burst of one second's worth. Past that, `/ohttp` answers `503` with `Retry-After` and logs `ohttp_refused` with reason `busy`.
@@ -222,9 +222,9 @@ The operator cannot read the volume, so there is no database export from a seale
 - the volume itself, which survives Stop, Deploy, updates and deleting the instance, until you delete the volume;
 - the mint, from which the wallet secret restores the gateway's eCash.
 
-If the volume is lost, the eCash in the gateway's wallet can be restored with the wallet secret, and the balances customers held are lost. Clients that keep their balances small, and move them with `moveBalance` ([OPERATORS.md](OPERATORS.md)), lose little.
+If the volume is lost, the eCash in the gateway's wallet can be restored with the wallet secret, and the balances customers held are lost. Clients that keep their balances small, and move them with `moveBalance` ([Operators](../use/operators.md)), lose little.
 
-The volume has no rollback protection: whoever controls the disk can put back an older copy, and the enclave does not notice. See [THREAT-MODEL.md](THREAT-MODEL.md).
+The volume has no rollback protection: whoever controls the disk can put back an older copy, and the enclave does not notice. See [Threat model](../how-it-works/threat-model.md).
 
 ## Rehearse locally
 
@@ -244,11 +244,11 @@ With `-e BELLOWS_MODE=sealed -e BELLOWS_SECRETS=platform -e BELLOWS_SEALED_MOUNT
 
 - The keyserver releasing secrets to a Bellows enclave, as environment variables, and refusing a debug enclave.
 - Volume creation and unlock at boot through `key-secret`, first-boot initialization of a blank disk, the mount's owner (`1000:1000`), and the mount appearing in `/proc/self/mountinfo` so that sealed mode accepts it.
-- The attestation socket in a Bellows container and the document it returns ([ATTESTATION.md](ATTESTATION.md#not-verified-locally)).
+- The attestation socket in a Bellows container and the document it returns ([Attested identity](../verify/attestation.md#not-verified-locally)).
 - The measurement form in `builds.json` matching what an app's `authenticate` returns, and reproducible image builds. The release workflows and Tinfoil's measure action have run ([4. Release](#4-release)).
 - On the reference instance: a paid request, an Oblivious HTTP round trip, and reading a balance back after a restart. The test suite and local runs cover each of them.
 - Tinfoil's dashboard and CLI accepting these workflows in place of the template's, and the `version` input they send.
 - The egress allowlist in practice: hostnames re-resolved by the platform, Nostr relays over WebSocket, and enclave hosts a client names beyond the ones listed (they are blocked unless you add them).
 - Streamed answers and the admin API through the shim.
 - The Tor sidecar on Tinfoil (see [Onion service](#onion-service)).
-- Price, self-serve access and where inbound TLS ends, as [DESIGN.md](DESIGN.md#platform) notes.
+- Price, self-serve access and where inbound TLS ends, as [Design](../how-it-works/design.md#platform) notes.

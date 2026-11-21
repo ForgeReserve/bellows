@@ -29,8 +29,8 @@ The statement, after base64 decoding:
 - `version` is the Bellows release.
 - `measurement` is the build the server claims to be, or `null`. A client never trusts this claim. It trusts only the measurement the attestation proves, and it refuses a claim that differs.
 - `hpke.key_config` is one key configuration in the encoding of RFC 9458, section 3.1: key id, KEM `0x0020`, the 32-byte public key, and the cipher suites (HKDF-SHA256 with AES-128-GCM).
-- `relays` lists the Oblivious HTTP relays for this Bellows (`BELLOWS_RELAYS`), each the full URL a client posts encapsulated requests to ([OHTTP.md](OHTTP.md)).
-- `operator` is the operator's signed announcement (a Nostr event, [OPERATORS.md](OPERATORS.md)) from `BELLOWS_OPERATOR_ANNOUNCEMENT_FILE`, or `null`. Startup checks that it is signed and matches the configuration. Because the attestation covers it, a client can check that the Bellows it verified belongs to the operator who announced it.
+- `relays` lists the Oblivious HTTP relays for this Bellows (`BELLOWS_RELAYS`), each the full URL a client posts encapsulated requests to ([Oblivious HTTP](../how-it-works/ohttp.md)).
+- `operator` is the operator's signed announcement (a Nostr event, [Operators](../use/operators.md)) from `BELLOWS_OPERATOR_ANNOUNCEMENT_FILE`, or `null`. Startup checks that it is signed and matches the configuration. Because the attestation covers it, a client can check that the Bellows it verified belongs to the operator who announced it.
 
 The attestation binds
 
@@ -66,7 +66,7 @@ SHA-256( "https://tinfoil.sh/report-data/v1" || nonce || SHA-256(crypto_material
 
 so the hardware binds the Bellows statement through the nonce. Before serving a document, Bellows makes the same binding checks a client makes. On Tinfoil, leave `BELLOWS_BUILD_MEASUREMENT` unset: the measurement covers `tinfoil-config.yml` itself, so the config cannot carry it, and the statement's claim is `null`. Clients rely on the measurement the attestation proves, never on the claim.
 
-Only the Bellows container may have `attestation: true` in `tinfoil-config.yml`. Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key. Tinfoil's runtime policy says the same: fetching a quote does not identify the requesting container. A Tor sidecar or any other container in the enclave runs without attestation access. `pnpm deploy:check` refuses a config that breaks this rule, and `test/unit/deploy.test.ts` checks it on `tinfoil-config.yml` and on both templates in `deploy/` ([OPERATE.md](OPERATE.md)). Only the Bellows container may receive secrets or mount its volume.
+Only the Bellows container may have `attestation: true` in `tinfoil-config.yml`. Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key. Tinfoil's runtime policy says the same: fetching a quote does not identify the requesting container. A Tor sidecar or any other container in the enclave runs without attestation access. `pnpm deploy:check` refuses a config that breaks this rule, and `test/unit/deploy.test.ts` checks it on `tinfoil-config.yml` and on both templates in `deploy/` ([Sealed deployment guide](../run/sealed-deployment.md)). Only the Bellows container may receive secrets or mount its volume.
 
 ## Approved builds
 
@@ -89,7 +89,7 @@ Only the Bellows container may have `attestation: true` in `tinfoil-config.yml`.
 
 `notes` and `deployment` are optional. A Tinfoil measurement covers the whole measured `tinfoil-config.yml`, and each operator's config differs (its keyserver, its mints), so one release can have one approved build per operator deployment. `deployment` names the measured config as `owner/repo@tag`, the same repository and tag the operator's keyserver policy pins. The checker refuses unknown members, an image not pinned by digest, malformed registers, a version listed twice for the same deployment, a malformed deployment and one measurement under two builds. Run it with `pnpm builds:check [path]`. The list in this repository holds releases 0.1.0, 0.1.1 and 0.1.2 of the deployment `ForgeReserve/bellows`, each measured by Tinfoil's measure action in the release workflow.
 
-A Tinfoil build's measurement has the type `https://tinfoil.sh/predicate/snp-tdx-multiplatform/v1` (`TINFOIL_RELEASE_MEASUREMENT_TYPE` in `client/`) and three registers: the SEV-SNP launch measurement, then TDX RTMR1 and RTMR2, as Tinfoil's measure action publishes them in `tinfoil-deployment.json`. The release workflow writes the entry (`pnpm builds:add`) and proposes it in a pull request ([OPERATE.md](OPERATE.md#4-release)). An app's `authenticate` should return the measurement of the release it authenticated in this form.
+A Tinfoil build's measurement has the type `https://tinfoil.sh/predicate/snp-tdx-multiplatform/v1` (`TINFOIL_RELEASE_MEASUREMENT_TYPE` in `client/`) and three registers: the SEV-SNP launch measurement, then TDX RTMR1 and RTMR2, as Tinfoil's measure action publishes them in `tinfoil-deployment.json`. The release workflow writes the entry (`pnpm builds:add`) and proposes it in a pull request ([Sealed deployment guide](../run/sealed-deployment.md#4-release)). An app's `authenticate` should return the measurement of the release it authenticated in this form.
 
 ## The client library
 

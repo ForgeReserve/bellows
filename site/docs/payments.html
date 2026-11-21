@@ -98,7 +98,7 @@
 <li>The gateway re-prices, checks the token covers it, swaps it, calls the supplier, and charges <code>ceil(actual cost)</code> capped at what was paid.</li>
 <li>Change, if any, is issued as a new token from the same mint: in the <code>X-Cashu-Change</code> response header for non-streaming responses, in the final <code>event: forge</code> of a stream, and always at <code>GET /v1/change/{request_id}</code>.</li>
 </ol>
-<p>NUT-24 does not specify change. Bellows's choice (header, final stream event, re-fetch URL) is documented here and in the README. Upstream failures charge nothing and return everything.</p>
+<p>NUT-24 does not specify change. Bellows's choice (header, final stream event, re-fetch URL) is documented here and in the <a href="api.html#post-v1chatcompletions">API reference</a>. Upstream failures charge nothing and return everything.</p>
 <h2 id="flow-2-prepaid-balance">Flow 2: prepaid balance<a class="anchor" href="#flow-2-prepaid-balance" aria-hidden="true" tabindex="-1">#</a></h2>
 <ol>
 <li><code>POST /v1/wallet/topup</code> with a token (and, when <code>BELLOWS_INVITE_ONLY=true</code>, an invite for a new balance). The gateway returns a new <code>sk-forge-...</code> key, or credits the key in <code>Authorization</code>. A client may also choose its own key (<code>sk-forge-</code> plus 24 to 64 URL-safe characters) so that a lost response never loses the key.</li>
@@ -111,7 +111,7 @@
 <li>Plaintext requests: the gateway asks the supplier for usage (<code>stream_options.include_usage</code> on streams) and settles on it. If the client did not ask for usage, the usage-only chunk is removed from the stream it sees.</li>
 <li>No usage reported: input is estimated as <code>body bytes / 4</code> and output from the stream (at least one token per content chunk, or characters / 4 if larger). Non-streaming responses without usage are charged at <code>max_tokens</code>.</li>
 <li>Client disconnects mid-stream: the gateway aborts the upstream call and settles on what was produced so far, using upstream usage if it arrived, else the estimate above.</li>
-<li>Encrypted pass-through: see PRIVACY.md. Usage comes from Tinfoil's <code>X-Tinfoil-Usage-Metrics</code> header or trailer; without it the supplier's flat schedule (if configured) or the reservation is charged.</li>
+<li>Encrypted pass-through: see <a href="privacy.html#encrypted-pass-through-tinfoil-ehbp">Privacy</a>. Usage comes from Tinfoil's <code>X-Tinfoil-Usage-Metrics</code> header or trailer; without it the supplier's flat schedule (if configured) or the reservation is charged.</li>
 <li><code>pricing: &quot;flat&quot;</code> suppliers always charge the flat schedule: a request-size bucket plus declared max output tokens.</li>
 </ul>
 <h2 id="flow-3-funding-a-balance-through-the-funding-mint">Flow 3: funding a balance through the funding mint<a class="anchor" href="#flow-3-funding-a-balance-through-the-funding-mint" aria-hidden="true" tabindex="-1">#</a></h2>
@@ -247,7 +247,7 @@
 <a class="pager-prev" rel="prev" href="api.html"><span>Previous</span>API reference</a>
 <a class="pager-next" rel="next" href="ohttp.html"><span>Next</span>Oblivious HTTP</a>
 </nav>
-<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/PAYMENTS.md">docs/PAYMENTS.md</a> in the repository.</p>
+<p class="source">This page is <a href="https://github.com/ForgeReserve/bellows/blob/main/docs/how-it-works/payments.md">docs/how-it-works/payments.md</a> in the repository.</p>
 </main>
 </div>
 <footer class="site-footer">

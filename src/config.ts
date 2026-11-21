@@ -170,7 +170,7 @@ export const EnvSchema = z.object({
   BELLOWS_ADMIN_ORIGIN: z.string().url().optional(),
   BELLOWS_ADMIN_RATE_LIMIT_RPM: z.coerce.number().int().min(1).default(120),
   /**
-   * Who attests /.well-known/bellows (docs/ATTESTATION.md). dev: a signed stand-in clients refuse unless they
+   * Who attests /.well-known/bellows (docs/verify/attestation.md). dev: a signed stand-in clients refuse unless they
    * opt into development mode. tinfoil: the Tinfoil Containers attestation socket. Default: dev in
    * development, tinfoil in sealed mode, which refuses dev.
    */
@@ -194,11 +194,11 @@ export const EnvSchema = z.object({
   /**
    * The announcement itself, as JSON. For a sealed deployment, where the operator cannot write a file on the
    * encrypted volume and the measured config cannot hold it (it names the build the config is measured
-   * into): the keyserver releases it with the secrets (docs/OPERATE.md). Not with BELLOWS_OPERATOR_ANNOUNCEMENT_FILE.
+   * into): the keyserver releases it with the secrets (docs/run/sealed-deployment.md). Not with BELLOWS_OPERATOR_ANNOUNCEMENT_FILE.
    */
   BELLOWS_OPERATOR_ANNOUNCEMENT: z.string().trim().min(1).optional(),
   /**
-   * Oblivious HTTP (docs/OHTTP.md): an encapsulated request must carry a Date (or Bellows-Date) within this
+   * Oblivious HTTP (docs/how-it-works/ohttp.md): an encapsulated request must carry a Date (or Bellows-Date) within this
    * many seconds of the gateway's clock. Each request's encapsulated key is remembered for that long, so a
    * replayed request is refused.
    */
@@ -358,7 +358,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
   const stale = Object.keys(source).filter((k) => k.startsWith('FORGE_'));
   if (stale.length) {
     throw new Error(
-      `FORGE_* variables are no longer read: ${stale.sort().join(', ')}. Rename them to BELLOWS_* (docs/MIGRATE-FROM-FORGE-AI.md)`,
+      `FORGE_* variables are no longer read: ${stale.sort().join(', ')}. Rename them to BELLOWS_* (docs/run/migrate-from-forge-ai.md)`,
     );
   }
   const parsed = EnvSchema.safeParse(source);
@@ -503,7 +503,7 @@ function attestationSettings(env: Env): { attester: 'dev' | 'tinfoil'; buildMeas
 }
 
 /**
- * Reads the operator announcement (docs/OPERATORS.md): a signed Nostr event that must agree with how this
+ * Reads the operator announcement (docs/use/operators.md): a signed Nostr event that must agree with how this
  * Bellows is configured, since clients compare it with what the Bellows does. Refuses to start otherwise.
  */
 type AnnouncementContext = { env: Env; trustedMints: string[]; buildMeasurement: Measurement | null };
@@ -571,7 +571,7 @@ function openSecrets(env: Env, source: NodeJS.ProcessEnv, mounts: MountTable): {
   if (sealed) sealedMountOf('the secrets file', path, env.BELLOWS_SEALED_MOUNTS, mounts);
   if (!sealed && !env.BELLOWS_SECRETS_FILE && !existsSync(path)) {
     // Only for a new database: an existing one may have been written under a seed a new file would not hold.
-    if (existsSync(db)) throw new Error(`secrets file ${path} is missing, and the database ${db} already exists: create the file (README, Secrets)`);
+    if (existsSync(db)) throw new Error(`secrets file ${path} is missing, and the database ${db} already exists: create the file (docs/run/configuration.md, Secrets and sealed state)`);
     const pending = pendingDevSecrets(path);
     return { secrets: pending.source, pending };
   }

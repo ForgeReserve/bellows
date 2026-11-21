@@ -14,7 +14,7 @@ An operator publishes one signed Nostr event per Bellows. It is addressable (NIP
 | `content` | An optional plain-text description, at most 1000 characters |
 | `["d", address]` | The Bellows' origin, for example `https://bellows.example`. The replaceable key |
 | `["u", address]` | The same origin |
-| `["ohttp-relay", url]` | Zero or more. Each is the full URL a client posts encapsulated requests to ([OHTTP.md](OHTTP.md)) |
+| `["ohttp-relay", url]` | Zero or more. Each is the full URL a client posts encapsulated requests to ([Oblivious HTTP](../how-it-works/ohttp.md)) |
 | `["onion", url]` | Optional. The Bellows' v3 onion address, for example `http://<56 characters>.onion` |
 | `["version", version]` | The Bellows release it runs |
 | `["measurement", type, register, ...]` | Optional. The build measurement, as `builds.json` lists it |
@@ -29,7 +29,7 @@ Addresses are `https`. Plain `http` is accepted only on a loopback address, for 
 The same signed event is published in two places:
 
 1. **On Nostr relays**, where clients find operators.
-2. **Inside the Bellows' attested identity.** Set `BELLOWS_OPERATOR_ANNOUNCEMENT_FILE` to the file holding the event, or `BELLOWS_OPERATOR_ANNOUNCEMENT` to the event itself as JSON. Bellows serves it in the `operator` field of the statement at `/.well-known/bellows` ([ATTESTATION.md](ATTESTATION.md)), so the hardware attestation covers it. A sealed deployment uses the variable: the operator cannot write a file on the encrypted volume, and the measured config cannot hold an announcement that names the build it is measured into, so the keyserver releases it with the secrets ([OPERATE.md](OPERATE.md)).
+2. **Inside the Bellows' attested identity.** Set `BELLOWS_OPERATOR_ANNOUNCEMENT_FILE` to the file holding the event, or `BELLOWS_OPERATOR_ANNOUNCEMENT` to the event itself as JSON. Bellows serves it in the `operator` field of the statement at `/.well-known/bellows` ([Attested identity](../verify/attestation.md)), so the hardware attestation covers it. A sealed deployment uses the variable: the operator cannot write a file on the encrypted volume, and the measured config cannot hold an announcement that names the build it is measured into, so the keyserver releases it with the secrets ([Sealed deployment guide](../run/sealed-deployment.md)).
 
 When a version of Bellows is listed in `builds.json` for several operator deployments, `pnpm announce` needs `--deployment owner/repo@tag` to pick the measurement of yours.
 
@@ -57,7 +57,7 @@ Publish again after every upgrade, relay change or mint change, and restart the 
 
 ## Choosing an operator (client library)
 
-The client library in [`client/`](../client/) runs in browsers and in Node 22+.
+The client library in [`client/`](../../client/) runs in browsers and in Node 22+.
 
 ```ts
 import { loadOperatorAnnouncements, OperatorPool, storageMemory, tinfoilVerifier } from './client/index.ts';
@@ -77,7 +77,7 @@ const { response, operator } = await pool.fetch('/v1/models');
 
 Before an operator is used, the pool:
 
-1. Verifies the Bellows with `verifyBellows`: a hardware attestation of a build on the approved list ([ATTESTATION.md](ATTESTATION.md)).
+1. Verifies the Bellows with `verifyBellows`: a hardware attestation of a build on the approved list ([Attested identity](../verify/attestation.md)).
 2. Checks that the attested statement carries a signed announcement by the **same operator key for the same address**. A listed event that points at someone else's Bellows is refused (`announcement_mismatch`). From here on the pool uses the attested copy.
 3. Checks requirements: the unit and mint the app asks for (`not_accepted` otherwise).
 4. Checks health: `GET /healthz` through Oblivious HTTP, on the same path real requests take.

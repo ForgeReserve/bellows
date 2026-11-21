@@ -1,5 +1,5 @@
 /**
- * Makes, signs and publishes an operator announcement (docs/OPERATORS.md). The operator's Nostr secret key
+ * Makes, signs and publishes an operator announcement (docs/use/operators.md). The operator's Nostr secret key
  * is read from a hidden prompt (or, when stdin is not a terminal, from its first line), never from the
  * command line or the environment, and is never printed or written anywhere.
  *
@@ -10,7 +10,7 @@
  *     [--description "..."] [--out announcement.json] [--nostr wss://nostr-relay.example ...] [--dry-run]
  *
  * Without --measurement the build is looked up in builds.json by version. A version can be listed once per
- * operator deployment (docs/OPERATE.md); --deployment picks yours, and is required when there are several.
+ * operator deployment (docs/run/sealed-deployment.md); --deployment picks yours, and is required when there are several.
  *
  * --out writes the signed event for BELLOWS_OPERATOR_ANNOUNCEMENT_FILE. --nostr publishes it to those Nostr
  * relays (unless --dry-run). Exit status 0 when it was written and every relay accepted it.

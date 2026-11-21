@@ -1,6 +1,6 @@
 /**
  * The calls the Forge AI clients make to a gateway, copied without change: the same paths, methods, headers
- * and bodies, and the same response fields read back. docs/DESIGN.md, S8 runs them against a Bellows.
+ * and bodies, and the same response fields read back. docs/how-it-works/design.md, S8 runs them against a Bellows.
  *
  * Copied from the Forge AI web app (public/js/ui.js `api`, public/app.js `loadModels`, `refreshBalance`,
  * `generate` and `readStream`, public/js/wallet.js funding, refund and history steps) and from its agent

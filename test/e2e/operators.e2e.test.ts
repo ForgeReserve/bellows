@@ -1,5 +1,5 @@
 /**
- * Operators end to end (docs/DESIGN.md, S6), against the local test mints. Three Bellows instances, each
+ * Operators end to end (docs/how-it-works/design.md, S6), against the local test mints. Three Bellows instances, each
  * with its own operator key and signed announcement:
  *   A  takes eCash from mint A; reached through an Oblivious HTTP relay
  *   B  takes eCash from mint A; opens new balances with proof of work

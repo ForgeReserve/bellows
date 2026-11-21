@@ -1,5 +1,5 @@
 /**
- * Operator announcements (docs/OPERATORS.md). An operator publishes one signed, replaceable Nostr event per
+ * Operator announcements (docs/use/operators.md). An operator publishes one signed, replaceable Nostr event per
  * Bellows it runs. It says where the Bellows is and what it takes:
  *
  *   kind 38390 (addressable: the newest event per key and address replaces older ones)

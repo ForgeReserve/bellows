@@ -1,5 +1,5 @@
 /**
- * Attested identity (docs/DESIGN.md, S4): HPKE key configuration, the development and Tinfoil attesters,
+ * Attested identity (docs/how-it-works/design.md, S4): HPKE key configuration, the development and Tinfoil attesters,
  * the identity document and its refresh, builds.json and its checker, and the client's verifyBellows.
  */
 import { execFileSync } from 'node:child_process';

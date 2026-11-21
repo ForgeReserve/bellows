@@ -8,7 +8,7 @@
  *   // bellows.keyConfig is the attested HPKE key; send nothing if verifyBellows throws.
  *   const res = await bellowsFetch({ ...bellows, relay: 'https://relay.example/relay/bellows.example' }, '/v1/models');
  *
- * Many operators (docs/OPERATORS.md): load their signed announcements, let OperatorPool verify, health-check,
+ * Many operators (docs/use/operators.md): load their signed announcements, let OperatorPool verify, health-check,
  * pick and fail over, and moveBalance to take a balance from one operator to another.
  *
  *   const { announcements } = await loadOperatorAnnouncements(['wss://nostr-relay.example']);

@@ -47,7 +47,7 @@ client ──(OHTTP, encrypted to the enclave key)──> relay ──> Bellows 
 
 ## Approved builds and upgrades
 
-`builds.json` in this repo lists each approved release: version, image digest and measurement. The keyserver policy releases secrets only to a listed build, and clients accept only a listed build. An operator who edits their own keyserver policy to approve a malicious build can extract state; clients detect that build because it is not on the public list. This is the known weak point of version 1 and is written in `docs/THREAT-MODEL.md`. A later version moves approval to a key that the day-to-day operator does not hold.
+`builds.json` in this repo lists each approved release: version, image digest and measurement. The keyserver policy releases secrets only to a listed build, and clients accept only a listed build. An operator who edits their own keyserver policy to approve a malicious build can extract state; clients detect that build because it is not on the public list. This is the known weak point of version 1 and is written in `docs/how-it-works/threat-model.md`. A later version moves approval to a key that the day-to-day operator does not hold.
 
 The encrypted volume has no rollback detection on the first target platform. Version 1 documents this; it does not solve it.
 
@@ -60,7 +60,7 @@ One branch, slices in order. Every slice ships with tests. Local test mints are 
 Make this repo a self-contained engine named Bellows.
 
 - Package name `bellows`; README written for an operator; no Forge branding in code or docs except as an example deployment.
-- Environment variables renamed from `FORGE_*` to `BELLOWS_*`. No aliases. Add `docs/MIGRATE-FROM-FORGE-AI.md` with the full mapping.
+- Environment variables renamed from `FORGE_*` to `BELLOWS_*`. No aliases. Add `docs/run/migrate-from-forge-ai.md` with the full mapping.
 - Remove serving of the web app, service worker and admin pages (the `public/` tree is not in this repo). Remove the beta waitlist. Keep invites as an optional gate, off by default.
 - The HTTP API for clients is unchanged: same paths and bodies, so the existing Forge AI app works against a Bellows.
 - All unit and e2e tests pass; tests for removed features are deleted with the features, not skipped.
@@ -107,13 +107,13 @@ Nothing that identifies a client is stored, logged or shown.
 ### S7. Deploy kit
 
 - `tinfoil-config.yml`, a hardened Dockerfile (non-root, read-only filesystem), a release workflow that builds the image, pins its digest, measures it and updates `builds.json`.
-- A test parses `tinfoil-config.yml` and fails if any container other than `bellows` has `attestation: true`. Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key (docs/ATTESTATION.md).
+- A test parses `tinfoil-config.yml` and fails if any container other than `bellows` has `attestation: true`. Any container that can reach the attestation socket can obtain a quote over any nonce, and so could attest a statement with its own key (docs/verify/attestation.md).
 - Keyserver policy example (file-based) and how to back up the volume secret offline.
 - Optional Tor onion service as a sidecar, with its key on the encrypted volume.
-- `docs/OPERATE.md` (run one, step by step) and `docs/THREAT-MODEL.md` (what each party can see, using the wording rule above).
+- `docs/run/sealed-deployment.md` (run one, step by step) and `docs/how-it-works/threat-model.md` (what each party can see, using the wording rule above).
 - Mark every step that needs real sealed hardware as NOT VERIFIED until it has been run there.
 
 ### S8. Forge AI fit
 
 - A test proves the unchanged Forge AI client calls (wallet, funding, chat, refunds, change) work against Bellows directly and through OHTTP.
-- `docs/API.md`: the client API, the operator API and the discovery format, written so another app can use a Bellows without reading the code.
+- `docs/use/api.md`: the client API, the operator API and the discovery format, written so another app can use a Bellows without reading the code.

@@ -42,7 +42,7 @@ RFC 9458 leaves replay protection to the gateway (section 6.5). Bellows refuses 
 
 Encapsulated requests carry no identity, so the gateway cannot limit one client apart from another. It bounds new requests for everyone together instead: at most `BELLOWS_OHTTP_ADMIT_PER_SECOND` a second, with a burst of one second's worth. Past it a request gets a plain `503` with `Retry-After` (whole seconds), takes no place in the replay cache, and can be sent again unchanged once the bound has room. The Bellows relay passes `Retry-After` on with a `503` and exposes it to browsers; a third-party relay may drop it, so a client should not count on seeing it. Only a request that would be remembered counts: refused, stale and replayed requests use none of it.
 
-A key is kept for at most twice the skew plus one second (601 s by default). Left unset, the bound is the most the replay cache holds over that time (`BELLOWS_OHTTP_REPLAY_CACHE_MAX / (2 * BELLOWS_OHTTP_MAX_SKEW_SECONDS + 2)`, about 332 a second by default), so the cache cannot fill. A flood then competes with honest clients for each second's admissions, rather than shutting every new request out until old keys expire. A sender of more than the bound can still crowd others out while it keeps sending: the bound limits what a flood costs the gateway, not who gets through. A set value that could let the cache fill is refused at startup. Inside the app, each request still meets the same payment, rate limits and proof of work as a direct one. See [OPERATE.md](OPERATE.md#oblivious-http-under-load).
+A key is kept for at most twice the skew plus one second (601 s by default). Left unset, the bound is the most the replay cache holds over that time (`BELLOWS_OHTTP_REPLAY_CACHE_MAX / (2 * BELLOWS_OHTTP_MAX_SKEW_SECONDS + 2)`, about 332 a second by default), so the cache cannot fill. A flood then competes with honest clients for each second's admissions, rather than shutting every new request out until old keys expire. A sender of more than the bound can still crowd others out while it keeps sending: the bound limits what a flood costs the gateway, not who gets through. A set value that could let the cache fill is refused at startup. Inside the app, each request still meets the same payment, rate limits and proof of work as a direct one. See [Sealed deployment guide](../run/sealed-deployment.md#oblivious-http-under-load).
 
 ### Refusals
 
@@ -106,7 +106,7 @@ The client uses Web APIs only (fetch, WebCrypto, streams) and runs in browsers a
 
 ## The relay
 
-`relay/` is a small standalone relay: [relay/README.md](../relay/README.md).
+`relay/` is a small standalone relay: [relay/README.md](../../relay/README.md).
 
 ## Configuration
 

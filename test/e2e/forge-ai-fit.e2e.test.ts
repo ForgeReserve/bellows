@@ -1,5 +1,5 @@
 /**
- * Forge AI fit (docs/DESIGN.md, S8): the Forge AI clients' calls, unchanged (forge-ai-client.ts), against a
+ * Forge AI fit (docs/how-it-works/design.md, S8): the Forge AI clients' calls, unchanged (forge-ai-client.ts), against a
  * Bellows directly and through Oblivious HTTP, on the local test mints.
  *
  * Each transport runs the same story: the app boots (models, funding methods), opens a balance with eCash,

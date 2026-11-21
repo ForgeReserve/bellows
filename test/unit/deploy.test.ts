@@ -1,5 +1,5 @@
 /**
- * The deploy kit (docs/DESIGN.md, S7): the Tinfoil configs, the hardened images, the release workflows, the
+ * The deploy kit (docs/how-it-works/design.md, S7): the Tinfoil configs, the hardened images, the release workflows, the
  * keyserver policy example and the scripts that pin images and add measured builds to builds.json.
  *
  * The release runs this suite in each operator's deploy repository, after the operator has edited
@@ -70,7 +70,7 @@ const mutate = (text: string, fn: (cfg: Obj) => void) => {
 const TEST_OPERATOR_KEY = new Uint8Array(32).fill(7);
 const DIGEST_A = 'ab'.repeat(32);
 const DIGEST_B = 'cd'.repeat(32);
-/** The edits an operator makes by hand (docs/OPERATE.md, step 1): their keyserver and their mint. */
+/** The edits an operator makes by hand (docs/run/sealed-deployment.md, step 1): their keyserver and their mint. */
 const operatorEdits = (text: string) => text.replaceAll('https://keys.example.com', 'https://keys.operator.test').replaceAll('mint.example.com', 'mint.operator.test');
 /** A config as an operator fills it in: no example values, images pinned. */
 function filledIn(text: string): string {
@@ -361,14 +361,14 @@ describe('tinfoil-config.yml', () => {
       expect(cfgOf(text).shim.paths, name).toEqual(expect.arrayContaining(['/admin/api', '/admin/api/*']));
       expect(text, name).toMatch(/operator API, on the public origin/);
     }
-    const readme = read('README.md');
-    const admin = readme.slice(readme.indexOf('## Admin API'), readme.indexOf('## Admin CLI'));
+    const adminDoc = read('docs/run/admin.md');
+    const admin = adminDoc.slice(adminDoc.indexOf('## Admin API'), adminDoc.indexOf('## Admin CLI'));
     expect(admin).toMatch(/\*\*Sealed \(the Tinfoil deploy kit\)\.\*\*[^\n]*same public origin[^\n]*the token is its only protection/);
     expect(admin).toMatch(/remove `\/admin\/api` and `\/admin\/api\/\*` from the shim's `paths`/);
     expect(admin).toContain('openssl rand -hex 32');
     // The self-hosted advice no longer claims to cover the sealed kit.
     expect(admin).not.toMatch(/Keep `\/admin` off the public internet anyway/);
-    const operate = read('docs/OPERATE.md');
+    const operate = read('docs/run/sealed-deployment.md');
     expect(operate).toMatch(/Generate the admin token with `openssl rand -hex 32` and nothing else\. The shim in `tinfoil-config\.yml` serves `\/admin\/api` at your public origin/);
     expect(read('src/admin-api.ts')).toMatch(/sealed deployment \(the Tinfoil kit\)/);
   });
@@ -752,10 +752,10 @@ describe('release workflows', () => {
     }
   });
 
-  it('a failed release can be finished by hand: OPERATE.md says how, and Publish may be started on the tag', () => {
+  it('a failed release can be finished by hand: the sealed deployment guide says how, and Publish may be started on the tag', () => {
     expect(workflows.publish).not.toMatch(/Do not run by hand/);
-    expect(workflows.publish).toMatch(/run by hand only to recover \(docs\/OPERATE\.md/);
-    const operate = read('docs/OPERATE.md');
+    expect(workflows.publish).toMatch(/run by hand only to recover \(docs\/run\/sealed-deployment\.md/);
+    const operate = read('docs/run/sealed-deployment.md');
     const recovery = operate.slice(operate.indexOf('### If a step fails'), operate.indexOf('NOT VERIFIED: the workflows'));
     expect(recovery).toContain('gh workflow run tinfoil-release-publish.yml --ref v<version>');
     expect(recovery).toContain('gh release download v<version> --pattern tinfoil-deployment.json');
@@ -767,7 +767,7 @@ describe('release workflows', () => {
 describe("an operator's deploy repository", () => {
   /**
    * A copy of this repository as an operator has it at their second release: tinfoil-config.yml edited as
-   * docs/OPERATE.md says (from the plain or the onion template), pinned by the first release, and builds.json
+   * docs/run/sealed-deployment.md says (from the plain or the onion template), pinned by the first release, and builds.json
    * listing that release. The release workflow runs the unit suite there, so it must pass.
    */
   function operatorRepository(template: string): string {

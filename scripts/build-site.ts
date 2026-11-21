@@ -5,13 +5,13 @@
  *   node scripts/build-site.ts           # write site/index.html, site/404.html, site/docs/*.html, brand files
  *   node scripts/build-site.ts --check   # exit 1 when any of them is missing or out of date
  *
- * Sources: the repository's Markdown docs (docs/*.md) and the hand-written page bodies in
+ * Sources: the Markdown docs under docs/ that PAGES lists, and the hand-written page bodies in
  * scripts/site-pages/. The Markdown stays the source of truth; long guides are split into one page per
  * top-level section here, never in the Markdown. site/assets/site.css and site/assets/site.js are written by
  * hand. test/unit/site.test.ts runs the check, so `pnpm test` fails when the generated pages are stale.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const REPO_URL = 'https://github.com/ForgeReserve/bellows';
@@ -30,7 +30,7 @@ export interface PageDef {
   group: Group;
   /** One line: the Developers index entry, the summary at the top of the page and its description tag. */
   summary: string;
-  /** The Markdown source in docs/. */
+  /** The Markdown source, as a path under docs/ (for example `use/guide.md`). */
   md?: string;
   /** The hand-written body in scripts/site-pages/. */
   html?: string;
@@ -58,7 +58,7 @@ export const PAGES: readonly PageDef[] = [
     slug: 'build',
     label: 'Build on Bellows',
     group: 'Build on it',
-    md: 'BUILD.md',
+    md: 'use/guide.md',
     summary: 'The guide: verify an engine, pay with eCash, chat, stream and go through Oblivious HTTP, with examples in curl, JavaScript and Python.',
     parts: {
       'pick-an-engine': 'Use the reference instance, or start a local engine with test mints while you build.',
@@ -75,18 +75,18 @@ export const PAGES: readonly PageDef[] = [
       'how-these-examples-were-checked': 'Which examples in this guide were run, against what, and which were not.',
     },
   },
-  { slug: 'api', label: 'API reference', group: 'Build on it', md: 'API.md', summary: 'The client API, the operator API and the discovery format, with every path, header, field and error code.' },
-  { slug: 'payments', label: 'Payments', group: 'Build on it', md: 'PAYMENTS.md', summary: 'How Bellows takes, holds and returns eCash, and what happens when something fails halfway.' },
-  { slug: 'ohttp', label: 'Oblivious HTTP', group: 'Build on it', md: 'OHTTP.md', summary: 'Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.' },
-  { slug: 'operators', label: 'Operators', group: 'Build on it', md: 'OPERATORS.md', summary: 'Operator announcements on Nostr, choosing among many operators, and moving a balance from one to another.' },
-  { slug: 'attestation', label: 'Attestation', group: 'Trust', md: 'ATTESTATION.md', summary: 'How a client checks which build a Bellows runs before it sends anything.' },
-  { slug: 'privacy', label: 'Privacy', group: 'Trust', md: 'PRIVACY.md', summary: 'What the gateway can see, per model tier, and what it stores and logs.' },
-  { slug: 'threat-model', label: 'Threat model', group: 'Trust', md: 'THREAT-MODEL.md', summary: 'What each party can see and do in a sealed deployment, what the design assumes and where it is weak.' },
+  { slug: 'api', label: 'API reference', group: 'Build on it', md: 'use/api.md', summary: 'The client API, the operator API and the discovery format, with every path, header, field and error code.' },
+  { slug: 'payments', label: 'Payments', group: 'Build on it', md: 'how-it-works/payments.md', summary: 'How Bellows takes, holds and returns eCash, and what happens when something fails halfway.' },
+  { slug: 'ohttp', label: 'Oblivious HTTP', group: 'Build on it', md: 'how-it-works/ohttp.md', summary: 'Oblivious HTTP to a Bellows: the gateway, replays, admission, streaming, the client and the relay.' },
+  { slug: 'operators', label: 'Operators', group: 'Build on it', md: 'use/operators.md', summary: 'Operator announcements on Nostr, choosing among many operators, and moving a balance from one to another.' },
+  { slug: 'attestation', label: 'Attestation', group: 'Trust', md: 'verify/attestation.md', summary: 'How a client checks which build a Bellows runs before it sends anything.' },
+  { slug: 'privacy', label: 'Privacy', group: 'Trust', md: 'how-it-works/privacy.md', summary: 'What the gateway can see, per model tier, and what it stores and logs.' },
+  { slug: 'threat-model', label: 'Threat model', group: 'Trust', md: 'how-it-works/threat-model.md', summary: 'What each party can see and do in a sealed deployment, what the design assumes and where it is weak.' },
   {
     slug: 'operate',
     label: 'Operator guide',
     group: 'Run your own',
-    md: 'OPERATE.md',
+    md: 'run/sealed-deployment.md',
     summary: 'Run a Bellows on Tinfoil Containers, step by step, so that requests, answers, balances and keys stay sealed from its operator.',
     parts: {
       'the-deploy-kit': 'The files that make a sealed deployment, and the rules pnpm deploy:check enforces.',
@@ -158,11 +158,13 @@ function plainText(md: string): string {
 }
 
 /**
- * Rewrites a link written for the repository (in docs/*.md) into one that works on the site, from a page in
- * site/docs/. A link to a rendered doc goes to the page that holds the heading it names, which matters for
- * docs split into one page per section. Links to any other file in the repository go to GitHub.
+ * Rewrites a link written for the repository (in a doc under docs/) into one that works on the site, from a
+ * page in site/docs/. `from` is the doc the link is written in, as a path under docs/ (by default the doc
+ * being rendered); a relative link resolves against its folder, as it does on GitHub. A link to a rendered
+ * doc goes to the page that holds the heading it names, which matters for docs split into one page per
+ * section. Links to any other file in the repository go to GitHub.
  */
-export function rewriteHref(href: string): string {
+export function rewriteHref(href: string, from: string = linkContext?.doc.md ?? 'README.md'): string {
   if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return href;
   if (href.startsWith('#')) {
     const doc = linkContext?.doc;
@@ -171,8 +173,8 @@ export function rewriteHref(href: string): string {
   }
   const [path, hash] = href.split('#', 2) as [string, string | undefined];
   const anchor = hash !== undefined ? `#${hash}` : '';
-  // Resolve against the docs/ directory of the repository.
-  const repoPath = join('docs', path).replace(/\\/g, '/');
+  // Resolve against the folder of the doc the link is written in.
+  const repoPath = join('docs', dirname(from), path).replace(/\\/g, '/');
   const doc = MD_PAGES.find((d) => `docs/${d.md}` === repoPath);
   if (doc) {
     const at = hash !== undefined ? anchors.get(doc.md!)?.get(hash) : undefined;
@@ -193,7 +195,7 @@ function inline(md: string): string {
   s = escapeHtml(s);
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, text: string, href: string) => {
     // A link whose text is the file name of a rendered doc reads better as the doc's name on the site.
-    const named = MD_PAGES.find((d) => d.md === text);
+    const named = MD_PAGES.find((d) => d.md === text || basename(d.md!) === text);
     return `<a href="${escapeHtml(rewriteHref(href))}">${named ? escapeHtml(named.label) : text}</a>`;
   });
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');

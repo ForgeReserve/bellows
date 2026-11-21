@@ -1,5 +1,5 @@
 /**
- * Operators (docs/DESIGN.md, S6): signed operator announcements, the publishing command, the client's
+ * Operators (docs/how-it-works/design.md, S6): signed operator announcements, the publishing command, the client's
  * operator pool (verify, health-check, pick, fail over, remember) and the error paths of moving a balance.
  * Bellows instances run in process here; test/e2e/operators.e2e.test.ts runs them over HTTP with the local
  * mints and moves a real balance.

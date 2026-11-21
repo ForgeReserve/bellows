@@ -76,7 +76,7 @@ On the wire:
 - A replay of an encapsulated request is refused before it runs (plain `400`). A replayed topup credits nothing.
 - A request the gateway cannot open gets a status and no body: `415` (not an OHTTP type), `400` (cannot be opened, tampered, or a replay), `413` (too large), `500` (the answer could not be sealed; the request ran), `503` (the replay cache is full).
 
-A relay forwards to an allowlisted Bellows at `POST /relay/<host of the Bellows>`. Its full URL is what a statement's `relays` and an announcement's `ohttp-relay` tags list. [OHTTP.md](OHTTP.md) has the details, the size limits and what a streamed answer reveals.
+A relay forwards to an allowlisted Bellows at `POST /relay/<host of the Bellows>`. Its full URL is what a statement's `relays` and an announcement's `ohttp-relay` tags list. [Oblivious HTTP](../how-it-works/ohttp.md) has the details, the size limits and what a streamed answer reveals.
 
 ## Client API
 
@@ -165,7 +165,7 @@ event: forge
 data: {"request_id":"req_...","unit":"usd","charged_msub":1300,"balance_msub":98700}
 ```
 
-Its members: `request_id`, `unit`, `charged_msub`, and `balance_msub` (balance payments) or `change`, `change_units` and `change_url` (NUT-24). If the upstream fails mid-stream, a `data: {"error": {...}}` line comes first and the event carries `"partial": true`; the part that was delivered is charged. A stream answer includes a usage chunk only if the request asked for it with `stream_options.include_usage`. The OpenAI JavaScript SDK ignores events after `[DONE]`. Other clients that parse every event should skip `event: forge` or read it.
+Its members: `request_id`, `unit`, `charged_msub`, and `balance_msub` (balance payments) or `change`, `change_units` and `change_url` (NUT-24). If the upstream fails mid-stream, a `data: {"error": {...}}` line comes first and the event carries `"partial": true`; the part that was delivered is charged. A stream answer includes a usage chunk only if the request asked for it with `stream_options.include_usage`. The OpenAI JavaScript SDK ignores events after `[DONE]` (checked in its `core/streaming.js`), so the extra event does not reach its callers. Other clients that parse every event should skip `event: forge` or read it.
 
 **Upstream failures** charge nothing and return all NUT-24 change, including an answer whose body breaks after its headers arrived. The answer is `502` (or the upstream's own 4xx) with code `upstream_error`. A balance reservation is released at once.
 
@@ -196,7 +196,7 @@ The change of a NUT-24 request, for a client that lost the answer. The request i
 - `503 mint_unavailable` with `Retry-After` when the change is owed but the mint did not answer.
 - `404 not_found` when there is no change for that id.
 
-For a request that failed before it was served while its payment's outcome was unknown (`mint_unavailable` or an internal error after the token was sent), this fetch settles the payment: once the mint confirms it took the token, the whole payment is returned as change. Retrying the request with the same token instead uses the payment for the retry, once; see [PAYMENTS.md](PAYMENTS.md).
+For a request that failed before it was served while its payment's outcome was unknown (`mint_unavailable` or an internal error after the token was sent), this fetch settles the payment: once the mint confirms it took the token, the whole payment is returned as change. Retrying the request with the same token instead uses the payment for the retry, once; see [Payments](../how-it-works/payments.md).
 
 ### Balance
 
@@ -214,7 +214,7 @@ For a request that failed before it was served while its payment's outcome was u
 
 ### Funding a balance
 
-A balance can be funded without eCash from an accepted mint: by a Lightning invoice, a bitcoin deposit (off by default), or eCash from another Cashu mint. Each method opens a balance on first use (with an invite when invite only, and proof of work) and returns `key` once when the Bellows generated it. Send a bearer key to fund an existing balance, or to open a new one under a key you chose. A funding in another unit than the balance's gets `400 wrong_unit`.
+A balance can be funded without eCash from an accepted mint: by a Lightning invoice, a bitcoin deposit (NUT-30, off by default), or eCash from another Cashu mint, which the Bellows melts to pay a Lightning invoice at its funding mint. In each case the Bellows mints eCash for itself at its funding mint and credits the exact amount minted. Each method opens a balance on first use (with an invite when invite only, and proof of work) and returns `key` once when the Bellows generated it. Send a bearer key to fund an existing balance, or to open a new one under a key you chose. A funding in another unit than the balance's gets `400 wrong_unit`.
 
 | Endpoint | Send | Answer |
 | - | - | - |
@@ -260,24 +260,27 @@ A balance can be funded without eCash from an accepted mint: by a Lightning invo
 - `credited` is the exact amount, in whole units of `unit`, added to the balance so far. `amount` is what was asked for (Lightning) or the quoted credit (other mint).
 - `state` is one of `quoted`, `receiving`, `melting`, `pending`, `minting`, `done`, `expired`, `failed`, `refunded`. The last four are final.
 - **Lightning:** `pending` (invoice unpaid) to `minting` to `done`, or `expired`. `expires_at` is the invoice's expiry in milliseconds.
-- **On-chain:** `pending` while the address is watched. Every deposit the mint counts as paid is minted and credited, and `credited` grows. The funding ends `done` when the watch window (`onchain.watch_until`) closes. `expires_at` is `null`.
+- **On-chain:** `pending` while the address is watched (for `BELLOWS_ONCHAIN_WATCH_DAYS`). Every deposit the mint counts as paid is minted and credited, and `credited` grows. The funding ends `done` when the watch window (`onchain.watch_until`) closes. `expires_at` is `null`.
 - **Other mint:** the quote prices the token: `foreign.credit` is what the balance gets, `foreign.fee_max` the most the token's mint can keep. Confirm with the same token within `expires_at`. The Bellows receives the token at its mint, melts it to pay an invoice at its funding mint, then mints and credits `credit`. Unused fee reserve comes back as `foreign.change_token`, eCash from the token's mint. If the payment cannot go through, the token's value comes back as `foreign.refund_token` and the state is `refunded`. With `pubkey` (at quote or confirm) both are locked to it, and `payout_pending` is true until the locking swap is done; keep polling.
 - Other-mint errors: a token from one of this Bellows' own mints gets `400 use_topup` (send it to `/v1/wallet/topup`); a denied mint or one the policy refuses gets `400 mint_not_allowed`; a mint not on the accepted list gets `409 mint_unlisted` with `{unlisted: {mint, max}}` until the quote is sent again with `accept_unlisted: true`, under the lower cap in `max`. A confirm with another token than the quoted one gets `400 token_mismatch`; a confirm after `expires_at`, `409 quote_expired`.
 
+Fedimint eCash is not accepted yet; [Not yet: Fedimint](../how-it-works/payments.md#not-yet-fedimint) says why.
+
 ### Locking payouts to your key
 
-Every token a Bellows hands back (NUT-24 change, refunds, other-mint change and refunds) is ordinary eCash by default, so until you redeem it the Bellows could spend it too. Give a public key and the token is locked to it (NUT-11 P2PK, plain lock): only the wallet holding the private key can redeem it.
+Every token a Bellows hands back (NUT-24 change, refunds, other-mint change and refunds) is ordinary eCash made from the Bellows' seed by default, so until you redeem it the Bellows could spend it too. Give a public key and the token is locked to it (NUT-11 P2PK, a plain lock with no timelock and no refund key): only the wallet holding the private key can redeem it, and the Bellows cannot spend it at all.
 
 - Where: `X-Cashu-Pubkey` on a chat request, `pubkey` in a refund body, `pubkey` at an other-mint quote or confirm.
-- Forms: a compressed secp256k1 key in hex (`02...` or `03...`, 66 characters), an `npub1...`, or a 64-hex x-only key. The last two become `"02" + x`. Anything else is `400 invalid_pubkey` before any eCash moves.
-- `locked_to` in the answer names the key. A token locked to a key you do not hold is lost.
+- Forms: a compressed secp256k1 key in hex (`02...` or `03...`, 66 characters; cashu.me shows it as "P2PK Key" under Receive > eCash, and in Settings > P2PK), an `npub1...`, or a 64-hex x-only key. The last two become `"02" + x`, the convention cashu.me, Minibits and cashu-ts use for Nostr keys. Anything else, including a point that is not on secp256k1 or an uncompressed key, is `400 invalid_pubkey` before any eCash moves.
+- Redeem with any NUT-11 wallet that holds the key (cashu-ts: `wallet.receive(token, { privkey })`). `examples/agent-pays.ts` shows it with `CASHU_PUBKEY=generate`.
+- `locked_to` in the answer names the key. A token locked to a key you do not hold is lost: nobody, the operator included, can unlock it.
 
 ### Proof of work
 
-A request that opens a new balance (a topup or a funding sent without a known balance key) needs a proof of work when `BELLOWS_POW_BITS` is above 0 (default 16).
+A request that opens a new balance (a topup or a funding sent without a known balance key) needs a proof of work when `BELLOWS_POW_BITS` is above 0 (default 16). Requests on an existing balance key need none.
 
 1. Send the request. Without a solution the answer is `428 pow_required` with `{"pow": {"challenge", "bits", "expires_at", "header"}}` and the challenge in `X-Bellows-Pow-Challenge`. `GET /v1/pow` hands out a challenge ahead of time: `{challenge, bits, expires_at, header, paths}`, where `paths` lists the paths that need one.
-2. Find a nonce of 1 to 32 characters from `A-Z a-z 0-9 _ -` such that SHA-256 of `<challenge>:<nonce>` starts with `bits` zero bits. `solvePow(challenge, bits)` in the client library does this.
+2. Find a nonce of 1 to 32 characters from `A-Z a-z 0-9 _ -` such that SHA-256 of `<challenge>:<nonce>` starts with `bits` zero bits. `solvePow(challenge, bits)` in the client library (`client/pow.ts`) does this, in a browser or in Node.
 3. Send the same request again with `X-Bellows-Pow: <challenge>:<nonce>`. A challenge is good for 5 minutes and for one request.
 
 ### Other client paths
@@ -306,9 +309,11 @@ A request that opens a new balance (a topup or a funding sent without a known ba
 | 503 | `mint_unavailable` (retry with the same token), `topup_pending`, `rate_unavailable` (no BTC/USD rate; pay in `usd` or retry), `wallet_insufficient`, `wallet_inconsistent` (retry), `payout_unknown` (a locked payout the mint has not confirmed; it stays owed and is never paid twice) |
 | 500 | `internal_error` |
 
+Payment problems (`untrusted_mint`, `wrong_unit`, `insufficient_amount`, `token_spent`, `invalid_token`, `invalid_pubkey`) answer `400` as NUT-24 asks. After `503 mint_unavailable`, send the request again with the same token (a NUT-24 retry is served once from the recovered payment), or fetch the failed request's change to get the payment back ([`GET /v1/change/{request_id}`](#get-v1changerequest_id)). An upstream failure charges nothing and returns all NUT-24 change.
+
 ## Operator API
 
-`/admin/api/*` is for the operator. It is off, and every `/admin` path answers `404`, until the secrets source holds `BELLOWS_ADMIN_TOKEN` (a random token without spaces) or `BELLOWS_ADMIN_TOKEN_HASH` (its SHA-256 in hex). It is not reachable through Oblivious HTTP. Keep `/admin` on a private network or behind a proxy with its own authentication.
+`/admin/api/*` is for the operator. It is off, and every `/admin` path answers `404`, until the secrets source holds `BELLOWS_ADMIN_TOKEN` (a random token without spaces) or `BELLOWS_ADMIN_TOKEN_HASH` (its SHA-256 in hex). It is not reachable through Oblivious HTTP. On your own server, keep `/admin` on a private network or behind a proxy with its own authentication. In a sealed deployment on Tinfoil it is on the public origin, guarded by the token alone; [Admin API](../run/admin.md#admin-api) says where it is reachable in each setup.
 
 - **Authentication.** `X-Bellows-Admin-Token: <token>` or `Authorization: Bearer <token>`. A missing or wrong token gets `401 unauthorized`. Failed logins share one budget of 10 a minute (`429 rate_limited` past it), apart from the operator's own budget.
 - **Changes.** Every request other than `GET` needs a same-origin `Origin` header, or the one in `BELLOWS_ADMIN_ORIGIN` (`403 bad_origin` otherwise), and `Content-Type: application/json` (`415 json_required` otherwise). Bodies are at most 64 KiB.
@@ -326,16 +331,16 @@ A request that opens a new balance (a topup or a funding sent without a known ba
 | `GET /admin/api/invites` | | `{data: [{id, label, status, nut24_uses, created_at, redeemed_at}]}` |
 | `POST /admin/api/invites` | `{count?: 1..100, label?}` | `{data: [{id, code}]}`. Codes are shown once |
 | `POST /admin/api/invites/{id}/revoke` | `{}` | `{ok, id, status: "revoked"}` |
-| `POST /admin/api/accounts/{id}/freeze` | `{frozen: true \| false}` | `{id, frozen}`. For a balance whose id its owner gave you. A frozen balance cannot spend; refunds still work |
+| `POST /admin/api/accounts/{id}/freeze` | `{frozen: true \| false}` | `{id, frozen}`. For a balance whose id its owner gave you, for example after a lost key. A frozen balance cannot spend; refunds still work |
 | `POST /admin/api/fundings/{id}/recheck` | `{}` | `{data: funding, quote_checks}`. Re-checks one unfinished funding; `409 not_open` for a finished one, `429 quote_budget` when the mint's quote-check budget is used up |
-| `GET /admin/api/costs?days=30` | | Supplier cost and margin per model over whole UTC days (1 to 365) |
+| `GET /admin/api/costs?days=30` | | Supplier cost and margin per model over whole UTC days (1 to 365), with per-million prices fitted to the supplier's reported costs |
 | `GET /admin/api/mints/discovery` | | Other-mint policy, accepted mints, the operator's own list and discovery status |
 | `POST /admin/api/mints/discovery/refresh` | `{}` | Refreshes discovery now; at most once a minute |
 | `POST /admin/api/mints/allowed` | `{url, note?, force?}` | `{mint, probe, forced, added, view}`. Adds a mint to the operator's list after a live check; `force` adds one that failed it (`400 mint_check_failed` otherwise). One of the Bellows' own mints gets `409 own_mint`, a denied one `409 mint_denied` |
 | `DELETE /admin/api/mints/allowed?url=...`, `POST /admin/api/mints/allowed/remove` `{url}` | | Removes a mint added through the API |
 | `GET /admin/api/settings` | | The configuration in force: units, mints, caps, enabled methods, other-mint policy, models and prices, and where state and secrets live (a source kind and a mount, never a secret) |
 
-Every admin change is logged as `admin_action` with counts and amounts only. `pnpm admin` runs the same operations against the database from the host ([README](../README.md#admin-cli)).
+Every admin change is logged as `admin_action` with counts and amounts only. Tokens, invite codes and keys are never logged. `pnpm admin` runs the same operations against the database from the host ([Admin CLI](../run/admin.md#admin-cli)).
 
 ## Discovery format
 
@@ -371,7 +376,7 @@ The statement, decoded:
 - Attestation `format` is `https://tinfoil.sh/predicate/attestation/v3` on Tinfoil, or `urn:bellows:attestation:dev:v1` for the development stand-in, which proves nothing and which clients refuse unless they opt in.
 - Until the first attestation succeeds, the answer is `503 not_attested` with `Retry-After`.
 
-`verifyBellows(url, {approvedBuilds, verifier})` in the client library fetches this document, checks the attestation with the app's verifier, and finds the proved measurement in `builds.json`. It returns the attested key configuration (`keyConfig`), the approved build, the proved measurement, the relays and the operator announcement, or throws `BellowsVerifyError` with a stable `code`. If it throws, send nothing. [ATTESTATION.md](ATTESTATION.md) has each check. It reads the document directly from the Bellows, so the operator sees the client's address on that request. To keep it hidden, pass a `fetch` in the options that sends through Tor (`verifyBellows(url, {approvedBuilds, verifier, fetch})`).
+`verifyBellows(url, {approvedBuilds, verifier})` in the client library fetches this document, checks the attestation with the app's verifier, and finds the proved measurement in `builds.json`. It returns the attested key configuration (`keyConfig`), the approved build, the proved measurement, the relays and the operator announcement, or throws `BellowsVerifyError` with a stable `code`. If it throws, send nothing. [Attested identity](../verify/attestation.md) has each check. It reads the document directly from the Bellows, so the operator sees the client's address on that request. To keep it hidden, pass a `fetch` in the options that sends through Tor (`verifyBellows(url, {approvedBuilds, verifier, fetch})`).
 
 ### `builds.json`
 
@@ -412,7 +417,7 @@ An operator says where their Bellows is with one signed, addressable Nostr event
 | `["mint", url]` | One or more accepted mints |
 | `["alt", "Bellows operator announcement"]` | NIP-31 text |
 
-`loadOperatorAnnouncements(relays, {authors})` reads them and checks each signature. `OperatorPool` verifies each Bellows, checks that its attested statement carries an announcement by the same operator key for the same origin, health-checks it, picks one and fails over. `moveBalance` withdraws a balance from one operator as eCash and funds a new one at another. A balance key works only at the operator that issued it. [OPERATORS.md](OPERATORS.md) has the details.
+`loadOperatorAnnouncements(relays, {authors})` reads them and checks each signature. `OperatorPool` verifies each Bellows, checks that its attested statement carries an announcement by the same operator key for the same origin, health-checks it, picks one and fails over. `moveBalance` withdraws a balance from one operator as eCash and funds a new one at another. A balance key works only at the operator that issued it. [Operators](operators.md) has the details.
 
 ### Key and relay endpoints
 

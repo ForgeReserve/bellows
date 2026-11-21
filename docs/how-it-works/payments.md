@@ -25,7 +25,7 @@ The token is then swapped at the mint into new proofs that only the gateway know
 4. The gateway re-prices, checks the token covers it, swaps it, calls the supplier, and charges `ceil(actual cost)` capped at what was paid.
 5. Change, if any, is issued as a new token from the same mint: in the `X-Cashu-Change` response header for non-streaming responses, in the final `event: forge` of a stream, and always at `GET /v1/change/{request_id}`.
 
-NUT-24 does not specify change. Bellows's choice (header, final stream event, re-fetch URL) is documented here and in the README. Upstream failures charge nothing and return everything.
+NUT-24 does not specify change. Bellows's choice (header, final stream event, re-fetch URL) is documented here and in the [API reference](../use/api.md#post-v1chatcompletions). Upstream failures charge nothing and return everything.
 
 ## Flow 2: prepaid balance
 
@@ -40,7 +40,7 @@ Only a SHA-256 of each key is stored.
 - Plaintext requests: the gateway asks the supplier for usage (`stream_options.include_usage` on streams) and settles on it. If the client did not ask for usage, the usage-only chunk is removed from the stream it sees.
 - No usage reported: input is estimated as `body bytes / 4` and output from the stream (at least one token per content chunk, or characters / 4 if larger). Non-streaming responses without usage are charged at `max_tokens`.
 - Client disconnects mid-stream: the gateway aborts the upstream call and settles on what was produced so far, using upstream usage if it arrived, else the estimate above.
-- Encrypted pass-through: see PRIVACY.md. Usage comes from Tinfoil's `X-Tinfoil-Usage-Metrics` header or trailer; without it the supplier's flat schedule (if configured) or the reservation is charged.
+- Encrypted pass-through: see [Privacy](privacy.md#encrypted-pass-through-tinfoil-ehbp). Usage comes from Tinfoil's `X-Tinfoil-Usage-Metrics` header or trailer; without it the supplier's flat schedule (if configured) or the reservation is charged.
 - `pricing: "flat"` suppliers always charge the flat schedule: a request-size bucket plus declared max output tokens.
 
 ## Flow 3: funding a balance through the funding mint

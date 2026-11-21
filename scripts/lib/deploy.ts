@@ -1,9 +1,9 @@
 /**
- * The deploy kit's checks and edits, shared by the scripts and the tests (docs/OPERATE.md):
+ * The deploy kit's checks and edits, shared by the scripts and the tests (docs/run/sealed-deployment.md):
  *
  *  - checkTinfoilConfig: the rules a Bellows `tinfoil-config.yml` keeps. Above all, only the `bellows`
  *    container may have `attestation: true`: any container that can reach the attestation socket can obtain
- *    a quote over any nonce, and so could attest a statement with its own key (docs/ATTESTATION.md).
+ *    a quote over any nonce, and so could attest a statement with its own key (docs/verify/attestation.md).
  *  - pinImage, pinImages: write container image references, pinned by digest, and change nothing else.
  *  - measurementFromDeployment, buildFromDeployment: read the release Tinfoil's measure workflow publishes
  *    (`tinfoil-deployment.json`) and make the builds.json entry for it.

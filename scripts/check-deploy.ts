@@ -1,5 +1,5 @@
 /**
- * Checks Bellows deploy configs for Tinfoil Containers and prints every problem (docs/OPERATE.md).
+ * Checks Bellows deploy configs for Tinfoil Containers and prints every problem (docs/run/sealed-deployment.md).
  *
  *   pnpm deploy:check [--release] [file ...]
  *

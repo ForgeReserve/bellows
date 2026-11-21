@@ -11,6 +11,16 @@ What the gateway can see depends on the tier and on whether the client encrypts.
 
 Streams are read in memory as they pass, to count tokens when the supplier does not report usage. Only counters are kept.
 
+## Blind by default
+
+Bellows stores, logs and shows nothing that identifies a client:
+
+- `test/unit/blind.test.ts` fails if the source reads a client's network address, user agent, referrer or forwarded-for value. `test/e2e/blind.e2e.test.ts` sends all of them with every request and fails if any shows up in a log line, a response, a database row or the raw database files.
+- A request leaves no row of its own once it settles. Billing keeps daily aggregates per model and supplier in `usage_daily`: counts, tokens, the amount charged, any shortfall of a late charge, the price and the supplier's cost. A NUT-24 request has an in-flight row until it settles, so that a crash can still return the payment as change. A balance request has none (its reservation is deleted at settlement), and charges write no ledger row.
+- The admin API and the admin CLI show aggregates only. A balance is the hash of a random key and its amount, tied to nothing else.
+
+What this leaves visible: the host and its network still see client addresses, and so does a reverse proxy that logs them. Sending through an Oblivious HTTP relay run by someone else, or Tor, hides them ([Oblivious HTTP](ohttp.md)). Funding records (`fundings`) keep the balance id, the invoice or address and the amounts, so that the client can poll them and recovery can finish them. The [design](design.md) says what each step hides.
+
 ## Per tier
 
 | | Standard (for example Token Factory) | Enclave, plaintext | Enclave, encrypted (EHBP) |
@@ -21,7 +31,7 @@ Streams are read in memory as they pass, to count tokens when the supplier does 
 | Gateway sees | Model, sizes, usage, timing | Same | Model name, body size, max output tokens, frame count, timing, usage numbers reported by Tinfoil |
 | How usage is measured | Upstream `usage` | Upstream `usage` | `X-Tinfoil-Usage-Metrics` response header (non-streaming) or HTTP trailer (streaming); else flat schedule |
 
-Payment links: with a balance key, every request on that key is linkable to the others. A P2PK lock key is a stable identifier: reusing one key links the payouts locked to it, at the gateway and at the mint, which sees the key in the locked proofs when they are redeemed. Use a fresh key per payout (cashu.me warns when a key was used before) if that matters. With NUT-24, requests are not linked by the gateway, but the mint knows its own swaps. Bellows reads no client address, but the host it runs on, its network and anything in front of it, such as a reverse proxy, still see client addresses. Client addresses are hidden from the operator when you use an Oblivious HTTP relay run by someone else, or Tor ([OHTTP.md](OHTTP.md)). A VPN moves the address to the VPN provider.
+Payment links: with a balance key, every request on that key is linkable to the others. A P2PK lock key is a stable identifier: reusing one key links the payouts locked to it, at the gateway and at the mint, which sees the key in the locked proofs when they are redeemed. Use a fresh key per payout (cashu.me warns when a key was used before) if that matters. With NUT-24, requests are not linked by the gateway, but the mint knows its own swaps. Bellows reads no client address, but the host it runs on, its network and anything in front of it, such as a reverse proxy, still see client addresses. Client addresses are hidden from the operator when you use an Oblivious HTTP relay run by someone else, or Tor ([Oblivious HTTP](ohttp.md)). A VPN moves the address to the VPN provider.
 
 The operator API and CLI show totals and counts only: no listing of balances, fundings or requests. Once a balance has been funded it is no longer linked to the invite that opened it.
 
