@@ -82,6 +82,8 @@ The e2e suite covers:
 - EHBP pass-through against a fake enclave, with usage from a header and from an HTTP trailer;
 - file text in messages never reaching the logs or the database.
 
+Cached input ([Payments](../how-it-works/payments.md#cached-input)): `test/unit/cached-input.test.ts` checks the charge (no cached tokens exactly as before, all cached, part cached, markup 1 and 1.25, usd and sat), the bounds on a wrong count, both parsers, the catalog field and the shipped catalogs, the cost fit, and the new `usage_daily` columns on a database from before them and on one from Forge AI. `test/e2e/cached-input.e2e.test.ts` runs against a stub Tinfoil: balance and NUT-24 requests with change, streamed and not, encrypted with the count from the metrics, which count is charged when the body and the metrics disagree, streams cut before and after their usage, the hold at the full price, `/v1/models`, and the admin figures with no margin at markup 1.
+
 ## Site
 
 `test/unit/site.test.ts` fails when the generated pages in `site/` are stale, when an internal link or anchor does not resolve, when a page loads anything from another host, when a header holds anything but the logo and the two menu items, when an old page address is gone, or when the landing page grows past its word limit. [Editing the docs](README.md#editing-the-docs) explains how the site is made from these docs.

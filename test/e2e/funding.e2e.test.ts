@@ -101,6 +101,69 @@ describe.skipIf(!up)('funding: Lightning (NUT-04 bolt11 at the funding mint)', (
     expect(topupRows(g, done.account_id)).toBe(2);
   });
 
+  it('opens a sat balance when the funding names no unit, and a usd balance when it names usd', async () => {
+    const r = await post(g, '/v1/wallet/fund/lightning', { amount: 40, invite: createInvite(g) });
+    expect(r.status).toBe(200);
+    const key = r.body.key as string;
+    expect((await waitFor(g, r.body.id, key)).credited).toBe(40);
+    const w = await get(g, '/v1/wallet', key);
+    expect(w.body.unit).toBe('sat');
+    expect(w.body.balance_msub).toBe(40_000);
+    const u = await post(g, '/v1/wallet/fund/lightning', { amount: 40, unit: 'usd', invite: createInvite(g) });
+    expect(u.status).toBe(200);
+    await waitFor(g, u.body.id, u.body.key);
+    expect((await get(g, '/v1/wallet', u.body.key)).body.unit).toBe('usd');
+  });
+
+  it('a funding that names no unit tops up an existing balance in its own unit, with that unit cap', async () => {
+    // A usd balance: 500 with no unit is 500 cents, under BELLOWS_FUND_MAX_USD (50000 here).
+    const usd = await post(g, '/v1/wallet/fund/lightning', { amount: 25, unit: 'usd', invite: createInvite(g) });
+    const usdKey = usd.body.key as string;
+    await waitFor(g, usd.body.id, usdKey);
+    const topUsd = await post(g, '/v1/wallet/fund/lightning', { amount: 500 }, usdKey);
+    expect(topUsd.status).toBe(200);
+    expect(topUsd.body.unit).toBe('usd');
+    expect(topUsd.body.amount).toBe(500);
+    expect(topUsd.body.key).toBeUndefined();
+    expect((await waitFor(g, topUsd.body.id, usdKey)).credited).toBe(500);
+    const wu = await get(g, '/v1/wallet', usdKey);
+    expect(wu.body.unit).toBe('usd');
+    expect(wu.body.balance_msub).toBe(525_000);
+    const overUsd = await post(g, '/v1/wallet/fund/lightning', { amount: 50_001 }, usdKey);
+    expect(overUsd.status).toBe(400);
+    expect(overUsd.body.error.code).toBe('invalid_amount');
+    expect(overUsd.body.error.message).toBe('amount must be 1..50000 usd');
+
+    // A sat balance: the same calls are in sat, under BELLOWS_FUND_MAX_SAT, so 50001 is accepted.
+    const sat = await post(g, '/v1/wallet/fund/lightning', { amount: 30, unit: 'sat', invite: createInvite(g) });
+    const satKey = sat.body.key as string;
+    await waitFor(g, sat.body.id, satKey);
+    const topSat = await post(g, '/v1/wallet/fund/lightning', { amount: 20 }, satKey);
+    expect(topSat.status).toBe(200);
+    expect(topSat.body.unit).toBe('sat');
+    expect((await waitFor(g, topSat.body.id, satKey)).credited).toBe(20);
+    expect((await get(g, '/v1/wallet', satKey)).body.balance_msub).toBe(50_000);
+    const bigSat = await post(g, '/v1/wallet/fund/lightning', { amount: 50_001 }, satKey);
+    expect(bigSat.status).toBe(200);
+    expect(bigSat.body.unit).toBe('sat');
+
+    // Naming the balance's own unit works; naming the other one is still wrong_unit.
+    const named = await post(g, '/v1/wallet/fund/lightning', { amount: 5, unit: 'usd' }, usdKey);
+    expect(named.status).toBe(200);
+    expect(named.body.unit).toBe('usd');
+    const wrong = await post(g, '/v1/wallet/fund/lightning', { amount: 5, unit: 'sat' }, usdKey);
+    expect(wrong.status).toBe(400);
+    expect(wrong.body.error.code).toBe('wrong_unit');
+
+    // An invalid key is refused as before, and opens nothing.
+    const accounts = () => (g.deps.db.prepare('SELECT COUNT(*) AS n FROM accounts').get() as { n: number }).n;
+    const before = accounts();
+    const bad = await post(g, '/v1/wallet/fund/lightning', { amount: 5 }, 'not-a-key');
+    expect(bad.status).toBe(401);
+    expect(bad.body.error.code).toBe('invalid_key');
+    expect(accounts()).toBe(before);
+  });
+
   it('rejects a unit that differs from the balance, and bad amounts', async () => {
     const invite = createInvite(g);
     const r = await post(g, '/v1/wallet/fund/lightning', { amount: 100, unit: 'sat', invite });
@@ -252,6 +315,53 @@ describe.skipIf(!up)('funding: eCash from another mint (receive, melt, mint at t
     const done = await waitFor(g, q.body.id, key);
     expect(done.credited).toBe(credit);
     expect(done.balance_msub).toBe(credit * 1000);
+  });
+
+  it('a quote that names no unit funds an existing balance in its own unit; a new balance opens in sat', async () => {
+    // A usd balance, opened by a usd quote, then topped up by a quote that names no unit.
+    const first = await mintToken(MINT_C, 'usd', 400);
+    const q1 = await post(g, '/v1/wallet/fund/foreign/quote', { token: first, unit: 'usd', invite: createInvite(g) });
+    const key = q1.body.key as string;
+    await post(g, '/v1/wallet/fund/foreign/confirm', { id: q1.body.id, token: first }, key);
+    const d1 = await waitFor(g, q1.body.id, key);
+    expect(d1.state).toBe('done');
+    const token = await mintToken(MINT_C, 'usd', 500);
+    const q = await post(g, '/v1/wallet/fund/foreign/quote', { token }, key);
+    expect(q.status).toBe(200);
+    expect(q.body.unit).toBe('usd');
+    expect(q.body.account_id).toBe(d1.account_id);
+    expect(q.body.key).toBeUndefined();
+    expect(q.body.foreign.unit).toBe('usd');
+    const credit = q.body.foreign.credit as number;
+    await post(g, '/v1/wallet/fund/foreign/confirm', { id: q.body.id, token }, key);
+    const done = await waitFor(g, q.body.id, key);
+    expect(done.credited).toBe(credit);
+    const w = await get(g, '/v1/wallet', key);
+    expect(w.body.unit).toBe('usd');
+    expect(w.body.balance_msub).toBe((d1.credited + credit) * 1000);
+    // Naming the other unit is still wrong_unit.
+    const wrong = await post(g, '/v1/wallet/fund/foreign/quote', { token: await mintToken(MINT_C, 'usd', 300), unit: 'sat' }, key);
+    expect(wrong.status).toBe(400);
+    expect(wrong.body.error.code).toBe('wrong_unit');
+
+    // A sat balance: a quote with no unit stays in sat.
+    const satFirst = await mintToken(MINT_C, 'sat', 400);
+    const s1 = await post(g, '/v1/wallet/fund/foreign/quote', { token: satFirst, invite: createInvite(g) });
+    expect(s1.status).toBe(200);
+    expect(s1.body.unit).toBe('sat');
+    const satKey = s1.body.key as string;
+    expect((await get(g, '/v1/wallet', satKey)).body.unit).toBe('sat');
+    await post(g, '/v1/wallet/fund/foreign/confirm', { id: s1.body.id, token: satFirst }, satKey);
+    await waitFor(g, s1.body.id, satKey);
+    const s2 = await post(g, '/v1/wallet/fund/foreign/quote', { token: await mintToken(MINT_C, 'sat', 300) }, satKey);
+    expect(s2.status).toBe(200);
+    expect(s2.body.unit).toBe('sat');
+    expect(s2.body.account_id).toBe(s1.body.account_id);
+
+    // An invalid key is refused as before.
+    const bad = await post(g, '/v1/wallet/fund/foreign/quote', { token: await mintToken(MINT_C, 'sat', 300) }, 'not-a-key');
+    expect(bad.status).toBe(401);
+    expect(bad.body.error.code).toBe('invalid_key');
   });
 
   it('policy: accepted-mint tokens go to topup, wrong token, deny list, max, invite', async () => {

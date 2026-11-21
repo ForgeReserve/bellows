@@ -73,7 +73,7 @@ containers:
       - BELLOWS_ATTESTER: "tinfoil"
       - BELLOWS_TRUSTED_MINTS: "https://mint.example.com"
       - BELLOWS_UNITS: "usd,sat"
-      - BELLOWS_DEFAULT_UNIT: "usd"
+      - BELLOWS_DEFAULT_UNIT: "sat"
       - BELLOWS_MARKUP: "1.25"
       - BELLOWS_RATE_SOURCES: "coinbase,kraken,bitstamp"
       - BELLOWS_FOREIGN_DISCOVERY_RELAYS: "wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net"

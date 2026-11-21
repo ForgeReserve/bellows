@@ -65,7 +65,11 @@ export const EnvSchema = z.object({
    */
   BELLOWS_MINT_ALIASES: csv.default([]),
   BELLOWS_UNITS: csv.pipe(z.array(z.enum(UNITS)).min(1)).default(['usd', 'sat']),
-  BELLOWS_DEFAULT_UNIT: z.enum(UNITS).default('usd'),
+  /**
+   * Unit of a call that names none: a 402 quote without X-Forge-Unit, a Lightning or other-mint funding without
+   * `unit`. A token, a balance key or an on-chain deposit carries its own unit and never falls back to this.
+   */
+  BELLOWS_DEFAULT_UNIT: z.enum(UNITS).default('sat'),
   /** Name shown in NUT-18 payment requests ("<name>: <model>"). */
   BELLOWS_SERVICE_NAME: z.string().trim().min(1).max(60).default('Bellows'),
   /** Optional gate: a new balance or a NUT-24 request needs an invite code. Off by default. */
@@ -259,6 +263,12 @@ const ModelSchema = z.object({
   name: z.string().optional(),
   input_usd_per_mtok: z.number().nonnegative(),
   output_usd_per_mtok: z.number().nonnegative(),
+  /**
+   * Supplier cost per million input tokens served from the supplier's prompt cache, in USD, when its rate
+   * card lists one (Tinfoil's cachedInputTokenPricePer1M). At most input_usd_per_mtok. Left out, cached
+   * input is charged at input_usd_per_mtok (docs/how-it-works/payments.md, Cached input).
+   */
+  cached_input_usd_per_mtok: z.number().nonnegative().optional(),
   /** true once the cost above has been checked against the supplier's rate card. */
   price_verified: z.boolean().default(false),
   max_output_tokens: z.number().int().positive().default(4096),
@@ -286,6 +296,8 @@ export const CatalogSchema = z
       if (ids.has(m.id)) ctx.addIssue({ code: 'custom', message: `duplicate model id ${m.id}` });
       ids.add(m.id);
       if (!c.suppliers[m.supplier]) ctx.addIssue({ code: 'custom', message: `model ${m.id}: unknown supplier ${m.supplier}` });
+      if (m.cached_input_usd_per_mtok !== undefined && m.cached_input_usd_per_mtok > m.input_usd_per_mtok)
+        ctx.addIssue({ code: 'custom', message: `model ${m.id}: cached_input_usd_per_mtok must not be above input_usd_per_mtok` });
     }
     for (const [id, s] of Object.entries(c.suppliers)) {
       if (s.pricing === 'flat' && !s.flat) ctx.addIssue({ code: 'custom', message: `supplier ${id}: flat pricing needs a flat schedule` });
@@ -368,7 +380,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env, catalogOverr
   const env = parsed.data;
   setMintAliases(env.BELLOWS_MINT_ALIASES);
   if (!env.BELLOWS_UNITS.includes(env.BELLOWS_DEFAULT_UNIT)) {
-    throw new Error('BELLOWS_DEFAULT_UNIT must be one of BELLOWS_UNITS');
+    throw new Error(`BELLOWS_DEFAULT_UNIT (${env.BELLOWS_DEFAULT_UNIT}) must be one of BELLOWS_UNITS (${env.BELLOWS_UNITS.join(', ')}); it defaults to sat, so an engine without sat must set it`);
   }
   ohttpAdmitPerSecond(env);
   const raw = catalogOverride ?? JSON.parse(readFileSync(resolve(env.BELLOWS_MODELS_FILE), 'utf8'));

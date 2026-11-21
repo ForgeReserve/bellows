@@ -74,8 +74,9 @@ containers:
       - BELLOWS_TRUSTED_MINTS: "https://forge.flashapp.me"
       - BELLOWS_MINT_ALIASES: "https://mint.forge-reserve.com=https://forge.flashapp.me"
       - BELLOWS_UNITS: "usd,sat"
-      - BELLOWS_DEFAULT_UNIT: "usd"
-      - BELLOWS_MARKUP: "1.25"
+      - BELLOWS_DEFAULT_UNIT: "sat"
+      # The reference instance charges the suppliers' cost with no margin; its operator pays the hosting.
+      - BELLOWS_MARKUP: "1"
       - BELLOWS_RATE_SOURCES: "coinbase,kraken,bitstamp"
       - BELLOWS_FOREIGN_DISCOVERY_RELAYS: "wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net"
       - BELLOWS_LOG_LEVEL: "info"

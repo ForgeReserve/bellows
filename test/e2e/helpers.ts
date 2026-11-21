@@ -157,6 +157,8 @@ export async function startGateway(
      * BELLOWS_INVITE_ONLY unset, so the engine's own default applies.
      */
     inviteOnly?: boolean;
+    /** Changes the test catalog before the gateway loads it (adds a model, sets a price). */
+    editCatalog?: (catalog: any) => void;
   } = {},
 ): Promise<Gateway> {
   const dbPath = opts.dbPath ?? join(mkdtempSync(join(tmpdir(), 'bellows-e2e-')), 'bellows.db');
@@ -179,6 +181,7 @@ export async function startGateway(
     ...opts.env,
   };
   const catalog = testCatalog(opts.enclavePort);
+  opts.editCatalog?.(catalog);
   const config = loadConfig(writeSecretsFile(dbPath, env, catalog) as NodeJS.ProcessEnv, catalog);
   const deps = buildDeps(config, { rateSources: [fixedRateSource('fixed', BTC_USD)], faults: opts.faults, fundingFaults: opts.fundingFaults });
   if (opts.recover !== false) await startupRecovery(deps);

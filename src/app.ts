@@ -18,7 +18,7 @@ import { OhttpGateway } from './ohttp.ts';
 import { OHTTP_KEYS_PATH, OHTTP_PATH } from '../client/ohttp.ts';
 import { parseUsageMetrics, USAGE_HEADER as TINFOIL_USAGE_HEADER } from './suppliers/tinfoil.ts';
 import { costFromHeaders, FrameCounter, SseMeter, usageFromJson } from './meter.ts';
-import { costNanoUsd, displayPrice, estimateTokensFromBytes, flatCostNanoUsd, MSUB_PER_UNIT, msubToUnitsCeil, nanoUsdToMsub, type Usage } from './pricing.ts';
+import { cachedInputTokens, costNanoUsd, displayPrice, estimateTokensFromBytes, flatCostNanoUsd, MSUB_PER_UNIT, msubToUnitsCeil, nanoUsdToMsub, type Usage } from './pricing.ts';
 import { POW_CHALLENGE_HEADER, POW_HEADER, PowGate } from './pow.ts';
 import { RateLimiter } from './ratelimit.ts';
 import type { RateOracle } from './rates.ts';
@@ -181,9 +181,20 @@ export function createApp(d: Deps) {
         max_output_tokens: m.max_output_tokens,
         pricing: {
           mode: s.pricing,
-          usd_per_mtok: { input: round(m.input_usd_per_mtok * env.BELLOWS_MARKUP), output: round(m.output_usd_per_mtok * env.BELLOWS_MARKUP) },
+          // cached_input: the price of input the supplier serves from its prompt cache, on a model whose
+          // supplier lists one (docs/how-it-works/payments.md, Cached input). Left out otherwise: cached input
+          // costs input.
+          usd_per_mtok: {
+            input: round(m.input_usd_per_mtok * env.BELLOWS_MARKUP),
+            output: round(m.output_usd_per_mtok * env.BELLOWS_MARKUP),
+            ...(m.cached_input_usd_per_mtok !== undefined ? { cached_input: round(m.cached_input_usd_per_mtok * env.BELLOWS_MARKUP) } : {}),
+          },
           sat_per_mtok: rate
-            ? { input: round(displayPrice(m.input_usd_per_mtok, env.BELLOWS_MARKUP, 'sat', rate)!), output: round(displayPrice(m.output_usd_per_mtok, env.BELLOWS_MARKUP, 'sat', rate)!) }
+            ? {
+                input: round(displayPrice(m.input_usd_per_mtok, env.BELLOWS_MARKUP, 'sat', rate)!),
+                output: round(displayPrice(m.output_usd_per_mtok, env.BELLOWS_MARKUP, 'sat', rate)!),
+                ...(m.cached_input_usd_per_mtok !== undefined ? { cached_input: round(displayPrice(m.cached_input_usd_per_mtok, env.BELLOWS_MARKUP, 'sat', rate)!) } : {}),
+              }
             : null,
           verified: m.price_verified,
         },
@@ -356,8 +367,14 @@ export function createApp(d: Deps) {
       throw new PaymentError('invalid_request', 'expected a JSON body');
     }
   };
-  const unitOf = (v: unknown): Unit => {
-    const u = String(v ?? env.BELLOWS_DEFAULT_UNIT) as Unit;
+  /**
+   * The unit of a funding. A unit the call names is used as given. A call that names none is in the unit of
+   * the balance its key opens, and only a call with no such balance (a new one) is in BELLOWS_DEFAULT_UNIT.
+   * An unknown key gets the default here and is judged by openAccount exactly as before.
+   */
+  const unitOf = (c: Context, v: unknown): Unit => {
+    const key = v == null ? bearer(c) : undefined;
+    const u = String(v ?? (key ? ledger.findByKey(key)?.unit : undefined) ?? env.BELLOWS_DEFAULT_UNIT) as Unit;
     if (!env.BELLOWS_UNITS.includes(u)) throw new PaymentError('wrong_unit', `unit must be one of ${env.BELLOWS_UNITS.join(', ')}`);
     return u;
   };
@@ -383,7 +400,7 @@ export function createApp(d: Deps) {
 
   app.post('/v1/wallet/fund/lightning', async (c) => {
     const body = await readJson(c);
-    const unit = unitOf(body?.unit);
+    const unit = unitOf(c, body?.unit);
     const amount = Number(body?.amount);
     if (!Number.isInteger(amount) || amount < 1) return apiError(c, 400, 'invalid_amount', 'amount must be a whole number of units');
     const { result, key } = await withAccount(c, unit, body?.invite, (id) => funding.createLightning(id, unit, amount));
@@ -398,7 +415,7 @@ export function createApp(d: Deps) {
 
   app.post('/v1/wallet/fund/foreign/quote', async (c) => {
     const body = await readJson(c);
-    const unit = unitOf(body?.unit);
+    const unit = unitOf(c, body?.unit);
     const token = String(body?.token ?? '').trim();
     if (!token.startsWith('cashuB')) return apiError(c, 400, 'invalid_token', 'expected a cashuB token');
     const lockPubkey = parseOptionalLockPubkey(body?.pubkey);
@@ -699,6 +716,18 @@ export function createApp(d: Deps) {
             costSource = 'catalog';
           }
         }
+        // The input tokens the supplier served from its cache (0 when it reported none), bounded to the input
+        // tokens: added to the day's aggregate and logged as charged (at the cached price on a model that has
+        // one). Counted on every model, also one without a cached price.
+        const cachedTokens = usage ? cachedInputTokens(usage) : undefined;
+        // Cross-check: the supplier's own cost against the same usage at catalog cost (no markup). They
+        // differ when the catalog is out of date with the supplier's rate card, or a figure is wrong.
+        if (costSource === 'supplier' && !alwaysFlat && source !== 'flat') {
+          const catalogNusd = Math.round(costNanoUsd(model, usage!, 1));
+          if (Math.abs(catalogNusd - costNusd!) > Math.max(1000, costNusd! * 0.01)) {
+            log.warn('supplier_cost_differs', { request_id: requestId, model: model.id, supplier_cost_nusd: costNusd, catalog_cost_nusd: catalogNusd, input_tokens: usage!.inputTokens, cached_input_tokens: cachedTokens, output_tokens: usage!.outputTokens });
+          }
+        }
         const res: SettleResult = { chargedMsub: 0 };
         const ok = status === 'ok' || status === 'partial';
         const m = model;
@@ -727,6 +756,7 @@ export function createApp(d: Deps) {
             nut24: pay.kind === 'nut24',
             estimated: source === 'estimate' || source === 'flat',
             inputTokens: usage?.inputTokens ?? null,
+            cachedInputTokens: cachedTokens ?? 0,
             outputTokens: usage?.outputTokens ?? null,
             chargedMsub: res.chargedMsub,
             shortfallMsub: res.shortfallMsub ?? 0,
@@ -753,6 +783,7 @@ export function createApp(d: Deps) {
           encrypted,
           stream,
           input_tokens: usage?.inputTokens,
+          cached_input_tokens: cachedTokens,
           output_tokens: usage?.outputTokens,
           usage_source: source,
           cost_nusd: costNusd,
@@ -899,8 +930,18 @@ export function createApp(d: Deps) {
       } catch {
         /* ignore */
       }
-      const headerCost = costFromHeaders(res.headers) ?? parseUsageMetrics(res.headers.get(TINFOIL_USAGE_HEADER) ?? undefined)?.costUsd;
+      const metrics = parseUsageMetrics(res.headers.get(TINFOIL_USAGE_HEADER) ?? undefined);
+      const headerCost = costFromHeaders(res.headers) ?? metrics?.costUsd;
       if (usage && usage.costUsd === undefined && headerCost !== undefined) usage.costUsd = headerCost;
+      // Cached input: Tinfoil bills by its usage metrics, so their count is charged when they carry one; the
+      // body's prompt_tokens_details.cached_tokens only when they do not. Its router derives both from one
+      // figure, so a difference is logged (counts only). Either is bounded to the input tokens when charged.
+      if (usage && metrics?.cachedInputTokens !== undefined) {
+        if (usage.cachedInputTokens !== undefined && usage.cachedInputTokens !== metrics.cachedInputTokens) {
+          log.warn('cached_tokens_differ', { request_id: requestId, model: model.id, body_cached_tokens: usage.cachedInputTokens, metrics_cached_tokens: metrics.cachedInputTokens });
+        }
+        usage.cachedInputTokens = metrics.cachedInputTokens;
+      }
       if (!usage) {
         source = flat ? 'flat' : 'estimate';
         usage = { inputTokens: estimateInput(), outputTokens: maxOut };

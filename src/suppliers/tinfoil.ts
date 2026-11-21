@@ -7,7 +7,12 @@ import { type EncryptedCall, type EncryptedResponse, type ReportedUsage, Upstrea
 export const USAGE_REQUEST_HEADER = 'x-tinfoil-request-usage-metrics';
 export const USAGE_HEADER = 'x-tinfoil-usage-metrics';
 
-/** Parses `prompt=67,completion=42,total=109,model=gpt-oss-120b,cost_usd=0.000042`. */
+/**
+ * Parses `prompt=67,completion=42,total=109,model=gpt-oss-120b,cost_usd=0.000042`, with the optional
+ * `cached_prompt_tokens` (the part of `prompt` served from Tinfoil's prompt cache; `uncached_prompt_tokens`
+ * is the rest; docs.tinfoil.sh/guides/proxy-server, usage metrics). `cost_usd` is Tinfoil's price for the
+ * request at its published rates, cached input at the cached rate.
+ */
 export function parseUsageMetrics(v: string | string[] | undefined): ReportedUsage | undefined {
   const s = Array.isArray(v) ? v[0] : v;
   if (!s) return undefined;
@@ -20,7 +25,11 @@ export function parseUsageMetrics(v: string | string[] | undefined): ReportedUsa
   const completion = Number(map.get('completion'));
   if (!Number.isFinite(prompt) || !Number.isFinite(completion) || prompt < 0 || completion < 0) return undefined;
   const cost = map.has('cost_usd') ? Number(map.get('cost_usd')) : undefined;
-  return { inputTokens: prompt, outputTokens: completion, costUsd: Number.isFinite(cost) ? cost : undefined };
+  const out: ReportedUsage = { inputTokens: prompt, outputTokens: completion, costUsd: Number.isFinite(cost) ? cost : undefined };
+  // A plain number at least 0, else left out; bounded by pricing.ts cachedInputTokens when it is charged.
+  const cached = map.has('cached_prompt_tokens') ? Number(map.get('cached_prompt_tokens')) : NaN;
+  if (Number.isFinite(cached) && cached >= 0) out.cachedInputTokens = cached;
+  return out;
 }
 
 /**

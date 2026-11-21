@@ -9,8 +9,14 @@ import type { FlatPricing, ModelConfig, Unit } from './config.ts';
 export const MSUB_PER_UNIT = 1000;
 
 export interface Usage {
+  /** Every input token of the request, cached ones included. */
   inputTokens: number;
   outputTokens: number;
+  /**
+   * How many of the input tokens the supplier served from its prompt cache, when it reports it (Tinfoil's
+   * prompt_tokens_details.cached_tokens or cached_prompt_tokens). Read through cachedInputTokens, never directly.
+   */
+  cachedInputTokens?: number;
   /** What the supplier says this request cost us, in USD, when it reports it. */
   costUsd?: number;
 }
@@ -20,11 +26,32 @@ export function nanoUsdPerToken(usdPerMtok: number, markup: number): number {
   return Math.ceil(usdPerMtok * markup * 1000 - 1e-9);
 }
 
-export function costNanoUsd(model: Pick<ModelConfig, 'input_usd_per_mtok' | 'output_usd_per_mtok'>, usage: Usage, markup: number): number {
-  return (
-    usage.inputTokens * nanoUsdPerToken(model.input_usd_per_mtok, markup) +
-    usage.outputTokens * nanoUsdPerToken(model.output_usd_per_mtok, markup)
-  );
+/** The model fields a token price is computed from. */
+export type TokenPrices = Pick<ModelConfig, 'input_usd_per_mtok' | 'output_usd_per_mtok'> & Partial<Pick<ModelConfig, 'cached_input_usd_per_mtok'>>;
+
+/**
+ * The cached input tokens a usage may be charged at the cached price: a whole number from 0 to the input
+ * tokens. A value that is missing, negative, not a whole number or not finite counts as 0, and one above
+ * the input tokens counts as all of them, so a wrong or hostile supplier figure can only charge at most
+ * the full input price and never less than the cached price for the input reported.
+ */
+export function cachedInputTokens(usage: Pick<Usage, 'inputTokens' | 'cachedInputTokens'>): number {
+  const c = usage.cachedInputTokens;
+  if (typeof c !== 'number' || !Number.isSafeInteger(c) || c <= 0) return 0;
+  const input = Number.isFinite(usage.inputTokens) ? Math.max(0, Math.floor(usage.inputTokens)) : 0;
+  return Math.min(c, input);
+}
+
+/**
+ * The tokens at the model's prices with markup. Input the supplier served from its cache is charged at
+ * the model's cached input price when it has one (cached_input_usd_per_mtok), else at the input price.
+ */
+export function costNanoUsd(model: TokenPrices, usage: Usage, markup: number): number {
+  const cached = cachedInputTokens(usage);
+  const inputPrice = nanoUsdPerToken(model.input_usd_per_mtok, markup);
+  // The catalog keeps the cached price at most the input price; Math.min keeps that true here too.
+  const cachedPrice = model.cached_input_usd_per_mtok === undefined ? inputPrice : Math.min(inputPrice, nanoUsdPerToken(model.cached_input_usd_per_mtok, markup));
+  return (usage.inputTokens - cached) * inputPrice + cached * cachedPrice + usage.outputTokens * nanoUsdPerToken(model.output_usd_per_mtok, markup);
 }
 
 export function flatCostNanoUsd(flat: FlatPricing, bodyBytes: number, maxOutputTokens: number, markup: number): number {

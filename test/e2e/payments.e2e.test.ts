@@ -39,7 +39,7 @@ describe.skipIf(!up)('NUT-24 pay per request', () => {
   });
 
   it('402 carries a NUT-18 creqA request; paying returns the answer and exact change', async () => {
-    const res = await post(chatBody('mock-echo'), { 'X-Forge-Invite': invite });
+    const res = await post(chatBody('mock-echo'), { 'X-Forge-Invite': invite, 'X-Forge-Unit': 'usd' });
     expect(res.status).toBe(402);
     const creq = res.headers.get('x-cashu')!;
     expect(creq.startsWith('creqA')).toBe(true);
@@ -114,6 +114,16 @@ describe.skipIf(!up)('NUT-24 pay per request', () => {
     // $0.013 at $100k/BTC = 13 sat = 13000 msat
     expect(Number(ok.headers.get('x-forge-charged-msub'))).toBe(13_000);
     expect(await redeem(ok.headers.get('x-cashu-change')!, MINT_A, 'sat')).toBe(pr.amount!.toNumber() - 13);
+  });
+
+  it('asks a client that names no unit for sat, the default unit', async () => {
+    const res = await post(chatBody('mock-echo'), { 'X-Forge-Invite': invite });
+    expect(res.status).toBe(402);
+    const pr = PaymentRequest.fromEncodedRequest(res.headers.get('x-cashu')!);
+    expect(pr.unit).toBe('sat');
+    expect((await res.json()).unit).toBe('sat');
+    const named = await post(chatBody('mock-echo'), { 'X-Forge-Invite': invite, 'X-Forge-Unit': 'sat' });
+    expect(PaymentRequest.fromEncodedRequest(named.headers.get('x-cashu')!).amount!.toNumber()).toBe(pr.amount!.toNumber());
   });
 
   it('upstream failure charges nothing and returns all change', async () => {

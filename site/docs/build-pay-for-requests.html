@@ -171,22 +171,25 @@ jq '{id, state, request}' &lt;&lt;&lt;&quot;$FUNDING&quot;      # request is the
 ID=$(jq -r .id &lt;&lt;&lt;&quot;$FUNDING&quot;)
 
 curl -s $B/v1/wallet/fund/$ID -H &quot;authorization: Bearer $KEY&quot; | jq '{state, credited}'</code></pre>
-<p>Poll the funding until <code>state</code> is <code>done</code> (or <code>expired</code>). Polling also moves it forward. Other funding methods (a bitcoin deposit, eCash from another mint) are in <a href="api.html#funding-a-balance">API reference</a>.</p>
+<p>Poll the funding until <code>state</code> is <code>done</code> (or <code>expired</code>). Polling also moves it forward.</p>
+<p>To top up the same balance later, send the same key. Without <code>unit</code>, a funding is in the balance's own unit, so <code>{&quot;amount&quot;: 500}</code> on a usd balance is 500 cents; naming the other unit gets <code>400 wrong_unit</code>. A new balance opened without <code>unit</code> is in the engine's default unit, <code>sat</code> unless its operator chose <code>usd</code>.</p>
+<p>Other funding methods (a bitcoin deposit, eCash from another mint) are in <a href="api.html#funding-a-balance">API reference</a>.</p>
 <h2 id="pay-per-request-nut-24">Pay per request (NUT-24)<a class="anchor" href="#pay-per-request-nut-24" aria-hidden="true" tabindex="-1">#</a></h2>
-<p>Send a chat request with no credentials. The answer is <code>402</code> with a NUT-18 payment request in <code>X-Cashu</code> and the amount in the body:</p>
+<p>Send a chat request with no credentials. The answer is <code>402</code> with a NUT-18 payment request in <code>X-Cashu</code> and the amount in the body. A request that names no unit is asked in the engine's default unit, which is <code>sat</code> unless its operator chose <code>usd</code>:</p>
 <pre tabindex="0" data-lang="sh"><code class="language-sh">curl -s -i $B/v1/chat/completions -H 'content-type: application/json' \
   -d '{&quot;model&quot;: &quot;mock-echo&quot;, &quot;messages&quot;: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Hello&quot;}]}'
 # HTTP/1.1 402 Payment Required
 # x-cashu: creqA...
-# {&quot;error&quot;:{...,&quot;code&quot;:&quot;payment_required&quot;},&quot;payment_request&quot;:&quot;creqA...&quot;,&quot;amount&quot;:7,&quot;unit&quot;:&quot;usd&quot;,&quot;mints&quot;:[&quot;http://127.0.0.1:3338&quot;]}</code></pre>
+# {&quot;error&quot;:{...,&quot;code&quot;:&quot;payment_required&quot;},&quot;payment_request&quot;:&quot;creqA...&quot;,&quot;amount&quot;:113,&quot;unit&quot;:&quot;sat&quot;,&quot;mints&quot;:[&quot;http://127.0.0.1:3338&quot;]}</code></pre>
+<p>Add <code>-H 'X-Forge-Unit: usd'</code> to be asked in cents instead (<code>&quot;amount&quot;:7,&quot;unit&quot;:&quot;usd&quot;</code> for the same request). A sat amount carries a small buffer for rate movement, which comes back as change.</p>
 <p>Pay <code>amount</code> in <code>unit</code> at one of <code>mints</code>: send the same request again with <code>X-Cashu: cashuB...</code>. The amount is the request's maximum cost. The engine charges what the request used and returns the rest as eCash change: in the <code>X-Cashu-Change</code> header, in the final <code>event: forge</code> of a stream, and at <code>GET /v1/change/{request_id}</code> (the <code>X-Forge-Change-Url</code> header). Add <code>X-Cashu-Pubkey: 02...</code> to lock the change to your wallet key, so that only the holder of the private key can redeem it.</p>
 <p><code>examples/agent-pays.ts</code> does all of this with cashu-ts. Against a local engine it can mint its own test eCash:</p>
 <pre tabindex="0" data-lang="sh"><code class="language-sh">BELLOWS_URL=http://localhost:8787 DEMO_FAKE_MINT=1 pnpm demo:agent &quot;What is eCash?&quot;
-# 402 Payment Required: 7 cents (usd) from one of http://127.0.0.1:3338
+# 402 Payment Required: 113 sat from one of http://127.0.0.1:3338
 # Answer: ...
-# Charged: 1 cents
-# Change returned: 6 cents; ...</code></pre>
-<p>Set <code>CASHU_PUBKEY=generate</code> to lock the change to a fresh key for the run. Against a real engine, set <code>CASHU_TOKEN=cashuB...</code> to spend real eCash.</p>
+# Charged: 3 sat
+# Change returned: 110 sat; ...</code></pre>
+<p>Set <code>CASHU_PUBKEY=generate</code> to lock the change to a fresh key for the run. Against a real engine, set <code>CASHU_TOKEN=cashuB...</code> to spend real eCash; the example then asks to be paid in that token's unit. <code>UNIT=usd</code> or <code>UNIT=sat</code> names the unit yourself.</p>
 </article>
 <nav class="pager" aria-label="Previous and next page">
 <a class="pager-prev" rel="prev" href="build-list-models.html"><span>Previous</span>List models</a>

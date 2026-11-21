@@ -1,11 +1,11 @@
 /**
  * Mints test eCash from a local FakeWallet mint (docker-compose.test.yml). Never point this at a real mint.
- *   pnpm test-token [amount=50] [unit=usd] [mint=http://127.0.0.1:3338]
+ *   pnpm test-token [amount=50] [unit=sat] [mint=http://127.0.0.1:3338]
  */
 import { getEncodedToken, Wallet } from '@cashu/cashu-ts';
 
 const amount = Number(process.argv[2] ?? 50);
-const unit = process.argv[3] ?? 'usd';
+const unit = process.argv[3] ?? 'sat';
 const mint = process.argv[4] ?? 'http://127.0.0.1:3338';
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(mint)) throw new Error('test-token only talks to a local test mint');
 const w = new Wallet(mint, { unit });

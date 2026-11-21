@@ -1,5 +1,5 @@
 {
-  "_comment": "Local development catalog: the mock supplier plus the real ones. Mock prices are arbitrary test values.",
+  "_comment": "Local development catalog: the mock supplier plus the real ones. Mock prices are arbitrary test values. The Tinfoil models carry the same prices as config/models.json, cached input prices included.",
   "suppliers": {
     "tokenfactory": {
       "type": "openai",
@@ -252,6 +252,7 @@
       "supplier": "tinfoil",
       "upstream": "kimi-k3-1-pro",
       "input_usd_per_mtok": 4,
+      "cached_input_usd_per_mtok": 0.4,
       "output_usd_per_mtok": 20,
       "price_verified": true,
       "max_output_tokens": 8192,
@@ -270,6 +271,7 @@
       "supplier": "tinfoil",
       "upstream": "glm-5-3",
       "input_usd_per_mtok": 1.8,
+      "cached_input_usd_per_mtok": 0.45,
       "output_usd_per_mtok": 5.75,
       "price_verified": true,
       "max_output_tokens": 8192,
@@ -288,6 +290,7 @@
       "supplier": "tinfoil",
       "upstream": "deepseek-v4-1-flash",
       "input_usd_per_mtok": 0.6,
+      "cached_input_usd_per_mtok": 0.01,
       "output_usd_per_mtok": 1.45,
       "price_verified": true,
       "max_output_tokens": 8192,
