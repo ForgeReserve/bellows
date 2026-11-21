@@ -86,6 +86,7 @@ Pick what you want to do. The [docs home](docs/README.md) lists every page.
 | Check which build a Bellows runs | [Building and verifying](docs/verify/README.md) and [Attested identity](docs/verify/attestation.md) |
 | Understand how it works and what it hides | [How it works](docs/how-it-works/README.md): design, payments, Oblivious HTTP, privacy and the threat model |
 | Contribute code or docs | [CONTRIBUTING.md](CONTRIBUTING.md) and [Contributing docs](docs/contributing/README.md) |
+| Report a security problem | [SECURITY.md](SECURITY.md) |
 
 ## License
 

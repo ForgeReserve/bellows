@@ -90,6 +90,14 @@ Some files carry extra weight:
 
 Ask in [GitHub issues](https://github.com/ForgeReserve/bellows/issues). Leave keys, tokens and secrets out of anything you post.
 
+## Security problems
+
+Report a security problem by email, as [SECURITY.md](SECURITY.md) describes, and keep it out of public issues.
+
+## How we treat each other
+
+Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
-Bellows is MIT licensed. See [LICENSE](LICENSE).
+Bellows is MIT licensed. See [LICENSE](LICENSE). A contribution you send is accepted under the same license.
